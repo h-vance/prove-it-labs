@@ -1,0 +1,32 @@
+id: kubernetes/05-healthy-pods-still-no-traffic
+track: kubernetes
+title: Same symptom as the last ticket, and the labels are correct
+proof_question: Can I prove why a running pod is being excluded from its Service?
+stack: kind
+tier: core
+difficulty: 3
+minutes: 35
+prerequisites:
+  - kubernetes/04-service-reachable-but-returns-nothing
+
+commands_introduced:
+  - kubectl get pods
+  - kubectl describe pod
+  - kubectl get endpointslices
+
+evidence_layers:
+  - ready column versus status column
+  - probe configuration
+  - endpoint readiness conditions
+
+interview_relevance: >
+  This is the follow-up an interviewer asks after you solve the selector
+  version. Running and Ready are different columns for a reason, and a pod that
+  is Running but not Ready is deliberately kept out of its Service. Candidates
+  who fixed the previous ticket by pattern often check labels, find them
+  correct, and stall.
+
+teaches: >
+  Readiness is a routing decision, not a health opinion. A failing readiness
+  probe removes a pod from its Service while leaving the container running and
+  the logs clean.

@@ -1,0 +1,31 @@
+id: kubernetes/03-orders-service-keeps-dying
+track: kubernetes
+title: The service restarts every few minutes and nobody changed the code
+proof_question: Can I prove whether the application crashed or was killed?
+stack: kind
+tier: core
+difficulty: 3
+minutes: 35
+prerequisites:
+  - kubernetes/02-service-down-with-no-logs
+
+commands_introduced:
+  - kubectl describe pod
+  - kubectl logs --previous
+  - kubectl get pod -o jsonpath
+
+evidence_layers:
+  - last terminated state
+  - exit code
+  - resource limits
+
+interview_relevance: >
+  Distinguishing an application crash from a platform kill is a senior-sounding
+  distinction that is genuinely easy once you know where to look. Exit code 137
+  and a Reason of OOMKilled mean the kernel stopped the process, which is a
+  completely different conversation from a stack trace.
+
+teaches: >
+  A restarting container has two histories, and the useful one belongs to the
+  instance that already died. Read the previous logs and the last terminated
+  state before the current ones.

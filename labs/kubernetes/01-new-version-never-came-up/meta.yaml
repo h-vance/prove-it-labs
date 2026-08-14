@@ -1,0 +1,31 @@
+id: kubernetes/01-new-version-never-came-up
+track: kubernetes
+title: A release went out and the new version never arrived
+proof_question: Can I prove whether the workload was ever able to start?
+stack: kind
+tier: core
+difficulty: 2
+minutes: 30
+prerequisites: []
+
+commands_introduced:
+  - kubectl get pods
+  - kubectl describe pod
+  - kubectl get events
+  - kubectl rollout status
+
+evidence_layers:
+  - pod phase and container state
+  - cluster events
+  - image reference
+
+interview_relevance: >
+  The first Kubernetes question most candidates get, and the one where reaching
+  for logs immediately marks you out. A container that never started has no
+  logs to read, and knowing to go to describe and events instead is the whole
+  answer.
+
+teaches: >
+  Pod state and container state are different things. A pod can be scheduled
+  and still have a container that has never run, and the reason lives in the
+  events rather than in the application.

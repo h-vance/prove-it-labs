@@ -74,7 +74,9 @@ else
     fail "list --ids is a non-empty JSON array"
 fi
 
-if [[ -z $("$TSE" list --track kubernetes --ids | tr -d '[]') ]]; then
+# Deliberately a name no track will ever have. Naming a real-but-empty track
+# here would turn building that track into a failing test.
+if [[ -z $("$TSE" list --track no-such-track --ids | tr -d '[]') ]]; then
     pass "list --track handles a track with no exercises"
 else
     fail "list --track handles a track with no exercises"

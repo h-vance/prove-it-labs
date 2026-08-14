@@ -52,13 +52,21 @@ jobs:
     name: ${{ matrix.exercise }}
     needs: discover
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
         exercise: ${{ fromJSON(needs.discover.outputs.exercises) }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      # tse creates and reuses its own cluster, so only the binary is needed.
+      # The Kubernetes exercises are the only ones that touch it.
+      - name: Install kind
+        if: startsWith(matrix.exercise, 'kubernetes/')
+        run: |
+          curl -fsSLo /tmp/kind https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64
+          sudo install -m 0755 /tmp/kind /usr/local/bin/kind
 
       # An exercise is only correct if it fails in its broken state and passes
       # against its documented solution. Asserting only the second half would

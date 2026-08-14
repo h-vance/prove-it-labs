@@ -96,8 +96,8 @@ prose, which includes a lot of very good engineers.
 |---|---|---|
 | Docker | 3 | Available |
 | APIs | 4 | Available |
-| Kubernetes | | Next |
-| SQL and PostgreSQL | | Planned |
+| Kubernetes | 5 | Available |
+| SQL and PostgreSQL | | Next |
 | Linux and CLI foundations | | Planned |
 | Networking, DNS, TLS | | Planned |
 | Observability | | Planned |
@@ -105,9 +105,18 @@ prose, which includes a lot of very good engineers.
 | Mixed incidents | | Planned |
 
 Some exercises are built as pairs on purpose. `docker/02` and `docker/03`
-present the customer with the same symptom and resolve to different causes,
-because learning a fix rather than a method is the failure mode this course is
-trying to prevent.
+present the customer with the same symptom and resolve to different causes, as
+do `kubernetes/04` and `kubernetes/05`. In each pair the second ticket has the
+customer confidently rule out the previous cause, and be right to. Learning a
+fix rather than a method is the failure mode this course is trying to prevent.
+
+The Kubernetes track needs a cluster. `tse` creates and reuses one for you:
+
+```bash
+tse cluster up       # once, takes about a minute
+tse cluster status
+tse cluster down
+```
 
 ## Verification
 

@@ -1,0 +1,31 @@
+id: kubernetes/04-service-reachable-but-returns-nothing
+track: kubernetes
+title: Every pod is healthy and the service still answers nothing
+proof_question: Can I prove whether the Service is actually routing to any pods?
+stack: kind
+tier: core
+difficulty: 3
+minutes: 35
+prerequisites:
+  - kubernetes/01-new-version-never-came-up
+
+commands_introduced:
+  - kubectl get endpointslices
+  - kubectl get pods --show-labels
+  - kubectl describe service
+
+evidence_layers:
+  - pod readiness
+  - service selector and pod labels
+  - endpoints
+
+interview_relevance: >
+  The classic Kubernetes networking question. Everything you look at first
+  reports healthy, which is why candidates loop on pods and logs. Knowing that
+  a Service is just a label query, and that its EndpointSlice is where that
+  query's result becomes visible, is the whole test.
+
+teaches: >
+  A Service is a label selector, not a link. It can exist, resolve, and accept
+  connections while selecting nothing at all, and the endpoints are the only
+  place that emptiness is visible.

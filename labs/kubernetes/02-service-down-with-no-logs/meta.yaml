@@ -1,0 +1,31 @@
+id: kubernetes/02-service-down-with-no-logs
+track: kubernetes
+title: The service is down and there are no logs at all
+proof_question: Can I prove why a container never started, when it has produced no output?
+stack: kind
+tier: core
+difficulty: 3
+minutes: 35
+prerequisites:
+  - kubernetes/01-new-version-never-came-up
+
+commands_introduced:
+  - kubectl describe pod
+  - kubectl get events --sort-by
+  - kubectl get configmap -o yaml
+
+evidence_layers:
+  - container state and reason
+  - cluster events
+  - configuration references
+
+interview_relevance: >
+  An absence of logs is treated as a dead end by most candidates, and it is
+  actually a strong signal. It narrows the failure to everything that happens
+  before the process runs: image, config references, secrets, mounts, and
+  permissions. Saying that out loud is a very good answer.
+
+teaches: >
+  Empty logs are evidence, not a lack of it. They prove the container never
+  reached your code, which rules out the application entirely and points at the
+  wiring Kubernetes does on its behalf.

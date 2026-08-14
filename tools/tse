@@ -12,6 +12,7 @@ import json
 import os
 import shutil
 import subprocess
+import tempfile
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -266,6 +267,68 @@ def current_exercise() -> Exercise:
 # Stack adapters
 # --------------------------------------------------------------------------- #
 
+KIND_CLUSTER = "proveit"
+KIND_CONTEXT = f"kind-{KIND_CLUSTER}"
+LAB_NAMESPACE = "tse-training"
+# Pre-loaded into the node so exercises start without a registry round trip,
+# and so a deliberate ImagePullBackOff is the only pull failure a learner sees.
+KIND_IMAGES = ["python:3.12-alpine"]
+
+
+def kubectl(*args: str) -> list[str]:
+    return ["kubectl", "--context", KIND_CONTEXT, *args]
+
+
+def cluster_exists() -> bool:
+    result = subprocess.run(["kind", "get", "clusters"], capture_output=True, text=True)
+    return KIND_CLUSTER in result.stdout.split()
+
+
+def ensure_cluster() -> None:
+    """Create the shared cluster once, then reuse it for every exercise.
+
+    Creating a cluster per exercise would add roughly a minute to every start
+    for no teaching value. The namespace is the unit that gets torn down.
+    """
+    if cluster_exists():
+        return
+
+    config = LABS / "kubernetes" / "_stack" / "kind-cluster.yaml"
+    print(f"{DIM}Creating the {KIND_CLUSTER} cluster. This happens once and takes a minute.{OFF}")
+    run(["kind", "create", "cluster", "--name", KIND_CLUSTER, "--config", str(config)])
+
+    # Preloading has to go through a single-platform archive. `kind load
+    # docker-image` imports with --all-platforms, which Docker's containerd
+    # image store answers with a multi-arch manifest whose per-platform content
+    # is not present locally, and the import fails on a missing digest.
+    machine = subprocess.run(["uname", "-m"], capture_output=True, text=True).stdout.strip()
+    platform = "linux/arm64" if machine in {"arm64", "aarch64"} else "linux/amd64"
+
+    for image in KIND_IMAGES:
+        archive = Path(tempfile.gettempdir()) / f"tse-{image.replace(':', '-').replace('/', '-')}.tar"
+        pulled = subprocess.run(
+            ["docker", "pull", "-q", "--platform", platform, image], capture_output=True
+        )
+        saved = subprocess.run(
+            ["docker", "save", "--platform", platform, image, "-o", str(archive)],
+            capture_output=True,
+        )
+        if pulled.returncode == 0 and saved.returncode == 0:
+            run(["kind", "load", "image-archive", str(archive), "--name", KIND_CLUSTER], check=False)
+        else:
+            # Not fatal. The cluster will pull it from the registry instead.
+            print(f"{DIM}Could not preload {image}; the cluster will pull it.{OFF}")
+        archive.unlink(missing_ok=True)
+
+
+def reset_namespace() -> None:
+    subprocess.run(
+        kubectl("delete", "namespace", LAB_NAMESPACE, "--ignore-not-found", "--wait=true"),
+        check=False,
+        capture_output=True,
+    )
+
+
 def compose_command(exercise: Exercise) -> list[str]:
     stack = exercise.stack_dir()
     command = ["docker", "compose", "-f", str(stack / "compose.yaml")]
@@ -283,7 +346,10 @@ def managed_files(track: str) -> set[str]:
     """
     names: set[str] = set()
     for exercise in load_exercises():
-        if exercise.track != track:
+        # Only compose exercises copy files into a shared stack directory.
+        # Kubernetes manifests are applied to a cluster and stay in the
+        # exercise, so they are committed source rather than generated state.
+        if exercise.track != track or exercise.stack != "compose":
             continue
         for variant in ("setup", "solution"):
             directory = exercise.path / variant
@@ -301,15 +367,23 @@ def provision(exercise: Exercise, *, variant: str) -> None:
     if exercise.stack == "none":
         return
 
+    source_dir = exercise.path / variant
+    if not source_dir.is_dir():
+        sys.exit(f"tse: {exercise.id} has no {variant}/ directory")
+
+    if exercise.stack == "kind":
+        ensure_cluster()
+        reset_namespace()
+        run(kubectl("apply", "-f", str(exercise.stack_dir() / "base.yaml")))
+        for manifest in sorted(source_dir.glob("*.yaml")):
+            run(kubectl("apply", "-n", LAB_NAMESPACE, "-f", str(manifest)))
+        return
+
     if exercise.stack != "compose":
         sys.exit(
             f"tse: the {exercise.stack!r} stack is not implemented yet.\n"
             f"     {exercise.id} cannot be started in this phase of the course."
         )
-
-    source_dir = exercise.path / variant
-    if not source_dir.is_dir():
-        sys.exit(f"tse: {exercise.id} has no {variant}/ directory")
 
     stack = exercise.stack_dir()
     for name in managed_files(exercise.track):
@@ -325,6 +399,12 @@ def provision(exercise: Exercise, *, variant: str) -> None:
 
 
 def teardown(exercise: Exercise) -> None:
+    if exercise.stack == "kind":
+        # The namespace goes, the cluster stays. Rebuilding the cluster between
+        # exercises would cost a minute each time and prove nothing.
+        if cluster_exists():
+            reset_namespace()
+        return
     if exercise.stack != "compose":
         return
     run(compose_command(exercise) + ["down", "--remove-orphans"], check=False)
@@ -465,6 +545,14 @@ def cmd_answer(args: argparse.Namespace) -> None:
 def cmd_apply(args: argparse.Namespace) -> None:
     """Recreate the services from the learner's edited configuration."""
     exercise = current_exercise()
+    if exercise.stack == "kind":
+        sys.exit(
+            "tse: the Kubernetes track has no apply step.\n"
+            "     Change the cluster directly, the way you would in production:\n"
+            f"       kubectl -n {LAB_NAMESPACE} edit deployment/<name>\n"
+            f"       kubectl -n {LAB_NAMESPACE} set image ...\n"
+            "     Then run `tse check`."
+        )
     if exercise.stack != "compose":
         sys.exit(f"tse: apply is not used by the {exercise.stack!r} stack")
     run(compose_command(exercise) + ["up", "-d", "--build", "--force-recreate"])
@@ -488,6 +576,24 @@ def cmd_stop(args: argparse.Namespace) -> None:
     state["current"] = None
     write_state(state)
     print(f"Stopped {exercise.id}.")
+
+
+def cmd_cluster(args: argparse.Namespace) -> None:
+    if args.action == "up":
+        ensure_cluster()
+        print(f"{GREEN}Cluster {KIND_CLUSTER} is ready.{OFF}")
+    elif args.action == "down":
+        if not cluster_exists():
+            print(f"Cluster {KIND_CLUSTER} does not exist.")
+            return
+        run(["kind", "delete", "cluster", "--name", KIND_CLUSTER])
+    else:
+        if not cluster_exists():
+            print(f"Cluster {KIND_CLUSTER} does not exist. Create it with `tse cluster up`.")
+            return
+        print(f"{GREEN}Cluster {KIND_CLUSTER} exists.{OFF}")
+        subprocess.run(kubectl("get", "nodes"), check=False)
+        subprocess.run(kubectl("get", "all", "-n", LAB_NAMESPACE), check=False)
 
 
 def cmd_progress(args: argparse.Namespace) -> None:
@@ -684,6 +790,10 @@ def main() -> None:
     p = sub.add_parser("progress", help="show or export progress")
     p.add_argument("--json", action="store_true", help="emit JSON for the site to import")
     p.set_defaults(func=cmd_progress)
+
+    p = sub.add_parser("cluster", help="manage the shared Kubernetes lab cluster")
+    p.add_argument("action", choices=["up", "down", "status"], nargs="?", default="status")
+    p.set_defaults(func=cmd_cluster)
 
     p = sub.add_parser("doctor", help="verify this machine can run the labs")
     p.set_defaults(func=cmd_doctor)
