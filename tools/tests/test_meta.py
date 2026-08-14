@@ -67,16 +67,25 @@ class ParseLists(unittest.TestCase):
 class ParseFoldedBlocks(unittest.TestCase):
     def test_folded_block_joins_with_spaces(self):
         meta = parse_meta("teaches: >\n  first line\n  second line\n", "t")
-        self.assertEqual(meta["teaches"], "first line second line")
+        self.assertEqual(meta["teaches"], "first line second line\n")
 
     def test_literal_block_keeps_newlines(self):
         meta = parse_meta("teaches: |\n  first\n  second\n", "t")
-        self.assertEqual(meta["teaches"], "first\nsecond")
+        self.assertEqual(meta["teaches"], "first\nsecond\n")
 
     def test_block_terminates_at_next_top_level_key(self):
         meta = parse_meta("teaches: >\n  wrapped text\ntier: core\n", "t")
-        self.assertEqual(meta["teaches"], "wrapped text")
+        self.assertEqual(meta["teaches"], "wrapped text\n")
         self.assertEqual(meta["tier"], "core")
+
+    def test_clip_chomping_keeps_one_trailing_newline(self):
+        """YAML's default. Missing it diverged from PyYAML on every meta file."""
+        self.assertEqual(parse_meta("t: >\n  text\n", "t")["t"], "text\n")
+        self.assertEqual(parse_meta("t: |\n  text\n", "t")["t"], "text\n")
+
+    def test_strip_chomping_removes_it(self):
+        self.assertEqual(parse_meta("t: >-\n  text\n", "t")["t"], "text")
+        self.assertEqual(parse_meta("t: |-\n  text\n", "t")["t"], "text")
 
 
 class RejectsUnsupported(unittest.TestCase):

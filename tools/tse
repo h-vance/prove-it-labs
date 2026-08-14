@@ -128,7 +128,12 @@ def parse_meta_subset(text: str, source: str) -> dict:
                 block.append(lines[index].strip())
                 index += 1
             joiner = " " if inline.startswith(">") else "\n"
-            result[key] = joiner.join(part for part in block if part)
+            folded = joiner.join(part for part in block if part)
+            # YAML's default chomping is "clip": a block scalar keeps exactly one
+            # trailing newline, and only the "-" forms strip it. Omitting that
+            # newline is invisible in rendered output and still a divergence
+            # from every real YAML parser, including the one the site uses.
+            result[key] = folded if inline.endswith("-") else folded + "\n"
             continue
 
         if inline.startswith("[") and inline.endswith("]"):

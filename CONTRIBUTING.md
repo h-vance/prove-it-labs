@@ -28,6 +28,18 @@ python3 tools/tests/test_meta.py      # the meta.yaml subset parser
 tools/tests/smoke.sh --fast           # the CLI surface
 ```
 
+One test in `test_meta.py` compares the subset parser against real PyYAML, and
+it **skips silently** when PyYAML is not installed. Since the CLI deliberately
+has no dependencies, that is the normal state on a fresh machine, and it once
+hid a real divergence until CI caught it. To run it locally:
+
+```bash
+python3 -m venv /tmp/yamlvenv && /tmp/yamlvenv/bin/pip install -q pyyaml
+/tmp/yamlvenv/bin/python tools/tests/test_meta.py
+```
+
+18 tests and no skips means the parity check actually ran.
+
 `test_content.py` enforces most of the rules on this page, so a violation is a
 failing build rather than a review comment.
 
