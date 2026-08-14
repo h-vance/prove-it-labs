@@ -1,0 +1,77 @@
+[
+  {
+    "question": "Before reading the report at all, the true customer total was established independently. Why does that ordering matter?",
+    "options": [
+      {
+        "text": "It is quicker than reading through the report's definition.",
+        "correct": false,
+        "explanation": "Speed is not the reason, and reading the definition is exactly what comes next. The ordering changes what that reading is for."
+      },
+      {
+        "text": "It fixes an independent reference point, so everything after it measures a gap instead of deciding whether one exists.",
+        "correct": true,
+        "explanation": "Starting from the report invites you to explain why the report is correct. Starting from your own count means the discrepancy is a number you already hold, and the only question left is where it went."
+      },
+      {
+        "text": "It confirms the customer can be trusted.",
+        "correct": false,
+        "explanation": "It confirms this one claim of theirs, which is a much narrower thing and not what the count is for."
+      },
+      {
+        "text": "It rules out a problem with the database itself.",
+        "correct": false,
+        "explanation": "It does incidentally show the data is readable. That was never in doubt and is not a reason to run it."
+      }
+    ]
+  },
+  {
+    "question": "The query is valid, runs cleanly, and returns the wrong answer. What does \"valid\" establish here?",
+    "options": [
+      {
+        "text": "That the underlying data is intact.",
+        "correct": false,
+        "explanation": "The data was intact, and validity is not what showed that. An independent count did."
+      },
+      {
+        "text": "That the fault has to lie in the data rather than in the query.",
+        "correct": false,
+        "explanation": "That inference runs exactly backwards, and it is the habit this exercise exists to break."
+      },
+      {
+        "text": "That the report was changed recently.",
+        "correct": false,
+        "explanation": "Validity says nothing about history. This has most likely been wrong since the day it was written."
+      },
+      {
+        "text": "Only that it is well formed. It answers one question precisely, and that question is not the one in the title.",
+        "correct": true,
+        "explanation": "There is no error to hunt for because nothing failed mechanically. The gap sits between what was asked for and what was written, and no error message will ever surface that."
+      }
+    ]
+  },
+  {
+    "question": "The accounts that vanished all sat on the smaller plans. How should that observation be treated?",
+    "options": [
+      {
+        "text": "As the strongest clue in the ticket, because a loss with a shape has a mechanism behind it and a random loss usually does not.",
+        "correct": true,
+        "explanation": "Uneven loss is the thing worth chasing. Here the dropped accounts were the recent ones, and recent accounts skew small, so the plan distribution was a consequence rather than a cause."
+      },
+      {
+        "text": "As a coincidence, since the plan has no bearing on the query.",
+        "correct": false,
+        "explanation": "The plan has no bearing on the mechanism, and the correlation is still real and still informative. Dismissing it throws away the fastest route in."
+      },
+      {
+        "text": "As evidence that the plan field has been corrupted.",
+        "correct": false,
+        "explanation": "Nothing points that way. The values were correct for every account, including every one that disappeared."
+      },
+      {
+        "text": "As proof that smaller accounts are being filtered out deliberately somewhere.",
+        "correct": false,
+        "explanation": "A reasonable hypothesis, and not proof. It also turned out to be the wrong branch to follow."
+      }
+    ]
+  }
+]

@@ -71,17 +71,11 @@ moves.
 > Request: confirm whether the rename was intended, and whether other workloads
 > took the same edit.
 
-## Say it out loud (90 seconds)
+## Check your understanding
 
-> The customer thinks the missing logs are the mystery, and I would tell them
-> early that it is actually the best clue they have. If the application had
-> started and then failed, it would have said something first. Nothing at all
-> means the process was never reached, which rules out the application entirely
-> and leaves what the platform does before handing over: the image, the
-> configuration values, the mounts, and the security settings. I would look at
-> the container state, and it reports a config error rather than a crash, which
-> confirms that reading. The events name a configuration key that cannot be
-> found. Comparing what the workload asks for against what the configuration
-> actually holds shows a key that was renamed on one side only. The fix is to
-> bring the two back in step, and I would ask which direction they intended
-> before choosing, because both are valid.
+Three questions on what the evidence here proved, and what it pointedly did
+not. Wrong answers explain themselves, and so do right ones.
+
+```
+tse quiz
+```

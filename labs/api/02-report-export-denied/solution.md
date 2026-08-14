@@ -74,17 +74,11 @@ product-facing rather than engineering-facing:
 Support engineers who notice this pattern and report it are the ones who get
 promoted, because a permissions ticket that recurs weekly is a design problem.
 
-## Say it out loud (90 seconds)
+## Check your understanding
 
-> The customer has already ruled out a lot for me: same page, same network, one
-> user can do it and one cannot. So I am looking for something that differs
-> between two accounts. I would reproduce the failing request and read the
-> status code, because the difference between 401 and 403 decides who owns this.
-> Here it is a 403, which means she is authenticated and we know exactly who she
-> is, and we are refusing anyway. That is consistent with what the customer told
-> me, that her login works fine. The body names the required scope as
-> reports:admin, and her token carries reports:read, which is the default for
-> members. So this is not a bug, it is a permissions gap, and it resolves with
-> their workspace administrator rather than with us. For the customer I would
-> name the exact permission, confirm her account is otherwise healthy, and offer
-> to verify once it is granted.
+Three questions on what the evidence here proved, and what it pointedly did
+not. Wrong answers explain themselves, and so do right ones.
+
+```
+tse quiz
+```

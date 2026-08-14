@@ -14,6 +14,18 @@
   --proveit-gap: 1rem;
   --proveit-rule: 1px solid var(--sl-color-gray-5);
   --proveit-panel: var(--sl-color-gray-6);
+  /* Verdict colors. These tint a symbol that already carries the meaning in
+   * text, so they are reinforcement rather than the signal itself. Light
+   * theme values measured against the panel background: both clear 4.5:1. */
+  --proveit-correct: #15803d;
+  --proveit-wrong: #b91c1c;
+}
+
+/* Starlight toggles the theme with data-theme, so the dark values hang off
+ * that rather than off prefers-color-scheme. */
+:root[data-theme="dark"] {
+  --proveit-correct: #4ade80;
+  --proveit-wrong: #fca5a5;
 }
 
 /* ------------------------------------------------------------------ tiers */
@@ -383,6 +395,151 @@ html[data-stretch="hidden"] [data-tier="stretch"] {
   border-radius: 999px;
   font-size: var(--sl-text-sm);
   color: var(--sl-color-gray-2);
+}
+
+/* ---------------------------------------------------------------- quiz */
+
+.quiz {
+  margin-top: 2.5rem;
+}
+
+.quiz__question {
+  border: var(--proveit-rule);
+  border-radius: var(--proveit-radius);
+  padding: var(--proveit-gap);
+  margin: var(--proveit-gap) 0 0;
+}
+
+.quiz__legend {
+  padding: 0 0.4rem;
+  font-weight: 600;
+}
+
+.quiz__number {
+  display: block;
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--sl-color-gray-2);
+}
+
+.quiz__options {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+/* Options are real buttons in a list, so keyboard and screen reader users get
+ * the same affordances as anyone else. */
+.quiz__option {
+  font: inherit;
+  text-align: start;
+  width: 100%;
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--sl-color-gray-4);
+  border-radius: var(--proveit-radius);
+  background: var(--sl-color-bg);
+  color: var(--sl-color-text);
+  cursor: pointer;
+}
+
+.quiz__option:hover:not(:disabled) {
+  background: var(--proveit-panel);
+  border-color: var(--sl-color-gray-2);
+}
+
+/* The browser's default disabled styling fades text toward the background.
+ * These stay on screen to be read after answering, so the full contrast has
+ * to be restored explicitly. */
+.quiz__option:disabled {
+  cursor: default;
+  opacity: 1;
+  color: var(--sl-color-text);
+}
+
+.quiz__option--correct {
+  border-color: var(--proveit-correct);
+  border-inline-start: 4px solid var(--proveit-correct);
+}
+
+.quiz__option--wrong {
+  border-color: var(--proveit-wrong);
+  border-inline-start: 4px solid var(--proveit-wrong);
+}
+
+.quiz__option--answer {
+  border-inline-start: 4px solid var(--proveit-correct);
+}
+
+.quiz__marker {
+  flex: none;
+  min-width: 1ch;
+  font-weight: 700;
+}
+
+.quiz__option--correct .quiz__marker,
+.quiz__option--answer .quiz__marker {
+  color: var(--proveit-correct);
+}
+
+.quiz__option--wrong .quiz__marker {
+  color: var(--proveit-wrong);
+}
+
+.quiz__tag {
+  color: var(--sl-color-gray-2);
+}
+
+.quiz__feedback {
+  margin-top: 0.75rem;
+  padding: 0.75rem var(--proveit-gap);
+  background: var(--proveit-panel);
+  border-radius: var(--proveit-radius);
+  border-inline-start: 4px solid var(--sl-color-gray-4);
+  animation: quiz-settle 160ms ease-out;
+}
+
+.quiz__feedback--correct {
+  border-inline-start-color: var(--proveit-correct);
+}
+
+.quiz__feedback--wrong {
+  border-inline-start-color: var(--proveit-wrong);
+}
+
+.quiz__feedback p {
+  margin: 0.4rem 0 0;
+}
+
+.quiz__verdict {
+  font-weight: 600;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.quiz__feedback--correct .quiz__marker {
+  color: var(--proveit-correct);
+}
+
+.quiz__feedback--wrong .quiz__marker {
+  color: var(--proveit-wrong);
+}
+
+.quiz__score {
+  color: var(--sl-color-gray-2);
+  margin: 0;
+}
+
+/* Reduced motion is handled globally at the end of this file, which replaces
+ * this with an instant state change rather than removing the feedback. */
+@keyframes quiz-settle {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
 }
 
 /* --------------------------------------------------------- accessibility */

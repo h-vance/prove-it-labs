@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The same point in the run fails on every attempt, while the records sitting at that point change from night to night. What does that pattern rule out?",
+    "options": [
+      {
+        "text": "That the run is failing at all.",
+        "correct": false,
+        "explanation": "It is plainly failing. The pattern tells you where, not whether."
+      },
+      {
+        "text": "That the client is the side at fault.",
+        "correct": false,
+        "explanation": "It does not, and the client turned out to be the side mishandling a perfectly correct signal."
+      },
+      {
+        "text": "That the failure is deliberate.",
+        "correct": false,
+        "explanation": "The opposite. A failure that tracks position rather than content is a strong hint that something is counting."
+      },
+      {
+        "text": "That the contents of any particular record are causing it.",
+        "correct": true,
+        "explanation": "If bad data were the cause, the failures would travel with the data. They stay put while the data moves, which kills the corruption theory early and cheaply."
+      }
+    ]
+  },
+  {
+    "question": "The refusal arrived with an allowance, a remaining count of zero, and a number of seconds. What does that combination let you say?",
+    "options": [
+      {
+        "text": "That the account has outgrown its plan.",
+        "correct": false,
+        "explanation": "Perhaps one day. Nothing in those numbers says the allowance is too small, only that it is being spent faster than it refills."
+      },
+      {
+        "text": "That the refusal is deliberate, exactly how much is permitted, and precisely how long to wait before carrying on.",
+        "correct": true,
+        "explanation": "This is a system explaining how to succeed rather than simply failing at you. Everything needed to repair the client is inside the response the client is already receiving and throwing away."
+      },
+      {
+        "text": "That the service is straining under load from other customers.",
+        "correct": false,
+        "explanation": "The allowance is counted per credential. Other people's traffic does not enter into it."
+      },
+      {
+        "text": "That the request was malformed.",
+        "correct": false,
+        "explanation": "It was well formed and was judged on its merits. Only the pace was wrong."
+      }
+    ]
+  },
+  {
+    "question": "Neither side has a defect. So what has to change?",
+    "options": [
+      {
+        "text": "The client has to wait as long as it is being told to, rather than treating a refusal as final.",
+        "correct": true,
+        "explanation": "The terms were published in every single response. Honoring them turns a partial file into a complete one with no change at all on the serving side."
+      },
+      {
+        "text": "The allowance should be raised until the whole job fits inside it.",
+        "correct": false,
+        "explanation": "That buys silence until the data grows again, and it reframes a client which ignores the rules as a capacity problem."
+      },
+      {
+        "text": "The job should be moved to a quieter time of day.",
+        "correct": false,
+        "explanation": "The allowance is per credential rather than shared, so a quieter hour changes nothing whatsoever."
+      },
+      {
+        "text": "The failing pages should be skipped and reconciled afterward.",
+        "correct": false,
+        "explanation": "That makes the incomplete file permanent policy. The pages are not failing for any reason a later reconciliation would address."
+      }
+    ]
+  }
+]

@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The refusal names who the caller is and declines her anyway. What does that rule out immediately?",
+    "options": [
+      {
+        "text": "That the operation exists at all.",
+        "correct": false,
+        "explanation": "It confirms the operation exists. A refusal of this kind is about this caller, not about whether the feature is there."
+      },
+      {
+        "text": "Everything to do with identity: the session, the login, an expired or absent credential.",
+        "correct": true,
+        "explanation": "Being recognized and being permitted are two separate gates. Clearing the first closes off the entire class of credential explanations and turns the ticket toward entitlements."
+      },
+      {
+        "text": "That her account has been suspended.",
+        "correct": false,
+        "explanation": "The opposite is closer. A suspended account would not have been recognized well enough to be told no on these grounds."
+      },
+      {
+        "text": "That the export feature is broken.",
+        "correct": false,
+        "explanation": "Nothing is broken. The system is enforcing a rule exactly as configured, which is why this never was an incident."
+      }
+    ]
+  },
+  {
+    "question": "How should this ticket be classified?",
+    "options": [
+      {
+        "text": "A defect, since a paying customer cannot finish a task.",
+        "correct": false,
+        "explanation": "Their frustration is real and it does not make correct behavior a defect. The system did what it was configured to do."
+      },
+      {
+        "text": "An incident, because a business process is blocked.",
+        "correct": false,
+        "explanation": "Incidents are things that have gone wrong. Filing this as one puts it behind work that actually has."
+      },
+      {
+        "text": "A product request for a more generous default.",
+        "correct": false,
+        "explanation": "That may be a fair conversation to have later. It does nothing for the person who is blocked today."
+      },
+      {
+        "text": "A request for elevated access, routed to whoever administers the customer's own workspace.",
+        "correct": true,
+        "explanation": "Classifying it correctly is the whole of the value added here. The person who can resolve it sits on the customer's side, and every hour in an engineering queue is an hour nobody is acting."
+      }
+    ]
+  },
+  {
+    "question": "The customer argued that her login definitely works, so the fault must lie elsewhere. What is wrong with that reasoning?",
+    "options": [
+      {
+        "text": "Her login does not actually work.",
+        "correct": false,
+        "explanation": "It works. That part of her account is accurate and she deserves to be told so plainly."
+      },
+      {
+        "text": "Signing in and calling the API are unrelated systems.",
+        "correct": false,
+        "explanation": "They are closely related, and her session is what identifies her. The gap in the argument is not there."
+      },
+      {
+        "text": "The premise is true and the conclusion does not follow, because a working identity is what this kind of refusal presupposes.",
+        "correct": true,
+        "explanation": "Her evidence is real and points the opposite way from where she pointed it. Saying that plainly is far more useful than either agreeing with her or brushing her off."
+      },
+      {
+        "text": "She has no way of knowing what she is permitted to do.",
+        "correct": false,
+        "explanation": "Frequently true, and not the flaw in the argument. The flaw is treating a working login as evidence against a permission problem."
+      }
+    ]
+  }
+]

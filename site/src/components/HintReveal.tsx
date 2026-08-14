@@ -38,7 +38,7 @@ export default function HintReveal({ exerciseId, hints }: Props) {
 
       <div class="reveal__actions">
         {remaining > 0 ? (
-          <button type="button" class="reveal__button" onClick={() => setShown(shown + 1)}>
+          <button type="button" class="reveal__button" onClick={() => setShown((n) => n + 1)}>
             {shown === 0 ? "Show the first hint" : `Show hint ${shown + 1}`}
             <span class="reveal__count"> ({remaining} left)</span>
           </button>

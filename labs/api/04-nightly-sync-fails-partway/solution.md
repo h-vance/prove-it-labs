@@ -92,20 +92,11 @@ Then `tse check`.
 > current volume, and whether our published integration guide documents
 > `Retry-After` handling clearly enough to have prevented this.
 
-## Say it out loud (90 seconds)
+## Check your understanding
 
-> The customer thinks they have corrupt records, and that is testable, so I
-> would test it rather than argue. If specific records were the cause, the
-> failures would follow those records. I would run the sync twice and check
-> whether the same pages fail. They do, and the failing position stays constant
-> while the data behind it does not, so it is positional rather than
-> data-dependent. Then I would look at what the failing responses actually are,
-> and they are 429s, which is not a fault, it is throttling. The headers give me
-> the limit, what is remaining, and a Retry-After value. That also explains why
-> this started when their volume grew: more records means more requests per run,
-> so they now cross the limit where before they did not. The fix is on their
-> side, in the client honoring Retry-After and retrying the same page rather than
-> dropping it. For the customer I would lead with the fact that their data is
-> intact, because that is what they are actually worried about, then explain the
-> limit and the header, and ask internally whether their limit still suits their
-> volume.
+Three questions on what the evidence here proved, and what it pointedly did
+not. Wrong answers explain themselves, and so do right ones.
+
+```
+tse quiz
+```

@@ -73,6 +73,19 @@ export const TRACK_LABELS: Record<string, string> = {
   mixed: "Mixed incidents",
 };
 
+export interface QuizOption {
+  text: string;
+  /** Exactly one option per question carries this. test_content.py enforces it. */
+  correct: boolean;
+  /** Present on every option, right and wrong. "Correct" alone teaches nothing. */
+  explanation: string;
+}
+
+export interface QuizQuestion {
+  question: string;
+  options: QuizOption[];
+}
+
 export interface Exercise {
   id: string;
   track: string;
@@ -94,6 +107,7 @@ export interface Exercise {
   ticketHtml: string;
   hintsHtml: string[];
   solutionHtml: string;
+  questions: QuizQuestion[];
 }
 
 marked.setOptions({ gfm: true, breaks: false });
@@ -112,6 +126,24 @@ function directories(path: string): string[] {
     .filter((name) => !name.startsWith("_") && !name.startsWith("."))
     .filter((name) => statSync(join(path, name)).isDirectory())
     .sort();
+}
+
+/**
+ * The exercise's question set.
+ *
+ * Deliberately throws rather than returning an empty list. A malformed file
+ * would otherwise render a page with the quiz silently missing, and a build
+ * that stays green while dropping content is the failure mode this project
+ * already got caught by once.
+ */
+function readQuestions(dir: string): QuizQuestion[] {
+  const source = readIfPresent(join(dir, "questions.json"));
+  if (!source) return [];
+  try {
+    return JSON.parse(source) as QuizQuestion[];
+  } catch (error) {
+    throw new Error(`${join(dir, "questions.json")} is not valid JSON: ${String(error)}`);
+  }
 }
 
 function asStringArray(value: unknown): string[] {
@@ -160,6 +192,7 @@ export function loadExercises(): Exercise[] {
         ticketHtml: md(readIfPresent(join(dir, "ticket.md")) ?? ""),
         hintsHtml: hintFiles.map((name) => md(readFileSync(join(hintsDir, name), "utf8"))),
         solutionHtml: md(readIfPresent(join(dir, "solution.md")) ?? ""),
+        questions: readQuestions(dir),
       });
     }
   }

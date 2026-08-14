@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The record of the previous run says it was terminated for exceeding its allowance. What does that settle?",
+    "options": [
+      {
+        "text": "That the application is leaking memory.",
+        "correct": false,
+        "explanation": "A leak grows over time. This exceeds its allowance almost immediately and does so every single time, which is a different shape entirely."
+      },
+      {
+        "text": "That the node ran out of memory.",
+        "correct": false,
+        "explanation": "The node is fine. A per-container allowance was exceeded, which is a local ceiling rather than a shortage."
+      },
+      {
+        "text": "That the application threw an error it did not handle.",
+        "correct": false,
+        "explanation": "It threw nothing at all. Being stopped from outside and failing from inside leave visibly different traces, and this is the former."
+      },
+      {
+        "text": "That the process was stopped from outside rather than failing, so there is nothing in the code to fix.",
+        "correct": true,
+        "explanation": "It is also why the output simply stops instead of ending in an error: a terminated process gets no chance to say anything. Reading that silence as an application bug sends the ticket to entirely the wrong team."
+      }
+    ]
+  },
+  {
+    "question": "The customer argued that a configuration value could not possibly stop a process. How would you answer that?",
+    "options": [
+      {
+        "text": "A value that decides how much memory to reserve can stop a process just as thoroughly as any code change.",
+        "correct": true,
+        "explanation": "The intuition being applied is that configuration is inert. Some of it is a direct instruction about resource use, and that kind sits right beside the code in its consequences."
+      },
+      {
+        "text": "They are right, so the cause must lie elsewhere.",
+        "correct": false,
+        "explanation": "The cause lies exactly there. Accepting the premise would have closed the investigation one step before the answer."
+      },
+      {
+        "text": "Configuration changes are always riskier than code changes.",
+        "correct": false,
+        "explanation": "Neither is reliably riskier, and overcorrecting into that claim is no more accurate than the belief it replaces."
+      },
+      {
+        "text": "It depends on whether the change went through review.",
+        "correct": false,
+        "explanation": "Review affects how likely a mistake is. It has no bearing on whether this category of setting can produce this outcome."
+      }
+    ]
+  },
+  {
+    "question": "The customer described it failing for about thirty seconds, recovering, then failing again. What produces that rhythm?",
+    "options": [
+      {
+        "text": "Traffic arriving in bursts that overwhelm the service.",
+        "correct": false,
+        "explanation": "It fails shortly after each start regardless of what traffic is arriving. Nothing about this is load driven."
+      },
+      {
+        "text": "It is stopped shortly after starting, brought back automatically, and then does the same thing again.",
+        "correct": true,
+        "explanation": "The interval is the startup time rather than a coincidence. A regular rhythm during an outage is usually a loop, and identifying what closes the loop is faster than treating each failure as its own event."
+      },
+      {
+        "text": "A health check flapping between two states.",
+        "correct": false,
+        "explanation": "A flapping check would leave the process alive throughout. Here it is genuinely terminated on every cycle."
+      },
+      {
+        "text": "Two instances competing for the same resource.",
+        "correct": false,
+        "explanation": "There is no contention between instances. Each one independently exceeds its own allowance."
+      }
+    ]
+  }
+]

@@ -74,18 +74,11 @@ looks resolved for the first minute regardless of what you changed.
 > Request: confirm the intended cache size so the limit can be set once
 > deliberately rather than raised reactively.
 
-## Say it out loud (90 seconds)
+## Check your understanding
 
-> The customer has ruled out their config change on the grounds that it is not
-> code, and that is the assumption I want to test, because plenty of things stop
-> a process that are not code. First I want to prove whether the application
-> failed or something stopped it, because those have different fixes. A
-> restarting container has two histories, and the useful one belongs to the
-> instance that already died, so I would read the previous logs and the last
-> terminated state. The logs stop mid-run with no error, and the terminated
-> state says OOMKilled with exit code 137, which means the kernel stopped it for
-> exceeding its memory allowance. Then I compare what it is allowed against what
-> it now uses, and the cache setting changed on Tuesday raised the allocation
-> well past the limit. So the fix is either a bigger allowance or a smaller
-> cache, and I would ask the customer which they want rather than deciding for
-> them.
+Three questions on what the evidence here proved, and what it pointedly did
+not. Wrong answers explain themselves, and so do right ones.
+
+```
+tse quiz
+```

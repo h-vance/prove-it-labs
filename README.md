@@ -86,7 +86,7 @@ prose, which includes a lot of very good engineers.
 - **Core and stretch are separated,** and stretch material can be hidden rather
   than skimmed past.
 - **A minimum viable day exists.** One ticket, one command, one proof sentence,
-  one spoken answer. That counts as a day of progress.
+  one question answered. That counts as a day of progress.
 - **The writing is graded.** Support is half communication, so customer updates
   and escalation notes are assessed work, not an afterthought.
 

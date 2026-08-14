@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The customer guessed that the larger figure was picking up something extra, and they turned out to be right. Why verify independently anyway?",
+    "options": [
+      {
+        "text": "Because customers are generally unreliable about their own data.",
+        "correct": false,
+        "explanation": "They are frequently right, as they were here. Treating them as unreliable by default is both discourteous and inaccurate."
+      },
+      {
+        "text": "Because the verification is cheap to run.",
+        "correct": false,
+        "explanation": "It is cheap, and that is a reason to do it rather than the reason it matters."
+      },
+      {
+        "text": "Because about half the time in this situation it is the smaller figure that is wrong, and a guess that happens to land is still a guess.",
+        "correct": true,
+        "explanation": "Without a third, independently derived number you cannot say which report to trust. You would be correcting whichever one the customer happened to distrust, which is a coin flip wearing the costume of a diagnosis."
+      },
+      {
+        "text": "Because the customer may have misread the report.",
+        "correct": false,
+        "explanation": "They read it correctly. The figure genuinely was inflated, which is why their instinct was sound."
+      }
+    ]
+  },
+  {
+    "question": "One group came back about nine times too high and the rest about twice too high. What does that tell you?",
+    "options": [
+      {
+        "text": "The multiplier matches how many users each account has, which names the mechanism instead of restating the symptom.",
+        "correct": true,
+        "explanation": "A ratio that lines up with a real quantity in the data is close to a fingerprint. It says rows were multiplied before anything was counted, and it says exactly by what."
+      },
+      {
+        "text": "The larger accounts are queried more frequently.",
+        "correct": false,
+        "explanation": "How often something is queried has no bearing on the value a count returns."
+      },
+      {
+        "text": "The data for larger accounts is duplicated in storage.",
+        "correct": false,
+        "explanation": "Nothing is duplicated at rest. The multiplication happens while the query runs and exists only in its result."
+      },
+      {
+        "text": "Two separate faults are in play, one per group.",
+        "correct": false,
+        "explanation": "A single mechanism produces both figures. It produces a different factor per group only because the groups differ in size."
+      }
+    ]
+  },
+  {
+    "question": "After the joins have been applied, what is the report actually counting?",
+    "options": [
+      {
+        "text": "Accounts, but only those with at least one user attached.",
+        "correct": false,
+        "explanation": "That describes a different fault entirely. Every account here has users and none were excluded."
+      },
+      {
+        "text": "Workspaces, since that is the table in the middle.",
+        "correct": false,
+        "explanation": "Position within the query does not decide the unit. The final expansion is what decides it."
+      },
+      {
+        "text": "Accounts, with some counted twice because of a data problem.",
+        "correct": false,
+        "explanation": "There is no data problem, and nothing is double counted arbitrarily. The multiplication is exact and entirely predictable."
+      },
+      {
+        "text": "Result rows, which after the expansion are users, while the column heading still claims they are accounts.",
+        "correct": true,
+        "explanation": "Counting rows always means counting whatever the last join left behind. A column heading is a claim about the unit, and joins change the unit underneath it without saying so."
+      }
+    ]
+  }
+]

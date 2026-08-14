@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The database reports itself healthy while the application fails every request. What has that health status actually proved?",
+    "options": [
+      {
+        "text": "That the application is pointed at the right place.",
+        "correct": false,
+        "explanation": "A health status says nothing about anybody else's configuration. It is a claim one process makes about itself."
+      },
+      {
+        "text": "That the credentials in use are valid.",
+        "correct": false,
+        "explanation": "A health probe runs locally against the database and never exercises the application's credentials."
+      },
+      {
+        "text": "That the fault has to be in the application's own code.",
+        "correct": false,
+        "explanation": "It narrows things usefully, but the space between two healthy services is its own category of fault, and that is where this one lived."
+      },
+      {
+        "text": "That the database is up and answering for itself, and nothing at all about whether anyone else can reach it.",
+        "correct": true,
+        "explanation": "Two services can both be healthy and still be unable to talk. Health is a claim about one process. Reachability is a claim about the path between two, and it needs its own evidence."
+      }
+    ]
+  },
+  {
+    "question": "Inside a running container, what does the name `localhost` refer to?",
+    "options": [
+      {
+        "text": "That container's own network namespace, so it resolves to the container itself and nowhere else.",
+        "correct": true,
+        "explanation": "Which is why aiming an application at it for a dependency living elsewhere fails instantly with a refusal rather than hanging: something did answer, and it was the container saying nothing here is listening."
+      },
+      {
+        "text": "The host machine running the container runtime.",
+        "correct": false,
+        "explanation": "That is the intuition people carry over from running things directly on a laptop, and it is precisely the assumption this incident punishes. A container has its own loopback."
+      },
+      {
+        "text": "Whichever service was started first in the same file.",
+        "correct": false,
+        "explanation": "Nothing assigns loopback by start order. Services on a shared network address each other by name."
+      },
+      {
+        "text": "It is undefined and varies with the base image.",
+        "correct": false,
+        "explanation": "It is well defined and identical in every image: the container's own loopback interface."
+      }
+    ]
+  },
+  {
+    "question": "Having ruled out the dependency being down, which single piece of evidence moved this furthest forward?",
+    "options": [
+      {
+        "text": "The error the customer saw.",
+        "correct": false,
+        "explanation": "That is the symptom that opened the ticket. It is where the work starts, not something the work produced."
+      },
+      {
+        "text": "Both containers appearing in the process list.",
+        "correct": false,
+        "explanation": "It rules out the possibility that something never started, and says nothing about the path between them."
+      },
+      {
+        "text": "Reading the address the application was aiming at from inside the running process.",
+        "correct": true,
+        "explanation": "Configuration as written and configuration as the process sees it are two different claims, and only the second one explains behavior. Asking the process itself is what closed the gap."
+      },
+      {
+        "text": "The log line naming a failure to connect.",
+        "correct": false,
+        "explanation": "Genuinely useful, and it stops one step short. It establishes that the connection failed without establishing where it was aimed."
+      }
+    ]
+  }
+]

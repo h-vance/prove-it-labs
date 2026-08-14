@@ -121,6 +121,22 @@ fi
 ok_contains "doctor reports on docker" "docker" "$TSE" doctor
 
 # --------------------------------------------------------------------------- #
+section "Quiz"
+
+# Answers come from a pipe, which is also the reason the quiz is its own
+# command: `tse verify` runs check.sh non-interactively in CI, and a check that
+# blocked on stdin would hang the matrix rather than fail it.
+quiz_answers() { printf '%s\n' "$@" | "$TSE" quiz sql/03; }
+
+ok_contains "quiz asks the first question" "Question 1 of 3" quiz_answers 2 3 4
+ok_contains "quiz marks a right answer"    "Correct."       quiz_answers 2 3 4
+ok_contains "quiz marks a wrong answer"    "Not quite."     quiz_answers 1 1 1
+# A wrong answer has to say what the answer was, or being wrong teaches nothing.
+ok_contains "wrong answers reveal the answer" "The answer:" quiz_answers 1 1 1
+ok_contains "quiz scores the run"          "3/3"            quiz_answers 2 3 4
+fails_cleanly "quiz rejects an unknown exercise" "no exercise matches" "$TSE" quiz no-such-exercise
+
+# --------------------------------------------------------------------------- #
 section "Scaffolding"
 
 SCAFFOLD="labs/docker/98-smoke-scaffold"

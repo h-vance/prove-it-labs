@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The release pipeline reported success and the customer is entirely offline. Can both accounts be true?",
+    "options": [
+      {
+        "text": "No, the pipeline must have reported incorrectly.",
+        "correct": false,
+        "explanation": "It reported honestly. It submitted a change and the change was accepted, and it never claimed anything was running."
+      },
+      {
+        "text": "Yes. The desired state was valid and was accepted, and accepting a description is a different event from running it.",
+        "correct": true,
+        "explanation": "A specification is checked for validity, not for whether it will work. Everything that can go wrong afterward, fetching, scheduling and starting, happens once the pipeline's job is already over."
+      },
+      {
+        "text": "Yes, because a rollout always takes time to become available.",
+        "correct": false,
+        "explanation": "Slowness would explain a delay. It does not explain a rollout that has settled permanently into failure."
+      },
+      {
+        "text": "No, since a successful release means running workloads by definition.",
+        "correct": false,
+        "explanation": "That definition is the misconception this exercise exists to correct. Submission and availability are separate states with separate evidence."
+      }
+    ]
+  },
+  {
+    "question": "There is no application output at all to read. What does that absence establish?",
+    "options": [
+      {
+        "text": "The logging setup is broken.",
+        "correct": false,
+        "explanation": "A fair worry, and here the platform states plainly why nothing exists rather than silently producing nothing."
+      },
+      {
+        "text": "The application is failing silently.",
+        "correct": false,
+        "explanation": "It is not failing. It has not begun, which is a different state and one that rules the code out completely."
+      },
+      {
+        "text": "The container never started, so the code was never reached and no application-level cause is possible.",
+        "correct": true,
+        "explanation": "An absence is evidence, not a dead end. It eliminates the entire application as a suspect and leaves only what the platform does on its behalf before any process exists."
+      },
+      {
+        "text": "The output was rotated away before anyone looked.",
+        "correct": false,
+        "explanation": "Rotation would have left earlier output behind. There has never been any."
+      }
+    ]
+  },
+  {
+    "question": "Why is the customer completely down rather than merely degraded?",
+    "options": [
+      {
+        "text": "Every node in the cluster was affected.",
+        "correct": false,
+        "explanation": "The nodes are fine. They accepted and placed the work without complaint."
+      },
+      {
+        "text": "Traffic was never spread across more than one instance.",
+        "correct": false,
+        "explanation": "How traffic was spread is not what decided the blast radius here."
+      },
+      {
+        "text": "The platform removed the workload once the rollout failed.",
+        "correct": false,
+        "explanation": "The workload is still present and still trying. Nothing was removed."
+      },
+      {
+        "text": "The working instances were replaced before the new ones had proved they could start.",
+        "correct": true,
+        "explanation": "That ordering is the whole difference between a failed release and an outage. It is also the thing most worth naming in the writeup, because preventing it is exactly what a rollout strategy is for."
+      }
+    ]
+  }
+]

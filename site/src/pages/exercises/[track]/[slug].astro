@@ -4,6 +4,7 @@ import { loadExercises, type Exercise } from "../../../lib/labs";
 import HintReveal from "../../../components/HintReveal";
 import SolutionReveal from "../../../components/SolutionReveal";
 import ScratchPad from "../../../components/ScratchPad";
+import Quiz from "../../../components/Quiz";
 
 export function getStaticPaths() {
   return loadExercises().map((exercise) => ({
@@ -35,6 +36,9 @@ const headings = [
   { depth: 2, slug: `pad-${exercise.id}`, text: "Investigation scratchpad" },
   { depth: 2, slug: `hints-${exercise.id}`, text: "Hints" },
   { depth: 2, slug: `solution-${exercise.id}`, text: "Solution" },
+  ...(exercise.questions.length > 0
+    ? [{ depth: 2, slug: `quiz-${exercise.id}`, text: "Check your understanding" }]
+    : []),
   { depth: 2, slug: "why-this-one-exists", text: "Why this one exists" },
 ];
 ---
@@ -106,6 +110,8 @@ const headings = [
   <HintReveal exerciseId={exercise.id} hints={exercise.hintsHtml} client:load />
 
   <SolutionReveal exerciseId={exercise.id} solution={exercise.solutionHtml} client:load />
+
+  <Quiz exerciseId={exercise.id} questions={exercise.questions} client:load />
 
   <h2 id="why-this-one-exists">Why this one exists</h2>
   {exercise.teaches && <p>{exercise.teaches}</p>}

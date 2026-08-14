@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The customer's engineer checked the labels, found them correct, and stopped there. What was incomplete about that?",
+    "options": [
+      {
+        "text": "The labels were not in fact correct.",
+        "correct": false,
+        "explanation": "They were correct, and confirming it was a real result. It simply was not the end of the list."
+      },
+      {
+        "text": "Being selected is necessary for traffic but not sufficient, and the second condition is enforced without announcing itself.",
+        "correct": true,
+        "explanation": "Two different faults produce the same empty result. Recognizing the shape of a previous incident is valuable, and it has to be followed by checking the other ways that same shape can be produced."
+      },
+      {
+        "text": "Labels should have been checked with a different command.",
+        "correct": false,
+        "explanation": "The command was fine and its answer was true. The method was never the problem."
+      },
+      {
+        "text": "They should have read the earlier writeup more carefully.",
+        "correct": false,
+        "explanation": "They did use it, and it led them to a correct observation. The writeup covered one cause of an outcome that has more than one."
+      }
+    ]
+  },
+  {
+    "question": "The workload reports as running while showing zero of one ready. How should that be read?",
+    "options": [
+      {
+        "text": "As a passing state that will resolve itself.",
+        "correct": false,
+        "explanation": "It has been stable in that state. Nothing about it is in transition."
+      },
+      {
+        "text": "As an inconsistency in the reporting.",
+        "correct": false,
+        "explanation": "Both numbers are accurate. They are answering two different questions."
+      },
+      {
+        "text": "The process is alive, and the platform has separately concluded it is not fit to be sent anything.",
+        "correct": true,
+        "explanation": "Alive and willing to serve are deliberately distinct claims. That separation is what lets a workload finish starting before traffic arrives, and it is also what excluded this one without a word."
+      },
+      {
+        "text": "The container has started but its image is still downloading.",
+        "correct": false,
+        "explanation": "The image is present and the process is running. Nothing is outstanding at that level."
+      }
+    ]
+  },
+  {
+    "question": "Nothing crashed, nothing errored, the output is clean and the labels match. What does that combination suggest about where to look?",
+    "options": [
+      {
+        "text": "At the application's own code, since everything around it is healthy.",
+        "correct": false,
+        "explanation": "The application is serving correctly on the port it actually listens on. Its code is the one thing here that is conclusively fine."
+      },
+      {
+        "text": "At the network path between the client and the workload.",
+        "correct": false,
+        "explanation": "The path is intact. Traffic is being withheld deliberately rather than lost along the way."
+      },
+      {
+        "text": "At recent changes to the data the service depends on.",
+        "correct": false,
+        "explanation": "No data is involved in this failure at any point."
+      },
+      {
+        "text": "At the settings the platform enforces on the workload's behalf, because a system following a wrong instruction correctly produces no errors at all.",
+        "correct": true,
+        "explanation": "Silence is the signature of correct enforcement of a bad instruction. Nothing appears in any log because, from the platform's point of view, nothing went wrong."
+      }
+    ]
+  }
+]

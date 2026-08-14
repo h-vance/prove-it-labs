@@ -72,18 +72,11 @@ tse check
 That last line matters. One misconfigured service is an incident. A shared
 template is an outage waiting for the next deploy.
 
-## Say it out loud (90 seconds)
+## Check your understanding
 
-> The application is running and returning an error, so this is not a startup
-> failure, which already tells me more than the ticket did. I would read the
-> application logs first, because a service that is running will normally say
-> what it could not reach. Here it reports a database connection failure, so my
-> next job is to prove which part of that path is broken: the database itself,
-> the name, or the credentials. I would check the database container's health
-> first because it is one command and it rules out an entire branch. It is
-> healthy, so I would prove what hostname the app is using and what that name
-> means from inside the app container. It is set to localhost, which inside a
-> container points at the container itself, so the app was never reaching the
-> database. The fix is to use the Compose service name. For the customer I would
-> say a connection setting was changed during maintenance, we have corrected it,
-> and no data was affected.
+Three questions on what the evidence here proved, and what it pointedly did
+not. Wrong answers explain themselves, and so do right ones.
+
+```
+tse quiz
+```

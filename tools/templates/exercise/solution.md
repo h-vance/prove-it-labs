@@ -28,6 +28,11 @@ TODO the smallest correct change, then `tse apply` and `tse check`.
 > Suspected cause: TODO
 > Request: TODO the specific decision or action you need
 
-## Say it out loud (90 seconds)
+## Check your understanding
 
-> TODO the spoken answer, following the template in reference/.
+Three questions on what the evidence here proved, and what it pointedly did
+not. Wrong answers explain themselves, and so do right ones.
+
+```
+tse quiz
+```

@@ -68,18 +68,11 @@ Not an incident. Worth raising with whoever owns the reporting suite that the
 two reports have similar titles and answer materially different questions, which
 is what let this sit unnoticed.
 
-## Say it out loud (90 seconds)
+## Check your understanding
 
-> Two reports disagree, so the first thing I want is a number that does not come
-> from either of them. I would count enterprise customers directly, which gives
-> 12, and that tells me the 108 is the inflated one rather than the 12 being
-> short. Then I want to know what it is inflated by, because the shape tells you
-> the cause. Enterprise is off by about nine times and the smaller plans by
-> about two, and that matches the number of users per account exactly. That is a
-> join fan-out: walking to a one-to-many table multiplies each customer into one
-> row per user before the count runs, so it is counting users. The fix is to
-> count distinct customers rather than rows, keeping the joins because the report
-> genuinely needs them to establish which accounts have users. For the customer I
-> would give them the verified number, and flag that the corrected report shows
-> fewer starter accounts than the other report on purpose, because they answer
-> different questions.
+Three questions on what the evidence here proved, and what it pointedly did
+not. Wrong answers explain themselves, and so do right ones.
+
+```
+tse quiz
+```

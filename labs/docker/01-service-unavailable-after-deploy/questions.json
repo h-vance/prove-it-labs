@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The process list shows nothing for the app. What has that established?",
+    "options": [
+      {
+        "text": "Only that it is absent at this instant, which is equally consistent with never having started and with dying in a loop.",
+        "correct": true,
+        "explanation": "A process list is a snapshot of now. Listing stopped containers as well is what separates one that was never created from one that keeps exiting, and those two point at completely different next moves."
+      },
+      {
+        "text": "The image failed to download from the registry.",
+        "correct": false,
+        "explanation": "Possible, and unproven. A pull failure and a container that starts then exits look identical from here, and telling them apart costs exactly one more command."
+      },
+      {
+        "text": "The application crashed.",
+        "correct": false,
+        "explanation": "It may well have. An empty listing does not say whether a process ever existed, let alone how it ended."
+      },
+      {
+        "text": "The host has run out of resources.",
+        "correct": false,
+        "explanation": "Nothing so far points at the host. Resource exhaustion would be affecting other workloads too, and none of that has been looked at."
+      }
+    ]
+  },
+  {
+    "question": "Startup fails saying a required setting is not set, yet the override file plainly declares it. How are both true at once?",
+    "options": [
+      {
+        "text": "The application reads the value before the override is applied.",
+        "correct": false,
+        "explanation": "Ordering bugs are real, but nothing here suggests one. The value is present when the process starts; it is the content that is being rejected."
+      },
+      {
+        "text": "The file has a syntax error that stops it from loading.",
+        "correct": false,
+        "explanation": "Then the setting would be absent altogether rather than present and refused, and the file parsed well enough for the service to be created at all."
+      },
+      {
+        "text": "It is declared with an empty value, and empty is not something the application will accept.",
+        "correct": true,
+        "explanation": "Declared-and-empty is why the release diff looks fine at a glance: the key is right there. The application refuses it because running with a blank secret is worse than not running."
+      },
+      {
+        "text": "The name is misspelled inside the application.",
+        "correct": false,
+        "explanation": "Then the error would name something nobody had set. The name in the error and the name in the file match exactly."
+      }
+    ]
+  },
+  {
+    "question": "Why did this reach the customer as an intermittent outage rather than as a service that was plainly down?",
+    "options": [
+      {
+        "text": "Traffic was being balanced between a healthy instance and a broken one.",
+        "correct": false,
+        "explanation": "There is only one instance here. Nothing was splitting traffic between versions."
+      },
+      {
+        "text": "The restart policy kept bringing it back, so a fresh container genuinely existed for a moment before exiting again.",
+        "correct": true,
+        "explanation": "A restart loop produces exactly this shape. Something really is there if you look at the right instant, which is also why \"is it up?\" has no stable answer during an incident like this one."
+      },
+      {
+        "text": "The health check was reporting the wrong status.",
+        "correct": false,
+        "explanation": "The status was accurate every time it was taken. The instability is in the thing being measured, not in the measurement."
+      },
+      {
+        "text": "A cache was serving some of the requests successfully.",
+        "correct": false,
+        "explanation": "No cache is involved, and one would produce stale successes rather than a container that appears and vanishes."
+      }
+    ]
+  }
+]

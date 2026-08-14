@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The plan for the report shows a sequential scan reading 300,000 rows to return 7,500. What does that establish?",
+    "options": [
+      {
+        "text": "The query is written incorrectly and is returning the wrong rows.",
+        "correct": false,
+        "explanation": "A plan describes how the database reaches the rows, never whether the rows are right. Correctness is a separate claim and it needs a separate piece of evidence: running the report and comparing the output before and after."
+      },
+      {
+        "text": "The work the database does grows with the size of the table rather than with the size of the answer.",
+        "correct": true,
+        "explanation": "That is what a full scan means, and it is why the report decayed gradually as history accumulated instead of breaking on one particular day. It also tells you the fix has to change how the rows are found, not how many are returned."
+      },
+      {
+        "text": "The host is short of memory or CPU.",
+        "correct": false,
+        "explanation": "Resource pressure shows up as contention across everything at once, not as one report whose cost tracks one table's size. Nothing in a plan speaks to the state of the machine."
+      },
+      {
+        "text": "Someone changed the report recently.",
+        "correct": false,
+        "explanation": "A plan is a statement about the present, not a history. This plan is entirely consistent with a query that has never changed, which is exactly the situation the customer described."
+      }
+    ]
+  },
+  {
+    "question": "The scan finishes in about 14 milliseconds today. Why is a stopwatch still the wrong instrument for this ticket?",
+    "options": [
+      {
+        "text": "Timings are unreliable because other processes on the machine interfere.",
+        "correct": false,
+        "explanation": "Measurement noise is real, but it is not the objection here. Even a perfectly clean measurement would be answering a question the customer did not ask."
+      },
+      {
+        "text": "Millisecond durations are too small to be meaningful.",
+        "correct": false,
+        "explanation": "The magnitude is not the problem. The same objection would hold if the scan took ten seconds, because a duration would still only describe the run you just did."
+      },
+      {
+        "text": "The customer asked where this ends up as they keep growing, and a measurement only describes one run on one machine with one cache state.",
+        "correct": true,
+        "explanation": "A duration is a fact about the past. The plan describes the shape of the work, which is the only thing that tells you whether the curve bends upward as the table grows."
+      },
+      {
+        "text": "The database does not report execution time accurately.",
+        "correct": false,
+        "explanation": "It reports it accurately. ANALYZE genuinely executes the statement and the numbers are real. They simply describe today, and today was never in dispute."
+      }
+    ]
+  },
+  {
+    "question": "A customer says a report that used to be instant now drags, and nothing was deployed. Which move earns the first look?",
+    "options": [
+      {
+        "text": "Run the report several times to establish a reliable baseline.",
+        "correct": false,
+        "explanation": "That measures the symptom the customer already described. It confirms what they told you and moves the investigation nowhere."
+      },
+      {
+        "text": "Check whether the host is saturated on CPU or memory.",
+        "correct": false,
+        "explanation": "Reasonable when many things slow down together. Here one report decayed while everything else stayed fine, which points at the work being done rather than at the machine doing it."
+      },
+      {
+        "text": "Add an index on every column the report filters on and see whether it helps.",
+        "correct": false,
+        "explanation": "That is a guess wearing the costume of a fix. It might work, it costs storage and write overhead permanently, and it leaves you unable to say why it worked."
+      },
+      {
+        "text": "Ask the database how it intends to answer the query, remembering that on a statement which modifies data that means wrapping it in a transaction you roll back.",
+        "correct": true,
+        "explanation": "One command, and it explains gradual decline directly. It separates \"this is slow\" from \"this scales badly\", which are different tickets with different fixes and different urgency."
+      }
+    ]
+  }
+]

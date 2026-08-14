@@ -80,17 +80,11 @@ kubectl -n tse-training get endpointslices -l kubernetes.io/service-name=orders-
 > Request: confirm whether the same change was applied to other workloads, and
 > whether probe ports can be validated against container ports at admission.
 
-## Say it out loud (90 seconds)
+## Check your understanding
 
-> The customer has already checked the labels and says they match, and I would
-> take that at face value and verify it once cheaply rather than making them
-> feel disbelieved. They do match, so this is not the selector problem it
-> resembles. That leaves the other way a Service ends up with no endpoints: a
-> pod can match perfectly and still be excluded because it is not ready.
-> Running and Ready are separate columns, and only the second controls whether
-> traffic arrives. Here the pods are Running with zero of one ready, which is
-> the whole answer. Readiness is decided by a probe, and the probe is pointed at
-> a port the application does not listen on, so it can never pass. The fix is to
-> point it back at the real port. For the customer I would make the point that
-> health check settings are not monitoring, they actively gate traffic, because
-> that is the belief that caused this.
+Three questions on what the evidence here proved, and what it pointedly did
+not. Wrong answers explain themselves, and so do right ones.
+
+```
+tse quiz
+```

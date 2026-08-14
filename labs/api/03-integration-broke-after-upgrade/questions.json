@@ -1,0 +1,77 @@
+[
+  {
+    "question": "A not-found answer comes back for a customer record. Why is that not yet a data question?",
+    "options": [
+      {
+        "text": "It is an answer about an address, and there were two candidate addresses: the record, and the path used to ask for it.",
+        "correct": true,
+        "explanation": "The machine-readable reason separates them instantly. One branch is about data that is missing and the other about a path that was withdrawn, and the two share nothing beyond the number."
+      },
+      {
+        "text": "Answers of that kind are usually wrong.",
+        "correct": false,
+        "explanation": "They are usually accurate. The difficulty is that one number is made to cover more than one situation."
+      },
+      {
+        "text": "The customer may have sent an identifier that does not exist.",
+        "correct": false,
+        "explanation": "Worth testing, and it is one hypothesis rather than the reason the status is ambiguous in the first place."
+      },
+      {
+        "text": "The record was most likely deleted.",
+        "correct": false,
+        "explanation": "That is a guess that skips the branch point entirely, answering one of the two possibilities before either was tested."
+      }
+    ]
+  },
+  {
+    "question": "The response carried a withdrawal date and a pointer to what replaced it. What are those actually worth to the person answering the ticket?",
+    "options": [
+      {
+        "text": "They establish that the customer should have read the changelog.",
+        "correct": false,
+        "explanation": "Blame is not an outcome. What the customer needs is a working integration, not a verdict on their reading habits."
+      },
+      {
+        "text": "They prove the record still exists.",
+        "correct": false,
+        "explanation": "They say nothing whatsoever about the record. A separate call against the current path is what established the data was fine."
+      },
+      {
+        "text": "They turn the reply from \"this stopped working\" into a date, a reason, and the exact change to make.",
+        "correct": true,
+        "explanation": "Everything needed to resolve it was inside the failing response the entire time. Reading it is the difference between escalating this and closing it."
+      },
+      {
+        "text": "They allow the withdrawn path to be switched back on temporarily.",
+        "correct": false,
+        "explanation": "Nothing in them offers that, and offering it anyway would be making a promise on someone else's behalf."
+      }
+    ]
+  },
+  {
+    "question": "What is the general habit this exercise is arguing for?",
+    "options": [
+      {
+        "text": "Retry a failed call before investigating it.",
+        "correct": false,
+        "explanation": "Retrying suits a transient failure. This one is perfectly deterministic and every attempt returns the same thing."
+      },
+      {
+        "text": "Read the body of a failure, because the status is a category while the body is the specific claim.",
+        "correct": true,
+        "explanation": "Statuses are deliberately coarse so that clients can handle them generically. The detail that decides which branch you are on sits one level further in, and looking costs nothing."
+      },
+      {
+        "text": "Reproduce every customer report before responding to it.",
+        "correct": false,
+        "explanation": "Reproducing is a good habit and it is not the lesson here. The reproduction would have shown the same status and the same ambiguity."
+      },
+      {
+        "text": "Escalate anything that returns an unexpected status.",
+        "correct": false,
+        "explanation": "That would have escalated a ticket whose complete answer was sitting in the response all along."
+      }
+    ]
+  }
+]

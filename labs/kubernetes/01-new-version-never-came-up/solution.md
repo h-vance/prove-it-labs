@@ -57,18 +57,11 @@ application were all proven fine by the evidence above.
 > Request: confirm whether the deploy pipeline waits on rollout status, since
 > it currently reports success for a release that never became live.
 
-## Say it out loud (90 seconds)
+## Check your understanding
 
-> The customer's pipeline reported success, so the first thing I want to
-> establish is how far the release actually got, because submitting a change
-> and running it are separate steps that fail separately. I would look at the
-> pods first, and they are in ImagePullBackOff, which tells me they were
-> scheduled but the container never started. That immediately rules out
-> capacity and permissions, and it also tells me not to bother with logs,
-> because a container that never ran has not written any. The reason lives in
-> the events, and there the registry is rejecting the image reference by name.
-> Comparing that against the deployment spec shows a typo in the tag. The fix is
-> to correct the tag and watch the rollout. For the customer I would explain
-> that the pipeline was honest about what it did, and suggest it wait on rollout
-> status so a release that cannot start fails in the pipeline rather than in
-> production.
+Three questions on what the evidence here proved, and what it pointedly did
+not. Wrong answers explain themselves, and so do right ones.
+
+```
+tse quiz
+```

@@ -69,6 +69,7 @@ await new Promise((done) => server.listen(PORT, "127.0.0.1", done));
 const pages = findPages();
 const browser = await chromium.launch();
 const failures = [];
+const seenVerdicts = new Set();
 let checks = 0;
 
 for (const theme of ["dark", "light"]) {
@@ -94,6 +95,55 @@ for (const theme of ["dark", "light"]) {
     if (violations.length > 0) {
       failures.push({ theme, path, violations });
     }
+
+    // The quiz's verdict colors, its disabled options and its feedback panel
+    // only exist once a question has been answered, so scanning the page as
+    // served never sees them, and an unanswered quiz is the one state that
+    // cannot fail a contrast check.
+    //
+    // Nothing here is told which option is correct, deliberately. Marking the
+    // answer in the DOM so a test could find it would put it one inspector
+    // click away from every learner. Picking a different position per question
+    // produces both verdicts across the run instead, and the assertion at the
+    // end proves it actually did.
+    const questionCount = await page.evaluate(() => {
+      const questions = [...document.querySelectorAll(".quiz__question")];
+      questions.forEach((question, index) => {
+        const options = [...question.querySelectorAll(".quiz__option")];
+        options[index % options.length]?.click();
+      });
+      return questions.length;
+    });
+
+    if (questionCount > 0) {
+      // Read the verdicts in a separate step. Reading them in the same tick as
+      // the clicks returns an empty list, because the component has not
+      // re-rendered yet, and the scan below would then silently examine an
+      // untouched page.
+      await page.waitForSelector(".quiz__feedback");
+      // Let every running animation finish first. The feedback panel fades in,
+      // and axe measuring mid-fade reads a blended, semi-transparent color: it
+      // reported contrast as low as 1.77:1 for text that is fully compliant
+      // once settled, with different values on every page. Waiting on the
+      // animations rather than sleeping keeps it exact.
+      await page.evaluate(() =>
+        Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => {}))),
+      );
+      const verdicts = await page.evaluate(() =>
+        [...document.querySelectorAll(".quiz__feedback")].map((node) =>
+          node.classList.contains("quiz__feedback--correct") ? "correct" : "wrong",
+        ),
+      );
+      for (const verdict of verdicts) seenVerdicts.add(verdict);
+      const result = await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+        .analyze();
+
+      checks += 1;
+      if (result.violations.length > 0) {
+        failures.push({ theme, path: `${path} (answered)`, violations: result.violations });
+      }
+    }
   }
   await context.close();
 }
@@ -101,8 +151,22 @@ for (const theme of ["dark", "light"]) {
 await browser.close();
 server.close();
 
+// A gate that scans the answered quiz but never actually produced a wrong
+// answer would pass while testing half of what it claims to test.
+for (const verdict of ["correct", "wrong"]) {
+  if (!seenVerdicts.has(verdict)) {
+    console.error(
+      `axe: no "${verdict}" quiz feedback was ever rendered, so its contrast went unchecked.`,
+    );
+    process.exit(1);
+  }
+}
+
 if (failures.length === 0) {
-  console.log(`axe: ${checks} checks across ${pages.length} pages in 2 themes, no violations.`);
+  console.log(
+    `axe: ${checks} checks across ${pages.length} pages in 2 themes, ` +
+      `including both quiz verdicts, no violations.`,
+  );
   process.exit(0);
 }
 

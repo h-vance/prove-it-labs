@@ -65,17 +65,11 @@ You would not escalate this. It resolves at first contact and the fix is a
 query change. If the same join pattern turns out to be copied across a reporting
 suite, that is worth raising as a review item rather than an incident.
 
-## Say it out loud (90 seconds)
+## Check your understanding
 
-> The first thing I would do is get the real number myself, straight from the
-> customers table, because if I start from the report I will end up explaining
-> why the report is right. That gives me 40 against a reported 34, so six rows
-> are being lost. The customer also told me the shortfall is concentrated in the
-> smaller plans, and that is worth taking seriously: a report that is simply
-> broken is wrong everywhere, but one that is wrong in a pattern is losing a
-> specific group. I would find the accounts that do not appear and look at what
-> they share. They have no workspace, and the report joins workspaces, so the
-> inner join drops them. The fix is a left join and counting distinct customers.
-> For the customer I would confirm their account data was never affected, and
-> ask what other reports use the same join, because they will be wrong the same
-> way.
+Three questions on what the evidence here proved, and what it pointedly did
+not. Wrong answers explain themselves, and so do right ones.
+
+```
+tse quiz
+```

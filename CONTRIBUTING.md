@@ -63,9 +63,16 @@ state that is computed over time, such as a healthcheck result.
 provable question and names no command. Hint 2 points at the layer and the kind
 of evidence. Hint 3 gives the commands. `solution.md` gives the reasoning.
 
-**Every solution ends in words.** Root cause, scoped fix, customer update,
-escalation note, and a 90-second spoken answer. The writing is graded work, not
-decoration.
+**Every solution ends in words.** Root cause, scoped fix, customer update, and
+an escalation note. The writing is graded work, not decoration.
+
+**Every exercise ends in questions.** Three of them, in `questions.json`, with
+four options each and exactly one correct. Every option carries its own
+explanation, the right one included, because "correct" on its own teaches
+nothing. `test_content.py` enforces the shape, rejects "of the above" options,
+requires question text to be unique across the whole course, and fails the
+build if the answer drifts toward one position. Write them from the
+distinctions the exercise actually made rather than from the topic in general.
 
 ## Style
 

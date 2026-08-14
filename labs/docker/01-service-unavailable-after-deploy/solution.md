@@ -69,15 +69,11 @@ recur.
 > Request: confirm whether the pipeline should fail closed when a required
 > secret resolves empty.
 
-## Say it out loud (90 seconds)
+## Check your understanding
 
-> I would first prove whether the application process ever started, because a
-> timeout is equally consistent with a crash, a hang, and a routing problem. The
-> first evidence I would check is `docker ps -a`, because it shows containers
-> that exited or are restarting, which `docker ps` hides. If I see the container
-> cycling, I read its logs, since a process that fails a precondition normally
-> says so before exiting. Here the log names a required configuration value, and
-> the applied config shows that value present but empty. My safe next step is to
-> restore the value and recreate only that service. For the customer I would say
-> the outage came from a configuration value cleared during the release, that
-> service is restored, and that I will confirm stability before their review.
+Three questions on what the evidence here proved, and what it pointedly did
+not. Wrong answers explain themselves, and so do right ones.
+
+```
+tse quiz
+```

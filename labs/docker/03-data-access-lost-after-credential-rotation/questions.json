@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The log records that the login was rejected, rather than that the connection was refused. What does that distinction buy you?",
+    "options": [
+      {
+        "text": "It proves the value the application holds is the wrong one.",
+        "correct": false,
+        "explanation": "It proves the two sides disagree. Which of them is stale is a separate question, and in this incident it was the database still holding the older value."
+      },
+      {
+        "text": "The network path is sound, because something received the attempt, evaluated it and answered.",
+        "correct": true,
+        "explanation": "Refused means nothing was listening. Rejected means something listened and said no. That one distinction eliminates every networking explanation without running another command."
+      },
+      {
+        "text": "The database has been set up incorrectly.",
+        "correct": false,
+        "explanation": "Far too strong. Turning away a credential that does not match is the correct behavior, not a misconfiguration."
+      },
+      {
+        "text": "Nothing much, since both end as the same customer-facing failure.",
+        "correct": false,
+        "explanation": "The customer-facing symptom is identical, which is exactly why the symptom is not the evidence. The two errors mean opposite things about the network."
+      }
+    ]
+  },
+  {
+    "question": "Only one side was updated during the rotation. Why did restarting the other side not pick the new value up?",
+    "options": [
+      {
+        "text": "The restart happened too quickly for the change to take effect.",
+        "correct": false,
+        "explanation": "Nothing here depends on timing. The value would be ignored just as thoroughly an hour later."
+      },
+      {
+        "text": "The new value never made it into the file.",
+        "correct": false,
+        "explanation": "It did, and the application is presenting it, which is how the disagreement became visible in the first place."
+      },
+      {
+        "text": "Credentials are cached in memory and survive a restart.",
+        "correct": false,
+        "explanation": "No such cache exists. The old value survives because it is written on disk, not because anything remembered it."
+      },
+      {
+        "text": "It is applied once, when the data directory is first created, and an existing directory is never re-read for it.",
+        "correct": true,
+        "explanation": "Initialization-time settings are an entire category of trap: they read like live configuration and behave like a one-time decision. The stored value outlives every later edit."
+      }
+    ]
+  },
+  {
+    "question": "Two services disagree about a secret. What is the most direct way to observe the disagreement?",
+    "options": [
+      {
+        "text": "Ask each running process what it currently holds, instead of reading the files that were meant to set it.",
+        "correct": true,
+        "explanation": "A file states an intention and a process states a fact. When the two differ you have found the bug, and you can only see it by asking both sides rather than either one."
+      },
+      {
+        "text": "Compare the deployment history of the two services.",
+        "correct": false,
+        "explanation": "That may tell you who changed what and when, which matters for the writeup. It does not tell you what either side is holding right now."
+      },
+      {
+        "text": "Rotate it again on both sides and see whether the problem clears.",
+        "correct": false,
+        "explanation": "It very often does clear, and you learn nothing. A fix with no explanation cannot be written up and cannot be stopped from recurring."
+      },
+      {
+        "text": "Turn on verbose logging and reproduce the failure.",
+        "correct": false,
+        "explanation": "More output describing the same rejection. You already know the login was turned away; the open question is what each side is presenting."
+      }
+    ]
+  }
+]

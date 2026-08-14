@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The customer reports that your API is down. A status line comes back on the first attempt. What does that alone settle?",
+    "options": [
+      {
+        "text": "That their integration is configured correctly.",
+        "correct": false,
+        "explanation": "It settles nothing about their configuration. A reply proves reachability, never correctness."
+      },
+      {
+        "text": "That the credential they sent was accepted.",
+        "correct": false,
+        "explanation": "A reply arrives whether the credential is accepted or turned away. The status is what separates those two, and it has not been read yet."
+      },
+      {
+        "text": "That the service is reachable and answering, which finishes the outage theory.",
+        "correct": true,
+        "explanation": "Any status line at all, a refusal included, proves something received the request and responded. That disposes of the customer's theory in a single observation and costs nothing to obtain."
+      },
+      {
+        "text": "That the problem must be on the customer's side.",
+        "correct": false,
+        "explanation": "It shifts the balance without establishing it. Here the change was on our side, and their integration simply never followed it."
+      }
+    ]
+  },
+  {
+    "question": "The request was turned away on credential grounds. Why is the status code alone not enough to write the reply?",
+    "options": [
+      {
+        "text": "It covers absent, malformed, expired and withdrawn credentials alike, and those have four different remedies.",
+        "correct": true,
+        "explanation": "The body carries the machine-readable reason and the date. Answering from the status alone means guessing which of four situations the customer is in, and three of those guesses waste their afternoon."
+      },
+      {
+        "text": "Status codes are advisory and are often set incorrectly.",
+        "correct": false,
+        "explanation": "This one is set correctly. The limitation is that it is deliberately coarse, not that it is unreliable."
+      },
+      {
+        "text": "It gives no indication of whether the service is healthy.",
+        "correct": false,
+        "explanation": "It does, implicitly. A considered refusal is something only a working service produces."
+      },
+      {
+        "text": "The customer will not know what the number means.",
+        "correct": false,
+        "explanation": "Probably true and beside the point. The difficulty is that the number does not contain the answer, not that it is hard to read."
+      }
+    ]
+  },
+  {
+    "question": "The customer insists nothing changed on their side, and the evidence agrees with them. How does that fit together?",
+    "options": [
+      {
+        "text": "They are mistaken about their own deployment history.",
+        "correct": false,
+        "explanation": "The evidence supports them. The failures line up with a date on our side, not with anything on theirs."
+      },
+      {
+        "text": "Something in the network path between them and us changed.",
+        "correct": false,
+        "explanation": "Nothing points there. Their requests arrive and are answered, so the path is intact."
+      },
+      {
+        "text": "Their integration developed a fault over time.",
+        "correct": false,
+        "explanation": "It behaves exactly as it always has. That is the problem rather than the exception."
+      },
+      {
+        "text": "Our side withdrew what they were using, and something that never changes will keep presenting a thing that is no longer accepted.",
+        "correct": true,
+        "explanation": "Their stability is precisely why it broke. \"Nothing changed here\" is a real clue pointing across the boundary, not a claim to argue with."
+      }
+    ]
+  }
+]

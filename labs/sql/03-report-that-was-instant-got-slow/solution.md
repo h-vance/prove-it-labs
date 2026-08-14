@@ -100,19 +100,11 @@ it is clearly worth it, but say so rather than assume it.
 > whether a retention policy on request history is planned, since that changes
 > whether indexing or pruning is the better answer long term.
 
-## Say it out loud (90 seconds)
+## Check your understanding
 
-> The customer has told me nothing changed except the volume of data, which
-> rules out a regression and points at how the work scales rather than what the
-> work is. I would deliberately not reach for a stopwatch, because timing tells
-> me about today and they asked me about six months from now. Instead I would
-> ask the database how it intends to answer the question, with EXPLAIN ANALYZE,
-> and I would note that on a write statement that actually executes it, so it
-> belongs in a transaction you roll back. Here the plan shows a sequential scan
-> reading 300,000 rows to return 7,500, which means nothing exists that lets it
-> find one account directly. That explains the gradual decline exactly, because
-> the cost of a scan is the size of the table. The fix is an index on the
-> account column and then the timestamp, in that order, so it can seek and then
-> walk the time window. I would verify the plan changed and the numbers did not,
-> and I would tell the customer the index has a small write cost rather than
-> letting them discover it.
+Three questions on what the evidence here proved, and what it pointedly did
+not. Wrong answers explain themselves, and so do right ones.
+
+```
+tse quiz
+```

@@ -84,18 +84,11 @@ Not for the account. Possibly for the process:
 > Request: confirm whether v1 callers were identified and notified before the
 > withdrawal date, and whether other accounts are still calling v1 today.
 
-## Say it out loud (90 seconds)
+## Check your understanding
 
-> The customer has verified the account IDs by hand, and I would take that at
-> face value because it is easy for them to check and they clearly did. So if
-> the IDs are right and we return not found, I want to know what exactly was not
-> found, because a 404 is an answer about an address and there are two addresses
-> here: the record and the route. I would reproduce the call and read the error
-> code, and it says route not found rather than record not found, which means we
-> never got as far as looking for the account. Then I would read the response
-> headers, because a well-behaved API announces a withdrawal there, and it does:
-> a Sunset date of 1 August and a Link header naming v2 as the successor. So the
-> integration has been calling a version that no longer exists. The fix is a path
-> change, and I would confirm the same IDs resolve on v2 before I say so. For the
-> customer I would also point out this has been failing for two weeks, not since
-> this morning, and offer to review what else they call.
+Three questions on what the evidence here proved, and what it pointedly did
+not. Wrong answers explain themselves, and so do right ones.
+
+```
+tse quiz
+```

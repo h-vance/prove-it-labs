@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The customer verified the workload was healthy, the service existed, and the name resolved. All three results were accurate. Why did none of it help?",
+    "options": [
+      {
+        "text": "They were looking at the wrong environment.",
+        "correct": false,
+        "explanation": "They were looking at the right one. The results were true and simply did not cover the step that was failing."
+      },
+      {
+        "text": "Their tooling was showing stale information.",
+        "correct": false,
+        "explanation": "The information was current and correct throughout."
+      },
+      {
+        "text": "Each one covers a different link, and the broken link sits between them: which instances are being selected right now.",
+        "correct": true,
+        "explanation": "Three accurate answers about three things that were fine. This class of fault lives in the space between checks, which is why a list of what you have not yet proved is worth as much as the checks themselves."
+      },
+      {
+        "text": "They should have restarted the workload before checking anything.",
+        "correct": false,
+        "explanation": "A restart would have changed nothing here, and it would have destroyed the evidence that made this quick to find."
+      }
+    ]
+  },
+  {
+    "question": "The client receives nothing back rather than an error. Why?",
+    "options": [
+      {
+        "text": "The request is being silently dropped by a network rule.",
+        "correct": false,
+        "explanation": "No rule is involved. The connection is accepted quite happily."
+      },
+      {
+        "text": "The response is being lost on the way back.",
+        "correct": false,
+        "explanation": "Nothing is lost. Nothing was ever produced to lose."
+      },
+      {
+        "text": "The workload is too slow to answer in time.",
+        "correct": false,
+        "explanation": "The workload is idle. It never receives the request at all."
+      },
+      {
+        "text": "The name resolves and the connection is accepted whether or not there is anywhere to forward it.",
+        "correct": true,
+        "explanation": "Resolving and delivering are separate stages and only the second one failed. A destination with nothing behind it is still a perfectly valid destination, which is what makes this failure so quiet."
+      }
+    ]
+  },
+  {
+    "question": "What is the relationship between a service and the workload sitting behind it?",
+    "options": [
+      {
+        "text": "There is no fixed relationship. A label query runs continuously and traffic goes to whatever matches at that moment.",
+        "correct": true,
+        "explanation": "Believing in a fixed link is what makes this invisible: you go hunting for a broken connection and there is no connection to break. What there is, is a query that quietly stopped matching."
+      },
+      {
+        "text": "The service holds a reference to the deployment that created it.",
+        "correct": false,
+        "explanation": "No such reference exists. They are related only through labels, and only at the moment of each lookup."
+      },
+      {
+        "text": "They are bound together when the workload is first created.",
+        "correct": false,
+        "explanation": "No binding happens at creation. The match is re-evaluated continuously, which is exactly why an edit to either side can break it in silence."
+      },
+      {
+        "text": "The workload registers itself when it starts up.",
+        "correct": false,
+        "explanation": "Registration would be a positive act by the workload. It does nothing of the kind; it carries labels and is either selected or not."
+      }
+    ]
+  }
+]

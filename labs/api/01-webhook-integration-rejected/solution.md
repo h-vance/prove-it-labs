@@ -71,17 +71,11 @@ in which case the issue is the notification process rather than this account:
 > Request: confirm which customers were notified of the 2026-08-12 rotation, as
 > this account appears not to have been.
 
-## Say it out loud (90 seconds)
+## Check your understanding
 
-> The customer believes we have an outage, so the first thing I would do is
-> disprove or confirm that, because it changes who owns the problem. I would
-> reproduce their call and look at the status line. If the API were down there
-> would be no response at all, and here there is one, so the API is up and is
-> deliberately refusing the request. That gets me to a 401, and I would not stop
-> there, because 401 covers a missing credential, an unrecognized one, and one
-> that was withdrawn. This API returns a machine-readable error code, and it
-> says the key was revoked, with a date that matches when their events stopped.
-> So the cause is a key rotation their integration never picked up. For the
-> customer I would confirm there is no outage, explain that the key was rotated
-> on that date, tell them where to get the current one, and tell them plainly
-> that events sent in the meantime were not accepted and need resending.
+Three questions on what the evidence here proved, and what it pointedly did
+not. Wrong answers explain themselves, and so do right ones.
+
+```
+tse quiz
+```

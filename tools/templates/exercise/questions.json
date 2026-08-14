@@ -1,0 +1,29 @@
+[
+  {
+    "question": "TODO what a specific piece of evidence in this exercise proved, and what it did not",
+    "options": [
+      { "text": "TODO a wrong answer someone would genuinely reach for", "correct": false, "explanation": "TODO why it is wrong, and what would have to be true for it to be right" },
+      { "text": "TODO another plausible wrong answer", "correct": false, "explanation": "TODO why it is wrong" },
+      { "text": "TODO the correct answer, in different words from the question", "correct": true, "explanation": "TODO why it is right, and the distinction it rests on" },
+      { "text": "TODO a wrong answer that is close but incomplete", "correct": false, "explanation": "TODO what it gets right and where it stops short" }
+    ]
+  },
+  {
+    "question": "TODO a second question, on a different distinction from the first",
+    "options": [
+      { "text": "TODO", "correct": false, "explanation": "TODO" },
+      { "text": "TODO the correct answer", "correct": true, "explanation": "TODO" },
+      { "text": "TODO", "correct": false, "explanation": "TODO" },
+      { "text": "TODO", "correct": false, "explanation": "TODO" }
+    ]
+  },
+  {
+    "question": "TODO a third question, usually which move earns the first look given only the symptom",
+    "options": [
+      { "text": "TODO", "correct": false, "explanation": "TODO" },
+      { "text": "TODO", "correct": false, "explanation": "TODO" },
+      { "text": "TODO", "correct": false, "explanation": "TODO" },
+      { "text": "TODO the correct answer", "correct": true, "explanation": "TODO" }
+    ]
+  }
+]

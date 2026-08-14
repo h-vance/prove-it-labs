@@ -33,8 +33,45 @@ REQUIRED_SOLUTION_SECTIONS = (
     "## What the evidence proved",
     "## Root cause",
     "## Customer update",
-    "## Say it out loud",
 )
+
+QUESTIONS_PER_EXERCISE = 3
+OPTIONS_PER_QUESTION = 4
+
+# "All of the above" tests whether the reader noticed a pattern in the list,
+# which is a different skill from the one this course is about.
+LAZY_OPTIONS = re.compile(r"\b(all|none|both) of (the )?(above|these|them)\b", re.IGNORECASE)
+
+
+def _words(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", text.lower())
+
+
+def _contains_run(haystack: list[str], needle: list[str]) -> bool:
+    size = len(needle)
+    return any(haystack[i:i + size] == needle for i in range(len(haystack) - size + 1))
+
+
+def giveaway_overlap(question: str, option: str, *, window: int = 5) -> str | None:
+    """The longest run of words an option copies verbatim from its question.
+
+    A correct option that echoes the question's own phrasing can be picked by
+    matching strings, without understanding anything. Returns the offending
+    run, or None when nothing of at least `window` words is shared.
+    """
+    asked = _words(question)
+    answered = _words(option)
+    longest: list[str] = []
+
+    for start in range(len(answered)):
+        for end in range(start + window, len(answered) + 1):
+            run = answered[start:end]
+            if not _contains_run(asked, run):
+                break
+            if len(run) > len(longest):
+                longest = run
+
+    return " ".join(longest) if longest else None
 
 # Terms that name the failing layer or hand over the diagnosis. A ticket
 # containing one of these has told the learner what to look at, which is the
@@ -155,8 +192,14 @@ class Metadata(unittest.TestCase):
                                   f"{exercise.id}: unknown prerequisite {prerequisite}")
 
     def test_no_placeholders_left(self):
+        # questions.json is scaffolded with placeholders too, and it is not a
+        # .md file, so it has to be named here or a whole template question set
+        # could ship unwritten.
         for exercise in EXERCISES:
-            for path in exercise.path.rglob("*.md"):
+            paths = list(exercise.path.rglob("*.md")) + [exercise.path / "questions.json"]
+            for path in paths:
+                if not path.is_file():
+                    continue
                 with self.subTest(f"{exercise.id}:{path.name}"):
                     self.assertNotIn("TODO", path.read_text(),
                                      f"{path} still contains a template placeholder")
@@ -179,6 +222,22 @@ class Editorial(unittest.TestCase):
             with self.subTest(exercise.id):
                 for section in REQUIRED_SOLUTION_SECTIONS:
                     self.assertIn(section, body, f"{exercise.id}: solution.md needs {section}")
+
+    def test_no_solution_still_ends_in_a_spoken_answer(self):
+        """The spoken section was replaced by questions.json, not kept alongside.
+
+        Required-section tests can only notice something missing, never
+        something lingering, so removing it from REQUIRED_SOLUTION_SECTIONS
+        left nothing watching. A revert quietly restored all fifteen once
+        already and every test still passed.
+        """
+        for exercise in EXERCISES:
+            body = (exercise.path / "solution.md").read_text()
+            with self.subTest(exercise.id):
+                self.assertNotIn(
+                    "## Say it out loud", body,
+                    f"{exercise.id}: solution.md still ends in a spoken answer",
+                )
 
     def test_first_hint_names_no_command(self):
         """Hint 1 reframes the problem. It must not hand over a command."""
@@ -379,6 +438,118 @@ class NotFiller(unittest.TestCase):
             seen[fingerprint] = exercise.id
 
 
+class Questions(unittest.TestCase):
+    """The multiple choice set that replaced the spoken answer.
+
+    Filler is as easy to write in a question as in an exercise, and a bad
+    question is worse than none: it teaches the learner to pattern match on
+    option length or on the one answer that sounds most cautious.
+    """
+
+    def test_every_exercise_has_a_question_set(self):
+        for exercise in EXERCISES:
+            with self.subTest(exercise.id):
+                self.assertTrue(
+                    (exercise.path / "questions.json").is_file(),
+                    f"{exercise.id}: questions.json is missing",
+                )
+                self.assertEqual(
+                    len(exercise.questions()), QUESTIONS_PER_EXERCISE,
+                    f"{exercise.id}: expected {QUESTIONS_PER_EXERCISE} questions",
+                )
+
+    def test_each_question_has_one_answer_among_four(self):
+        for exercise in EXERCISES:
+            for number, question in enumerate(exercise.questions(), start=1):
+                options = question.get("options", [])
+                with self.subTest(f"{exercise.id} q{number}"):
+                    self.assertEqual(
+                        len(options), OPTIONS_PER_QUESTION,
+                        f"{exercise.id} q{number}: expected {OPTIONS_PER_QUESTION} options",
+                    )
+                    self.assertEqual(
+                        sum(1 for o in options if o.get("correct")), 1,
+                        f"{exercise.id} q{number}: exactly one option must be correct",
+                    )
+
+    def test_every_option_explains_itself(self):
+        """Including the correct one. "Correct" on its own teaches nothing."""
+        for exercise in EXERCISES:
+            for number, question in enumerate(exercise.questions(), start=1):
+                options = question.get("options", [])
+                with self.subTest(f"{exercise.id} q{number}"):
+                    for index, option in enumerate(options, start=1):
+                        self.assertTrue(
+                            (option.get("explanation") or "").strip(),
+                            f"{exercise.id} q{number} option {index}: no explanation",
+                        )
+                    texts = [(o.get("text") or "").strip().lower() for o in options]
+                    self.assertEqual(len(set(texts)), len(texts),
+                                     f"{exercise.id} q{number}: duplicated option text")
+                    reasons = [(o.get("explanation") or "").strip().lower() for o in options]
+                    self.assertEqual(len(set(reasons)), len(reasons),
+                                     f"{exercise.id} q{number}: duplicated explanation")
+
+    def test_no_lazy_options(self):
+        for exercise in EXERCISES:
+            for number, question in enumerate(exercise.questions(), start=1):
+                for option in question.get("options", []):
+                    with self.subTest(f"{exercise.id} q{number}"):
+                        self.assertIsNone(
+                            LAZY_OPTIONS.search(option.get("text", "")),
+                            f"{exercise.id} q{number}: uses an 'of the above' option",
+                        )
+
+    def test_question_text_is_unique_across_the_course(self):
+        seen: dict[str, str] = {}
+        for exercise in EXERCISES:
+            for question in exercise.questions():
+                normalized = " ".join(question.get("question", "").split()).lower()
+                with self.subTest(exercise.id):
+                    self.assertNotIn(
+                        normalized, seen,
+                        f"{exercise.id} repeats a question from {seen.get(normalized)}",
+                    )
+                seen[normalized] = exercise.id
+
+    def test_no_question_gives_itself_away(self):
+        for exercise in EXERCISES:
+            for number, question in enumerate(exercise.questions(), start=1):
+                answer = next(
+                    (o for o in question.get("options", []) if o.get("correct")), None
+                )
+                if answer is None:
+                    continue
+                shared = giveaway_overlap(question.get("question", ""), answer.get("text", ""))
+                with self.subTest(f"{exercise.id} q{number}"):
+                    self.assertIsNone(
+                        shared,
+                        f"{exercise.id} q{number}: the answer echoes the question ({shared!r})",
+                    )
+
+    def test_the_answer_is_not_always_in_the_same_place(self):
+        """A drift toward one slot is the oldest tell in written exams."""
+        positions: list[int] = []
+        for exercise in EXERCISES:
+            for question in exercise.questions():
+                options = question.get("options", [])
+                for index, option in enumerate(options):
+                    if option.get("correct"):
+                        positions.append(index)
+
+        if not positions:
+            self.skipTest("no questions authored yet")
+
+        cap = max(2, round(0.45 * len(positions)))
+        for slot in range(OPTIONS_PER_QUESTION):
+            count = positions.count(slot)
+            self.assertLessEqual(
+                count, cap,
+                f"the answer sits in slot {slot + 1} for {count} of {len(positions)} "
+                f"questions, which is a pattern a learner can exploit",
+            )
+
+
 class DetectorsActuallyFire(unittest.TestCase):
     """A linter that cannot fail is not a linter.
 
@@ -407,6 +578,36 @@ class DetectorsActuallyFire(unittest.TestCase):
             with self.subTest(sentence):
                 self.assertTrue(SPOILER_TERMS.search(sentence),
                                 f"spoiler detector missed: {sentence}")
+
+    def test_lazy_option_detector_fires(self):
+        for text in ("All of the above", "none of these", "Both of them", "all of above"):
+            with self.subTest(text):
+                self.assertTrue(LAZY_OPTIONS.search(text), f"lazy option missed: {text}")
+
+    def test_lazy_option_detector_allows_real_options(self):
+        for text in (
+            "The service is listening, and nothing beyond that.",
+            "Every one of the rows above the threshold was dropped.",
+            "None of the requests carried an identifier.",
+        ):
+            with self.subTest(text):
+                self.assertIsNone(LAZY_OPTIONS.search(text), f"false positive: {text}")
+
+    def test_giveaway_detector_fires_on_an_echoed_answer(self):
+        question = "The container exits immediately after it starts. What does that prove?"
+        option = "That the container exits immediately after it starts for a reason inside it."
+        self.assertIsNotNone(
+            giveaway_overlap(question, option),
+            "an answer repeating the question verbatim should be caught",
+        )
+
+    def test_giveaway_detector_allows_an_answer_in_its_own_words(self):
+        question = "The container exits immediately after it starts. What does that prove?"
+        option = "The process finished or failed on its own, rather than being stopped from outside."
+        self.assertIsNone(
+            giveaway_overlap(question, option),
+            "a genuinely reworded answer should not be flagged",
+        )
 
     def test_spoiler_terms_allow_ordinary_customer_language(self):
         good = [

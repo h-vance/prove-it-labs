@@ -211,6 +211,19 @@ class Exercise:
     def stack_dir(self) -> Path:
         return LABS / self.stack_source / "_stack"
 
+    def questions(self) -> list[dict]:
+        """The multiple choice set that replaced the spoken answer.
+
+        JSON rather than YAML on purpose. A question set is a list of mappings
+        each holding a list of mappings, and parse_meta_subset refuses nested
+        mappings by design. Teaching it to nest for authoring comfort alone
+        would put every meta.yaml at risk for no gain.
+        """
+        path = self.path / "questions.json"
+        if not path.is_file():
+            return []
+        return json.loads(path.read_text())
+
 
 def load_exercises() -> list[Exercise]:
     found: list[Exercise] = []
@@ -581,7 +594,8 @@ def cmd_check(args: argparse.Namespace) -> None:
             state["completed"] = sorted(completed)
             write_state(state)
         print(f"\n{GREEN}Resolved.{OFF} Write the customer update before you move on.")
-        print(f"{DIM}Compare your reasoning with `tse answer`.{OFF}")
+        print(f"{DIM}Compare your reasoning with `tse answer`, "
+              f"then check it holds up with `tse quiz`.{OFF}")
     sys.exit(result.returncode)
 
 
@@ -613,6 +627,77 @@ def cmd_answer(args: argparse.Namespace) -> None:
     if not solution.is_file():
         sys.exit(f"tse: {exercise.id} has no solution.md")
     print(solution.read_text().rstrip())
+
+
+def ask_choice(count: int) -> int | None:
+    """Read a 1-based answer from stdin, return it 0-based, or None at end of input.
+
+    Returning None on EOF is what lets the smoke test drive the quiz from a
+    pipe: it answers what it means to answer and then stops cleanly instead of
+    spinning on an empty read.
+    """
+    while True:
+        try:
+            raw = input(f"\nYour answer [1-{count}]: ").strip()
+        except EOFError:
+            return None
+        if raw.isdigit() and 1 <= int(raw) <= count:
+            return int(raw) - 1
+        print(f"{YELLOW}Enter a number from 1 to {count}.{OFF}")
+
+
+def cmd_quiz(args: argparse.Namespace) -> None:
+    """Check understanding once the system is fixed.
+
+    Deliberately its own command rather than part of check.sh. `tse verify`
+    runs every check non-interactively against both states in CI, so a check
+    that waited for keyboard input would hang the matrix rather than fail it.
+    """
+    exercise = resolve(args.exercise) if args.exercise else current_exercise()
+    questions = exercise.questions()
+    if not questions:
+        sys.exit(f"tse: {exercise.id} has no questions.json")
+
+    print(f"{BOLD}{exercise.id}{OFF}  {exercise.title}")
+    print(f"{DIM}{len(questions)} questions. Answer with the number.{OFF}")
+
+    score = 0
+    for number, question in enumerate(questions, start=1):
+        options = question["options"]
+        print(f"\n{BOLD}Question {number} of {len(questions)}{OFF}")
+        print(f"{question['question']}\n")
+        for index, option in enumerate(options, start=1):
+            print(f"  {index}. {option['text']}")
+
+        choice = ask_choice(len(options))
+        if choice is None:
+            print(f"\n{DIM}Stopping here. Nothing recorded.{OFF}")
+            return
+
+        chosen = options[choice]
+        # A symbol as well as a color, because NO_COLOR is set on plenty of
+        # terminals and "correct" must never be carried by color alone.
+        if chosen.get("correct"):
+            score += 1
+            print(f"\n{GREEN}✓ Correct.{OFF} {chosen['explanation']}")
+        else:
+            answer = next(o for o in options if o.get("correct"))
+            print(f"\n{RED}✗ Not quite.{OFF} {chosen['explanation']}")
+            print(f"\n{BOLD}The answer: {answer['text']}{OFF}")
+            print(answer["explanation"])
+
+    total = len(questions)
+    print(f"\n{BOLD}{score}/{total}{OFF}")
+    if score == total:
+        print(f"{GREEN}All of them.{OFF} You can explain this one, not just fix it.")
+    else:
+        print(f"{DIM}Re-read `tse answer` on the ones you missed, then run this again.{OFF}")
+
+    state = read_state()
+    record = state.setdefault("quiz", {})
+    if score > record.get(exercise.id, {}).get("correct", -1):
+        record[exercise.id] = {"correct": score, "total": total}
+        write_state(state)
 
 
 def cmd_apply(args: argparse.Namespace) -> None:
@@ -863,6 +948,10 @@ def main() -> None:
 
     p = sub.add_parser("answer", help="reveal the root cause and the customer wording")
     p.set_defaults(func=cmd_answer)
+
+    p = sub.add_parser("quiz", help="answer the exercise's questions and see why")
+    p.add_argument("exercise", nargs="?")
+    p.set_defaults(func=cmd_quiz)
 
     p = sub.add_parser("apply", help="recreate the services after you edit the configuration")
     p.set_defaults(func=cmd_apply)

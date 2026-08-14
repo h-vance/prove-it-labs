@@ -70,18 +70,11 @@ proof, not the Service looking healthy again, which it did throughout.
 > Request: identify which other Services were edited in the same change, since
 > this failure mode reports healthy everywhere.
 
-## Say it out loud (90 seconds)
+## Check your understanding
 
-> Everything healthy and nothing working is a pattern rather than a
-> contradiction, and it usually means the request is not reaching the
-> application at all. So I would stop re-checking health, because the customer
-> has already established that and looping on it is how this ticket eats an
-> hour. A Service is not a link to a workload, it is a label query evaluated
-> continuously, and the result of that query is written down in its
-> EndpointSlice. That is the one place the emptiness is visible. I would look
-> there first, and it has no addresses, which proves the failure is in the
-> selection rather than the workload or the network. Then I compare the two
-> halves of the query: what the Service asks for, and what the pods carry. They
-> differ by one word after yesterday's platform work. I would fix the Service
-> rather than relabel healthy pods, confirm endpoints appear, and then ask what
-> else that change touched.
+Three questions on what the evidence here proved, and what it pointedly did
+not. Wrong answers explain themselves, and so do right ones.
+
+```
+tse quiz
+```

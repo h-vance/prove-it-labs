@@ -1,0 +1,77 @@
+[
+  {
+    "question": "Asking for output returned a refusal instead of text. Why is that refusal worth more than output would have been?",
+    "options": [
+      {
+        "text": "It names the container's state outright, which hands over the next branch of the investigation with no further command.",
+        "correct": true,
+        "explanation": "The command that looked like a dead end was carrying the answer. A refusal that explains itself is better evidence than a page of text that still has to be interpreted."
+      },
+      {
+        "text": "It proves the application crashed during startup.",
+        "correct": false,
+        "explanation": "It proves the reverse. The application never began, so it cannot have crashed."
+      },
+      {
+        "text": "It shows that permission to read output is missing.",
+        "correct": false,
+        "explanation": "Nothing is being denied on permission grounds. The refusal is a statement about the container's state."
+      },
+      {
+        "text": "It confirms the pod does not exist.",
+        "correct": false,
+        "explanation": "The pod exists and is being described accurately. It is the container inside it that was never assembled."
+      }
+    ]
+  },
+  {
+    "question": "With the application eliminated as a suspect, what is left to investigate?",
+    "options": [
+      {
+        "text": "The dependencies it calls and the services behind them.",
+        "correct": false,
+        "explanation": "It never got far enough to call anything. Everything downstream is out of reach of this failure."
+      },
+      {
+        "text": "The work the platform does on the container's behalf before any code runs: fetching the image, resolving values, mounting volumes, applying security settings.",
+        "correct": true,
+        "explanation": "That list is short and finite, which is what makes this kind of failure fast once the code is excluded. Each item costs one command to rule in or out."
+      },
+      {
+        "text": "The spare capacity available on the node.",
+        "correct": false,
+        "explanation": "A capacity problem stops a pod from being placed at all. This one was placed and then could not be assembled."
+      },
+      {
+        "text": "The network rules applied to the workload.",
+        "correct": false,
+        "explanation": "Network rules govern traffic to and from a running process, and there is no process yet."
+      }
+    ]
+  },
+  {
+    "question": "The configuration source existed and the workload still could not be assembled. What was actually wrong?",
+    "options": [
+      {
+        "text": "The configuration source was empty.",
+        "correct": false,
+        "explanation": "It held a value. The value was simply filed under a different name from the one being asked for."
+      },
+      {
+        "text": "The workload lacked permission to read it.",
+        "correct": false,
+        "explanation": "Permission was never at issue, and a permission failure would have said as much."
+      },
+      {
+        "text": "The workload asked for one specific name, and nothing with that name was there.",
+        "correct": true,
+        "explanation": "Existence of the source and existence of the entry inside it are separate claims. Confirming the source is present and stopping there is precisely how this stays hidden."
+      },
+      {
+        "text": "The value stored there had the wrong type.",
+        "correct": false,
+        "explanation": "Nothing here is typed strictly enough for that to arise, and the lookup failed before any value was read."
+      }
+    ]
+  }
+]
