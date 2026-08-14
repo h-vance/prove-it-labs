@@ -284,6 +284,74 @@ def cluster_exists() -> bool:
     return KIND_CLUSTER in result.stdout.split()
 
 
+def node_platform() -> str | None:
+    """The platform kind nodes run as, asked rather than inferred.
+
+    A kind node is a container on the local Docker daemon, so the daemon's
+    own architecture is the answer, and it already reports Go naming
+    ("amd64", "arm64") which is exactly what --platform wants. Deriving this
+    from `uname -m` instead means maintaining a mapping table and shipping a
+    branch that only ever runs on hardware the author does not have.
+
+    Returns None when it cannot be determined, in which case preloading is
+    skipped rather than guessed at.
+    """
+    result = subprocess.run(
+        ["docker", "version", "--format", "{{.Server.Arch}}"], capture_output=True, text=True
+    )
+    arch = result.stdout.strip()
+    if result.returncode != 0 or not arch or "/" in arch or " " in arch:
+        return None
+    return f"linux/{arch}"
+
+
+def image_in_node(image: str) -> bool:
+    """Whether the node actually has the image, rather than whether load exited 0."""
+    result = subprocess.run(
+        ["docker", "exec", f"{KIND_CLUSTER}-control-plane", "crictl", "images"],
+        capture_output=True,
+        text=True,
+    )
+    repository, _, tag = image.rpartition(":")
+    return any(
+        repository in line and tag in line for line in result.stdout.splitlines()
+    )
+
+
+def preload_images() -> None:
+    """Put the lab images into the node so exercises start without a pull.
+
+    Best effort throughout. If any step fails the cluster simply pulls from the
+    registry on first use, which is slower and equally correct, so nothing here
+    is allowed to fail a cluster creation.
+    """
+    platform = node_platform()
+    if platform is None:
+        print(f"{DIM}Could not determine the node platform; images will be pulled on use.{OFF}")
+        return
+
+    for image in KIND_IMAGES:
+        # Preloading has to go through a single-platform archive. `kind load
+        # docker-image` imports with --all-platforms, which Docker's containerd
+        # image store answers with a multi-arch manifest whose per-platform
+        # content is not present locally, and it fails on a missing digest.
+        archive = Path(tempfile.gettempdir()) / f"tse-{image.replace(':', '-').replace('/', '-')}.tar"
+        steps = [
+            ["docker", "pull", "-q", "--platform", platform, image],
+            ["docker", "save", "--platform", platform, image, "-o", str(archive)],
+            ["kind", "load", "image-archive", str(archive), "--name", KIND_CLUSTER],
+        ]
+        for step in steps:
+            if subprocess.run(step, capture_output=True).returncode != 0:
+                break
+        archive.unlink(missing_ok=True)
+
+        if image_in_node(image):
+            print(f"{DIM}Preloaded {image} ({platform}).{OFF}")
+        else:
+            print(f"{DIM}Could not preload {image}; the cluster will pull it on first use.{OFF}")
+
+
 def ensure_cluster() -> None:
     """Create the shared cluster once, then reuse it for every exercise.
 
@@ -297,28 +365,7 @@ def ensure_cluster() -> None:
     print(f"{DIM}Creating the {KIND_CLUSTER} cluster. This happens once and takes a minute.{OFF}")
     run(["kind", "create", "cluster", "--name", KIND_CLUSTER, "--config", str(config)])
 
-    # Preloading has to go through a single-platform archive. `kind load
-    # docker-image` imports with --all-platforms, which Docker's containerd
-    # image store answers with a multi-arch manifest whose per-platform content
-    # is not present locally, and the import fails on a missing digest.
-    machine = subprocess.run(["uname", "-m"], capture_output=True, text=True).stdout.strip()
-    platform = "linux/arm64" if machine in {"arm64", "aarch64"} else "linux/amd64"
-
-    for image in KIND_IMAGES:
-        archive = Path(tempfile.gettempdir()) / f"tse-{image.replace(':', '-').replace('/', '-')}.tar"
-        pulled = subprocess.run(
-            ["docker", "pull", "-q", "--platform", platform, image], capture_output=True
-        )
-        saved = subprocess.run(
-            ["docker", "save", "--platform", platform, image, "-o", str(archive)],
-            capture_output=True,
-        )
-        if pulled.returncode == 0 and saved.returncode == 0:
-            run(["kind", "load", "image-archive", str(archive), "--name", KIND_CLUSTER], check=False)
-        else:
-            # Not fatal. The cluster will pull it from the registry instead.
-            print(f"{DIM}Could not preload {image}; the cluster will pull it.{OFF}")
-        archive.unlink(missing_ok=True)
+    preload_images()
 
 
 def reset_namespace() -> None:
@@ -592,6 +639,11 @@ def cmd_cluster(args: argparse.Namespace) -> None:
             print(f"Cluster {KIND_CLUSTER} does not exist. Create it with `tse cluster up`.")
             return
         print(f"{GREEN}Cluster {KIND_CLUSTER} exists.{OFF}")
+        platform = node_platform()
+        for image in KIND_IMAGES:
+            state = "preloaded" if image_in_node(image) else "will be pulled on use"
+            print(f"  {image:<24} {state}")
+        print(f"  node platform            {platform or 'unknown'}\n")
         subprocess.run(kubectl("get", "nodes"), check=False)
         subprocess.run(kubectl("get", "all", "-n", LAB_NAMESPACE), check=False)
 

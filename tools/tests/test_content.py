@@ -178,6 +178,45 @@ class Editorial(unittest.TestCase):
                 self.assertNotIn("—", path.read_text(), f"{path} contains an em dash")
 
 
+class ClusterHelpers(unittest.TestCase):
+    """Guards on the Kubernetes preload path.
+
+    The platform string used to be inferred from `uname -m`, which meant one
+    branch of a mapping table only ever ran on hardware the author did not
+    have. It is now asked of Docker directly, and these assert the answer is
+    well formed rather than assuming it.
+    """
+
+    def test_node_platform_is_well_formed_or_absent(self):
+        platform = tse.node_platform()
+        if platform is None:
+            self.skipTest("Docker is not available on this machine")
+        self.assertRegex(platform, r"^linux/[a-z0-9]+$")
+
+    def test_node_platform_matches_the_running_daemon(self):
+        import subprocess
+
+        probe = subprocess.run(
+            ["docker", "version", "--format", "{{.Server.Arch}}"],
+            capture_output=True, text=True,
+        )
+        if probe.returncode != 0 or not probe.stdout.strip():
+            self.skipTest("Docker is not available on this machine")
+        self.assertEqual(tse.node_platform(), f"linux/{probe.stdout.strip()}")
+
+    def test_lab_images_are_tagged(self):
+        """image_in_node splits on the last colon, so an untagged entry breaks it."""
+        for image in tse.KIND_IMAGES:
+            with self.subTest(image):
+                repository, separator, tag = image.rpartition(":")
+                self.assertTrue(separator, f"{image} has no tag")
+                self.assertTrue(repository and tag)
+
+    def test_image_in_node_is_safe_without_a_cluster(self):
+        """It is called from `cluster status`, which must not blow up."""
+        self.assertIsInstance(tse.image_in_node(tse.KIND_IMAGES[0]), bool)
+
+
 class GeneratedFiles(unittest.TestCase):
     def test_every_managed_filename_is_gitignored(self):
         """Files tse writes into a shared _stack must never be committable.
