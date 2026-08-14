@@ -1,0 +1,21 @@
+---
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+import { loadReference, type ReferenceDoc } from "../../lib/labs";
+
+export function getStaticPaths() {
+  return loadReference().map((doc) => ({
+    params: { slug: doc.slug },
+    props: { doc },
+  }));
+}
+
+interface Props {
+  doc: ReferenceDoc;
+}
+
+const { doc } = Astro.props;
+---
+
+<StarlightPage frontmatter={{ title: doc.title }}>
+  <div set:html={doc.html} />
+</StarlightPage>

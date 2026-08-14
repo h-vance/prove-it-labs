@@ -1,0 +1,411 @@
+/* Prove It: styles layered on Starlight's tokens.
+ *
+ * Design rules this file follows:
+ *  - Nothing is signalled by color alone.
+ *  - Interactive things are real buttons, inputs, and links.
+ *  - Motion is minimal and respects prefers-reduced-motion.
+ *  - Text stays readable at 200% zoom without horizontal scrolling.
+ *  - Secondary text uses --sl-color-gray-2, never gray-3. On the panel
+ *    background gray-3 measures 4.49:1, which fails AA by a hair.
+ */
+
+:root {
+  --proveit-radius: 0.5rem;
+  --proveit-gap: 1rem;
+  --proveit-rule: 1px solid var(--sl-color-gray-5);
+  --proveit-panel: var(--sl-color-gray-6);
+}
+
+/* ------------------------------------------------------------------ tiers */
+
+/* Stretch material is removed, not dimmed. Marking it "advanced" and leaving
+ * it on the page still costs attention to skip. */
+html[data-stretch="hidden"] [data-tier="stretch"] {
+  display: none;
+}
+
+.tier {
+  border: var(--proveit-rule);
+  border-radius: var(--proveit-radius);
+  padding: var(--proveit-gap);
+  background: var(--proveit-panel);
+}
+
+.tier__control {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tier__control input {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.tier__help {
+  margin: 0.5rem 0 0;
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-2);
+}
+
+/* --------------------------------------------------------- exercise facts */
+
+.proof-question {
+  font-size: var(--sl-text-lg);
+  font-weight: 600;
+  border-inline-start: 4px solid var(--sl-color-accent);
+  padding-inline-start: 0.9rem;
+  margin-block: 1rem 1.5rem;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin: 0 0 1.25rem;
+  padding: 0.85rem 1rem;
+  border: var(--proveit-rule);
+  border-radius: var(--proveit-radius);
+  background: var(--proveit-panel);
+}
+
+.facts > div {
+  min-width: 8rem;
+}
+
+.facts dt {
+  font-size: var(--sl-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sl-color-gray-2);
+}
+
+.facts dd {
+  margin: 0.15rem 0 0;
+  font-weight: 600;
+}
+
+.prereq {
+  font-size: var(--sl-text-sm);
+}
+
+.ticket {
+  border: var(--proveit-rule);
+  border-inline-start: 4px solid var(--sl-color-orange, #c2410c);
+  border-radius: var(--proveit-radius);
+  padding: 0.25rem 1.25rem 1rem;
+  background: var(--proveit-panel);
+}
+
+.ticket blockquote {
+  border-inline-start: 3px solid var(--sl-color-gray-4);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0;
+  list-style: none;
+}
+
+.chips li {
+  margin: 0;
+  padding: 0.2rem 0.6rem;
+  border: var(--proveit-rule);
+  border-radius: 999px;
+  font-size: var(--sl-text-sm);
+  background: var(--proveit-panel);
+}
+
+.chips code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+/* ------------------------------------------------------- reveal sections */
+
+.reveal,
+.pad,
+.start {
+  margin-block: 2rem;
+  padding-top: 0.5rem;
+  border-top: var(--proveit-rule);
+}
+
+.reveal__lede,
+.pad__lede,
+.start__lede {
+  color: var(--sl-color-gray-2);
+}
+
+.reveal__item {
+  margin-block: 1rem;
+  padding: 0.25rem 1.25rem 0.75rem;
+  border: var(--proveit-rule);
+  border-radius: var(--proveit-radius);
+  background: var(--proveit-panel);
+}
+
+.reveal__of {
+  font-weight: 400;
+  color: var(--sl-color-gray-2);
+}
+
+.reveal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+/* Background is --sl-color-text-accent, not --sl-color-accent. Starlight
+ * swaps black and white per theme so this pairing stays legible in both,
+ * whereas mid-accent with black text measures 3.89:1 in dark mode.
+ * Hover changes the underline rather than the color, so no hover state can
+ * quietly drop back below the contrast threshold. */
+.reveal__button {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.55rem 1.1rem;
+  border: 1px solid var(--sl-color-text-accent);
+  border-radius: var(--proveit-radius);
+  background: var(--sl-color-text-accent);
+  color: var(--sl-color-black);
+  cursor: pointer;
+}
+
+.reveal__button:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.reveal__button--quiet {
+  background: none;
+  color: var(--sl-color-text);
+  border-color: var(--sl-color-gray-4);
+}
+
+.reveal__button--quiet:hover {
+  background: var(--proveit-panel);
+  border-color: var(--sl-color-gray-2);
+}
+
+.reveal__count {
+  font-weight: 400;
+}
+
+.reveal__done {
+  margin: 0;
+  color: var(--sl-color-gray-2);
+}
+
+/* ------------------------------------------------------------ scratchpad */
+
+.pad__field {
+  margin-block: 1.1rem;
+}
+
+.pad__field label {
+  display: block;
+  font-weight: 600;
+}
+
+.pad__help {
+  margin: 0.15rem 0 0.4rem;
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-2);
+}
+
+.pad__field textarea {
+  width: 100%;
+  font: inherit;
+  line-height: 1.5;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--sl-color-gray-4);
+  border-radius: var(--proveit-radius);
+  background: var(--sl-color-bg);
+  color: var(--sl-color-text);
+  resize: vertical;
+}
+
+.pad__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+/* ----------------------------------------------------- start-here routing */
+
+.start__question {
+  margin-block: 1.25rem;
+  padding: 0.75rem 1rem 1rem;
+  border: var(--proveit-rule);
+  border-radius: var(--proveit-radius);
+}
+
+.start__question legend {
+  font-weight: 600;
+  padding-inline: 0.35rem;
+}
+
+.start__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.35rem 0;
+  cursor: pointer;
+}
+
+.start__option input {
+  margin-top: 0.25rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  flex: none;
+}
+
+.start__result {
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  border: var(--proveit-rule);
+  border-radius: var(--proveit-radius);
+  background: var(--proveit-panel);
+}
+
+.start__result h3 {
+  margin-top: 0;
+}
+
+.start__pending {
+  margin: 0;
+  color: var(--sl-color-gray-2);
+}
+
+.start__note {
+  border-inline-start: 3px solid var(--sl-color-accent);
+  padding-inline-start: 0.8rem;
+}
+
+.start__cta {
+  display: inline-block;
+  font-weight: 600;
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--proveit-radius);
+  background: var(--sl-color-text-accent);
+  color: var(--sl-color-black);
+  text-decoration: none;
+}
+
+.start__cta:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* -------------------------------------------------------- track listings */
+
+.track {
+  margin-block: 2rem;
+}
+
+.track h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem;
+  border-bottom: var(--proveit-rule);
+  padding-bottom: 0.4rem;
+}
+
+.track__count {
+  font-size: var(--sl-text-sm);
+  font-weight: 400;
+  color: var(--sl-color-gray-2);
+}
+
+.track__list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.track__list li {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border: var(--proveit-rule);
+  border-radius: var(--proveit-radius);
+}
+
+.track__list a {
+  font-weight: 600;
+}
+
+.track__proof,
+.track__meta {
+  margin: 0.3rem 0 0;
+  font-size: var(--sl-text-sm);
+}
+
+.track__proof {
+  color: var(--sl-color-gray-2);
+}
+
+.track__meta {
+  color: var(--sl-color-gray-2);
+}
+
+.track__tag {
+  margin-inline-start: 0.5rem;
+  padding: 0.05rem 0.5rem;
+  border: var(--proveit-rule);
+  border-radius: 999px;
+  font-size: var(--sl-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.track--planned .track__planned {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0;
+  list-style: none;
+}
+
+.track--planned .track__planned li {
+  padding: 0.2rem 0.6rem;
+  border: 1px dashed var(--sl-color-gray-4);
+  border-radius: 999px;
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-2);
+}
+
+/* --------------------------------------------------------- accessibility */
+
+:where(a, button, input, textarea, select, summary):focus-visible {
+  outline: 3px solid var(--sl-color-accent-high);
+  outline-offset: 2px;
+}
+
+/* Wide content scrolls inside its own box so the page body never does. */
+.sl-markdown-content table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

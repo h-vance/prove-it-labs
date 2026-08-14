@@ -1,0 +1,32 @@
+---
+title: Where should I begin?
+description: Four questions that pick a starting point for you, so choosing one is not what stops you.
+---
+
+import StartHere from "../../components/StartHere";
+import { loadExercises } from "../../lib/labs";
+
+export const entryPoints = ["docker", "api"]
+  .map((track) => loadExercises().find((exercise) => exercise.track === track))
+  .filter(Boolean)
+  .map((exercise) => ({
+    track: exercise.track,
+    href: exercise.href,
+    title: exercise.title,
+  }));
+
+Deciding where to start is a real cost, and for some people it is the whole
+barrier. This is here so you can hand that decision over and get moving.
+
+<StartHere client:load base={import.meta.env.BASE_URL.replace(/\/$/, "")} entryPoints={entryPoints} />
+
+## If you would rather just pick
+
+Both entry points are genuinely fine. The difference is small:
+
+- **Docker** builds the habit everything else depends on, which is proving
+  whether something is running before you explain why it is not.
+- **APIs** need no container knowledge and give the fastest feedback loop, so
+  they are a gentler place to build the same evidence habit.
+
+You can switch tracks at any point, and nothing is locked.

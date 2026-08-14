@@ -1,0 +1,71 @@
+---
+title: Prove It
+description: A hands-on Technical Support Engineering course built on symptom-only tickets, real broken systems, and a grader that shows its evidence.
+template: splash
+head:
+  # Starlight appends the site title, which for this page alone would render as
+  # "Prove It | Prove It" in the tab and in search results.
+  - tag: title
+    content: "Prove It: hands-on Technical Support Engineering"
+hero:
+  tagline: You get a customer ticket, a genuinely broken system, and no hint about which layer failed. Working out what to look at first is the skill.
+  actions:
+    - text: Where should I begin?
+      link: /start
+      icon: right-arrow
+    - text: How this works
+      link: /how-it-works
+      variant: minimal
+    - text: Repository
+      link: https://github.com/h-vance/technical-support-engineering
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+import TrackIndex from "../../components/TrackIndex.astro";
+
+## Why this is different
+
+<CardGrid>
+  <Card title="Symptom-only tickets">
+    Every other course names the topic before the exercise, which is the one
+    thing a real ticket never does. Here the customer describes what they see,
+    and deciding where to look is your job.
+  </Card>
+  <Card title="The grader shows its evidence">
+    A check never just says pass or fail. It prints the assertion, the command
+    it ran, and the raw output it evaluated, so being wrong teaches you
+    something.
+  </Card>
+  <Card title="The writing is graded">
+    Support is half communication. Customer updates and escalation notes are
+    assessed work here, not an afterthought at the end of a lesson.
+  </Card>
+  <Card title="Built for difficult days">
+    Uniform structure, stated time costs, stretch material that can be hidden
+    rather than skimmed, and a minimum viable day that still counts as progress.
+  </Card>
+</CardGrid>
+
+## Start in about two minutes
+
+Open the repository in a GitHub Codespace, wait for the container to build, and
+pick up your first ticket:
+
+```bash
+tse start docker/01
+```
+
+Investigate with ordinary tools. When you think you have fixed it:
+
+```bash
+tse check
+```
+
+Running locally instead needs Docker and Python 3.11 or newer. There is nothing
+to install, and `tse doctor` will tell you what is missing.
+
+## The exercises
+
+<TrackIndex />

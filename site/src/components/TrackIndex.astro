@@ -1,0 +1,50 @@
+---
+import { tracksWithExercises, TRACK_ORDER, TRACK_LABELS } from "../lib/labs";
+
+const built = tracksWithExercises();
+const builtTracks = built.map((entry) => entry.track);
+const planned = TRACK_ORDER.filter((track) => !builtTracks.includes(track));
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+{
+  built.map(({ track, label, exercises }) => (
+    <section class="track">
+      <h3 id={`track-${track}`}>
+        {label}
+        <span class="track__count">
+          {exercises.length} exercise{exercises.length === 1 ? "" : "s"}
+        </span>
+      </h3>
+      <ul class="track__list">
+        {exercises.map((exercise) => (
+          <li data-tier={exercise.tier}>
+            <a href={`${base}${exercise.href}`}>{exercise.title}</a>
+            <p class="track__proof">{exercise.proofQuestion}</p>
+            <p class="track__meta">
+              about {exercise.minutes} minutes
+              {exercise.tier === "stretch" && <span class="track__tag">stretch</span>}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))
+}
+
+{
+  planned.length > 0 && (
+    <section class="track track--planned">
+      <h3>Not built yet</h3>
+      <p>
+        These tracks are planned. The harness they will use is already in place
+        and verified, so they are content work rather than new machinery.
+      </p>
+      <ul class="track__planned">
+        {planned.map((track) => (
+          <li>{TRACK_LABELS[track] ?? track}</li>
+        ))}
+      </ul>
+    </section>
+  )
+}

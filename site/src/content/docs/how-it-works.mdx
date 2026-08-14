@@ -1,0 +1,100 @@
+---
+title: How this works
+description: The method behind the exercises, the shape every exercise shares, and the settings that make the course usable on a bad day.
+---
+
+import TierToggle from "../../components/TierToggle";
+
+## One question, underneath everything
+
+> What can I prove for the customer right now?
+
+Not "what technology am I studying today". Each exercise proves exactly one
+operational fact, and the technology sits underneath it. You are never asked to
+recite what a command does. You are asked what its output **proved**, and just
+as importantly, what it did not.
+
+That distinction is the whole method. A container that is running has not proven
+the application is healthy. A database that is up has not proven the application
+can reach it. A refused connection and a rejected login look identical to a
+customer and mean completely different things to you.
+
+## The loop
+
+Every exercise runs the same seven steps.
+
+1. **Ticket.** A customer symptom, in their words. Never the topic.
+2. **Prediction.** Before you run anything, write down the layer you suspect
+   and two likely causes. Being wrong here is the useful part.
+3. **Evidence.** One command that proves one thing.
+4. **Read the output.** Sort it into confirmed, disproven, and still unknown.
+   This is the step people skip, and skipping it is how hypotheses get reported
+   as facts.
+5. **What it proves.** One proof sentence, one safe next step, one alternate
+   hypothesis.
+6. **Wording.** The customer update and the escalation note.
+7. **Recall.** One gap, one command to repeat tomorrow.
+
+The scratchpad on every exercise page is this loop as a form. It saves in your
+browser as you type and nothing is uploaded.
+
+## Every exercise has the same shape
+
+Uniformity is deliberate. Orienting yourself in a new layout costs attention
+that should go to the problem.
+
+```
+ticket.md     the customer symptom, and nothing else
+setup/        the broken state
+check.sh      the assertions, and the evidence behind them
+hints/        three escalating nudges
+solution.md   root cause, the fix, and the words you would send
+```
+
+Hints escalate rather than dump. The first reframes the symptom into a provable
+question and names no command at all. The second points at the layer and the
+kind of evidence. The third gives you the commands.
+
+## The grader shows its work
+
+`tse check` never just reports pass or fail. It prints the assertion, the
+command it ran, and the raw output it evaluated:
+
+```
+FAIL  Customer workflow returns their data
+      $ curl -s --max-time 3 http://127.0.0.1:8100/customers
+      (no output)
+      Expected: {"status": "ok", "customer_count": 10} from /customers
+```
+
+It also grades outcomes rather than answers. There is no magic string to type.
+If the customer's workflow works, you have solved it, regardless of how.
+
+## A minimum viable day
+
+On a day with very little in the tank, this counts as progress and you should
+stop there without guilt:
+
+- One ticket
+- One command
+- One proof sentence
+- One spoken answer
+
+Every exercise states its time cost before you start, so you can decide up front
+rather than discovering halfway through that you do not have the capacity.
+
+## Stretch material
+
+Some material is genuinely optional. Rather than marking it and leaving it on
+the page, where it still costs attention to skip past, it can be hidden.
+
+<TierToggle client:load />
+
+## Say it out loud
+
+Technical rounds test whether you can be understood while you are thinking, not
+only what you know. Every solution ends with a 90-second spoken answer, and
+reading it silently does not build the same skill. Say it to the room.
+
+The [spoken answer template](/technical-support-engineering/reference/spoken-answer-template)
+gives you the shape, including what to say when you do not know.

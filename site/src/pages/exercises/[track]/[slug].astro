@@ -1,0 +1,146 @@
+---
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+import { loadExercises, type Exercise } from "../../../lib/labs";
+import HintReveal from "../../../components/HintReveal";
+import SolutionReveal from "../../../components/SolutionReveal";
+import ScratchPad from "../../../components/ScratchPad";
+
+export function getStaticPaths() {
+  return loadExercises().map((exercise) => ({
+    params: { track: exercise.track, slug: exercise.slug },
+    props: { exercise },
+  }));
+}
+
+interface Props {
+  exercise: Exercise;
+}
+
+const { exercise } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const all = loadExercises();
+const prerequisites = exercise.prerequisites
+  .map((id) => all.find((candidate) => candidate.id === id))
+  .filter((candidate): candidate is Exercise => Boolean(candidate));
+const difficultyLabel = ["", "Gentle", "Straightforward", "Involved", "Hard", "Brutal"][
+  exercise.difficulty
+];
+
+// StarlightPage builds its table of contents from this list rather than by
+// scanning the slot, so the sections rendered by the islands have to be
+// declared here or they vanish from the sidebar navigation.
+const headings = [
+  { depth: 2, slug: "start-it", text: "Start it" },
+  { depth: 2, slug: "the-ticket", text: "The ticket" },
+  { depth: 2, slug: `pad-${exercise.id}`, text: "Investigation scratchpad" },
+  { depth: 2, slug: `hints-${exercise.id}`, text: "Hints" },
+  { depth: 2, slug: `solution-${exercise.id}`, text: "Solution" },
+  { depth: 2, slug: "why-this-one-exists", text: "Why this one exists" },
+];
+---
+
+<StarlightPage
+  frontmatter={{
+    title: exercise.title,
+    description: exercise.proofQuestion,
+    tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 2 },
+  }}
+  headings={headings}
+>
+  <p class="proof-question">{exercise.proofQuestion}</p>
+
+  <dl class="facts">
+    <div>
+      <dt>Track</dt>
+      <dd>{exercise.trackLabel}</dd>
+    </div>
+    <div>
+      <dt>Time</dt>
+      <dd>about {exercise.minutes} minutes</dd>
+    </div>
+    <div>
+      <dt>Difficulty</dt>
+      <dd>{difficultyLabel}</dd>
+    </div>
+    <div>
+      <dt>Tier</dt>
+      <dd>{exercise.tier === "core" ? "Core" : "Stretch"}</dd>
+    </div>
+  </dl>
+
+  {
+    prerequisites.length > 0 && (
+      <p class="prereq">
+        Do these first:{" "}
+        {prerequisites.map((prerequisite, index) => (
+          <>
+            {index > 0 && ", "}
+            <a href={`${base}${prerequisite.href}`}>{prerequisite.title}</a>
+          </>
+        ))}
+      </p>
+    )
+  }
+
+  <h2 id="start-it">Start it</h2>
+  <p>In a Codespace or a local clone:</p>
+  <pre><code>tse start {exercise.id}</code></pre>
+  <p>
+    That provisions the broken system and prints the ticket below. Investigate with
+    ordinary tools, then run <code>tse check</code>.
+  </p>
+
+  <h2 id="the-ticket">The ticket</h2>
+  <div class="ticket" set:html={exercise.ticketHtml} />
+
+  {/*
+    client:load rather than client:visible on all three. The scratchpad is a
+    real textarea before it hydrates, so a learner can start typing into it and
+    have hydration replace what they wrote with stored state. Losing someone's
+    written investigation to save a few kilobytes is not a trade worth making,
+    and the hints and solution are the point of the page rather than an
+    enhancement to it.
+  */}
+  <ScratchPad exerciseId={exercise.id} client:load />
+
+  <HintReveal exerciseId={exercise.id} hints={exercise.hintsHtml} client:load />
+
+  <SolutionReveal exerciseId={exercise.id} solution={exercise.solutionHtml} client:load />
+
+  <h2 id="why-this-one-exists">Why this one exists</h2>
+  {exercise.teaches && <p>{exercise.teaches}</p>}
+  {
+    exercise.interviewRelevance && (
+      <>
+        <h3>In an interview</h3>
+        <p>{exercise.interviewRelevance}</p>
+      </>
+    )
+  }
+
+  {
+    exercise.commandsIntroduced.length > 0 && (
+      <>
+        <h3>Commands introduced</h3>
+        <ul class="chips">
+          {exercise.commandsIntroduced.map((command) => (
+            <li><code>{command}</code></li>
+          ))}
+        </ul>
+      </>
+    )
+  }
+
+  {
+    exercise.evidenceLayers.length > 0 && (
+      <>
+        <h3>Evidence layers</h3>
+        <ul class="chips">
+          {exercise.evidenceLayers.map((layer) => (
+            <li>{layer}</li>
+          ))}
+        </ul>
+      </>
+    )
+  }
+</StarlightPage>

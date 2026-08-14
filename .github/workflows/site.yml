@@ -1,0 +1,68 @@
+name: site
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build and audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - run: npm ci
+        working-directory: site
+
+      - run: npm run build
+        working-directory: site
+
+      # The site generates its pages from labs/, so a loader regression shows up
+      # as pages quietly not existing rather than as a build error.
+      - name: Every exercise has a complete page
+        run: npm run check:pages
+        working-directory: site
+
+      - name: Install the browser axe drives
+        run: npx playwright install --with-deps chromium
+        working-directory: site
+
+      - name: WCAG 2.2 AA, every page, both themes
+        run: npm run a11y
+        working-directory: site
+
+      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        if: github.ref == 'refs/heads/main'
+        with:
+          path: site/dist
+
+  deploy:
+    name: deploy to Pages
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

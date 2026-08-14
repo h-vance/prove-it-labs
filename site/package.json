@@ -1,0 +1,27 @@
+{
+  "name": "prove-it-site",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "a11y": "node scripts/a11y.mjs",
+    "check:pages": "node scripts/check-pages.mjs"
+  },
+  "dependencies": {
+    "@astrojs/preact": "^6.0.2",
+    "@astrojs/starlight": "^0.41.7",
+    "astro": "^7.2.2",
+    "marked": "^18.0.9",
+    "preact": "^10.29.8",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "axe-core": "^4.13.0",
+    "playwright": "^1.62.1"
+  }
+}

@@ -127,6 +127,24 @@ python3 tools/tests/test_content.py
 `test_content.py` enforces the editorial rules mechanically, including the one
 that matters most: a ticket that names the failing layer fails the build.
 
+## The site
+
+The course site is an Astro Starlight build in [`site/`](site). Exercise pages
+are **generated from the labs**, so a page cannot drift from the exercise it
+documents and adding an exercise needs no site change at all.
+
+```bash
+cd site
+npm install
+npm run dev           # http://localhost:4321/technical-support-engineering
+npm run build
+npm run check:pages   # every exercise has a complete page
+npm run a11y          # WCAG 2.2 AA, every page, light and dark
+```
+
+The accessibility gate is a gate, not a report: CI fails on any violation, in
+either theme.
+
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
