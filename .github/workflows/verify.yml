@@ -95,4 +95,5 @@ jobs:
             .devcontainer/post-create.sh \
             labs/*/*/check.sh \
             labs/*/*/setup/*.sh \
-            labs/*/*/solution/*.sh
+            labs/*/*/solution/*.sh \
+            labs/*/_stack/*.sh
