@@ -1,0 +1,4 @@
+services:
+  app:
+    environment:
+      DB_PASSWORD: rotated-2026-08-14

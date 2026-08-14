@@ -90,11 +90,42 @@ prose, which includes a lot of very good engineers.
 - **The writing is graded.** Support is half communication, so customer updates
   and escalation notes are assessed work, not an afterthought.
 
-## Status
+## Tracks
 
-Under construction. The Docker track is being built first, followed by
-Kubernetes, APIs, and SQL, then Linux foundations, networking, observability,
-and communication.
+| Track | Exercises | Status |
+|---|---|---|
+| Docker | 3 | Available |
+| APIs | 4 | Available |
+| Kubernetes | | Next |
+| SQL and PostgreSQL | | Planned |
+| Linux and CLI foundations | | Planned |
+| Networking, DNS, TLS | | Planned |
+| Observability | | Planned |
+| Customer communication | | Planned |
+| Mixed incidents | | Planned |
+
+Some exercises are built as pairs on purpose. `docker/02` and `docker/03`
+present the customer with the same symptom and resolve to different causes,
+because learning a fix rather than a method is the failure mode this course is
+trying to prevent.
+
+## Verification
+
+Every exercise is asserted in CI to **fail in its broken state and pass against
+its documented solution**. An exercise that passes while broken is not broken,
+and one that fails when fixed is not solvable, so both halves are checked.
+
+```bash
+tools/tse verify                # every exercise, both states
+tools/tse verify docker/02      # one exercise
+tools/tests/smoke.sh            # the CLI surface and the full learner loop
+tools/tests/smoke.sh --fast     # skip the parts that need Docker
+python3 tools/tests/test_meta.py
+python3 tools/tests/test_content.py
+```
+
+`test_content.py` enforces the editorial rules mechanically, including the one
+that matters most: a ticket that names the failing layer fails the build.
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 

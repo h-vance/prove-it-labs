@@ -2,7 +2,7 @@ id: docker/01-service-unavailable-after-deploy
 track: docker
 title: Service unavailable after a release
 proof_question: Can I prove the application started at all?
-stack: docker-compose
+stack: compose
 tier: core
 difficulty: 1
 minutes: 25

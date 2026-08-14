@@ -1,0 +1,29 @@
+id: api/02-report-export-denied
+track: api
+title: Export fails for one user but works for another
+proof_question: Can I prove this is a permissions failure rather than an authentication failure?
+stack: compose
+tier: core
+difficulty: 2
+minutes: 25
+prerequisites:
+  - api/01-webhook-integration-rejected
+
+commands_introduced:
+  - Authorization Bearer header
+  - jq
+
+evidence_layers:
+  - HTTP status code
+  - problem details body
+  - required scope
+  - token fingerprint
+
+interview_relevance: >
+  The 401 versus 403 distinction is asked directly in most support interviews,
+  and answering it in the abstract is easy. Answering it from a real response
+  body, and saying who has to act next, is what actually gets tested.
+
+teaches: >
+  401 means we do not know who you are. 403 means we know exactly who you are
+  and you are not allowed. The second is an access request, not a bug.

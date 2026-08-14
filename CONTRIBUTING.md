@@ -20,6 +20,17 @@ against `setup/` and **passes** against `solution/`. An exercise that passes in
 its broken state is not broken, and one that fails in its fixed state is not
 solvable.
 
+Then run the rest of the suite, which is fast:
+
+```bash
+python3 tools/tests/test_content.py   # structure and the editorial rules below
+python3 tools/tests/test_meta.py      # the meta.yaml subset parser
+tools/tests/smoke.sh --fast           # the CLI surface
+```
+
+`test_content.py` enforces most of the rules on this page, so a violation is a
+failing build rather than a review comment.
+
 ## Rules that are not negotiable
 
 **The ticket never names the technology.** Write what the customer would

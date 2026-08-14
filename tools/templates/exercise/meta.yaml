@@ -2,7 +2,7 @@ id: {{TRACK}}/{{SLUG}}
 track: {{TRACK}}
 title: TODO one line, written as the failure, not the fix
 proof_question: TODO the single operational fact this exercise proves
-stack: docker-compose   # docker-compose | kind | api | sql | none
+stack: compose          # compose | kind | none
 tier: core              # core | stretch
 difficulty: 1           # 1 to 5
 minutes: 25

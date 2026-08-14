@@ -1,0 +1,32 @@
+id: docker/03-data-access-lost-after-credential-rotation
+track: docker
+title: Same symptom as the last ticket, different cause
+proof_question: Can I prove why the database refused the connection?
+stack: compose
+tier: core
+difficulty: 2
+minutes: 30
+prerequisites:
+  - docker/02-customer-data-not-loading
+
+commands_introduced:
+  - docker compose logs
+  - docker compose exec
+  - psql
+
+evidence_layers:
+  - application logs
+  - database authentication
+  - runtime configuration
+
+interview_relevance: >
+  This exercise exists to break pattern matching. It presents the customer
+  symptom you just solved, with a different root cause. Candidates who learned
+  a fix rather than a method will apply the previous answer and report success
+  without checking. The habit being trained is reading the specific error text
+  before reaching for the cause that worked last time.
+
+teaches: >
+  Identical customer symptoms do not imply identical causes. "Cannot reach the
+  database" and "the database refused me" are different proofs with different
+  evidence, and the distinction is visible in the error detail.

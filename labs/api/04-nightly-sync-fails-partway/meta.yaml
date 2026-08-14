@@ -1,0 +1,31 @@
+id: api/04-nightly-sync-fails-partway
+track: api
+title: Batch job succeeds at the start and fails partway through
+proof_question: Can I prove the failure depends on request rate rather than on the data?
+stack: compose
+tier: core
+difficulty: 3
+minutes: 35
+prerequisites:
+  - api/01-webhook-integration-rejected
+
+commands_introduced:
+  - Retry-After header
+  - RateLimit headers
+  - backoff loops
+
+evidence_layers:
+  - HTTP status code
+  - rate limit headers
+  - failure distribution across a batch
+
+interview_relevance: >
+  Partial failure is the most misdiagnosed pattern in support. The instinct is
+  to look for bad records, because some requests worked. Noticing that the
+  failures start at a consistent position rather than on consistent data is the
+  move that separates candidates.
+
+teaches: >
+  When early requests succeed and later ones fail, suspect rate rather than
+  data. A well-behaved API states exactly how long to wait, and honoring that is
+  the fix rather than retrying harder.

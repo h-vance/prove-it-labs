@@ -34,9 +34,12 @@ def database_query() -> tuple[bool, str]:
         return False, "database client could not be started"
 
     if result.returncode != 0:
-        stderr = result.stderr.strip()
-        error = stderr.splitlines()[-1] if stderr else "database query failed"
-        return False, error
+        # psql reports the cause on its first line and follows it with generic
+        # advice. The learner needs the cause, so keep the first line: taking
+        # the last one turns "Connection refused" into "Is the server running?",
+        # which reads the same whether the refusal was network or authentication.
+        lines = [line for line in result.stderr.strip().splitlines() if line.strip()]
+        return False, lines[0] if lines else "database query failed"
     return True, result.stdout.strip()
 
 

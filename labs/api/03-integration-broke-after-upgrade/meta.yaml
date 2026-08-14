@@ -1,0 +1,29 @@
+id: api/03-integration-broke-after-upgrade
+track: api
+title: Integration stopped working and nothing on the customer side changed
+proof_question: Can I prove the route the customer is calling still exists?
+stack: compose
+tier: core
+difficulty: 2
+minutes: 25
+prerequisites:
+  - api/01-webhook-integration-rejected
+
+commands_introduced:
+  - curl -D
+  - Sunset header
+  - Link header
+
+evidence_layers:
+  - HTTP status code
+  - response headers
+  - deprecation signals
+
+interview_relevance: >
+  Tests whether you read response headers at all. Most candidates read only the
+  body, and the body here is much less informative than the Sunset and Link
+  headers sitting directly above it.
+
+teaches: >
+  A 404 on a route that used to work is a versioning event until proven
+  otherwise, and a well-behaved API tells you so in its headers.

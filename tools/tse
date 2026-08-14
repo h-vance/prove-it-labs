@@ -82,13 +82,20 @@ def _indent_of(line: str) -> int:
 
 
 def parse_meta(text: str, source: str) -> dict:
-    """Parse the meta.yaml subset. Raises on anything outside it."""
+    """Parse a meta.yaml. Uses PyYAML when installed, the subset parser otherwise."""
     try:
         import yaml  # noqa: PLC0415 - optional, used only when installed
-        return yaml.safe_load(text) or {}
     except ImportError:
-        pass
+        return parse_meta_subset(text, source)
+    return yaml.safe_load(text) or {}
 
+
+def parse_meta_subset(text: str, source: str) -> dict:
+    """Parse the documented meta.yaml subset. Raises on anything outside it.
+
+    Kept importable on its own so the test suite can assert it agrees with a
+    real YAML parser, which is what makes the no-dependency trade safe.
+    """
     lines = text.splitlines()
     result: dict = {}
     index = 0
@@ -148,7 +155,9 @@ def parse_meta(text: str, source: str) -> dict:
                 )
             items.append(_coerce(entry[2:]))
             index += 1
-        result[key] = items
+        # A key with nothing under it is null, not an empty list. An empty list
+        # can only be written as [], which the inline branch above handles.
+        result[key] = items if items else None
 
     return result
 
@@ -266,34 +275,62 @@ def compose_command(exercise: Exercise) -> list[str]:
     return command
 
 
+def managed_files(track: str) -> set[str]:
+    """Every filename any exercise in this track writes into the shared stack.
+
+    Tracked so that switching exercises cannot leave a previous exercise's
+    file behind and silently change what the next one is investigating.
+    """
+    names: set[str] = set()
+    for exercise in load_exercises():
+        if exercise.track != track:
+            continue
+        for variant in ("setup", "solution"):
+            directory = exercise.path / variant
+            if directory.is_dir():
+                names.update(item.name for item in directory.iterdir() if item.is_file())
+    return names
+
+
 def provision(exercise: Exercise, *, variant: str) -> None:
     """Put the environment into the exercise's broken or fixed state.
 
     variant is "setup" for the state the learner investigates, or "solution"
-    for the corrected state, which only CI and `tse check --solution` use.
+    for the corrected state, which only `tse verify` uses.
     """
     if exercise.stack == "none":
         return
 
-    if exercise.stack == "docker-compose":
-        source = exercise.path / variant / "compose.override.yaml"
-        if not source.is_file():
-            sys.exit(f"tse: {exercise.id} is missing {variant}/compose.override.yaml")
-        stack = exercise.stack_dir()
-        shutil.copyfile(source, stack / "compose.override.yaml")
-        run(compose_command(exercise) + ["up", "-d", "--build", "--force-recreate"])
-        return
+    if exercise.stack != "compose":
+        sys.exit(
+            f"tse: the {exercise.stack!r} stack is not implemented yet.\n"
+            f"     {exercise.id} cannot be started in this phase of the course."
+        )
 
-    sys.exit(
-        f"tse: the {exercise.stack!r} stack is not implemented yet.\n"
-        f"     {exercise.id} cannot be started in this phase of the course."
-    )
+    source_dir = exercise.path / variant
+    if not source_dir.is_dir():
+        sys.exit(f"tse: {exercise.id} has no {variant}/ directory")
+
+    stack = exercise.stack_dir()
+    for name in managed_files(exercise.track):
+        (stack / name).unlink(missing_ok=True)
+    for item in sorted(source_dir.iterdir()):
+        if item.is_file():
+            destination = stack / item.name
+            shutil.copyfile(item, destination)
+            if item.suffix == ".sh":
+                destination.chmod(0o755)
+
+    run(compose_command(exercise) + ["up", "-d", "--build", "--force-recreate"])
 
 
 def teardown(exercise: Exercise) -> None:
-    if exercise.stack == "docker-compose":
-        run(compose_command(exercise) + ["down", "--remove-orphans"], check=False)
-        (exercise.stack_dir() / "compose.override.yaml").unlink(missing_ok=True)
+    if exercise.stack != "compose":
+        return
+    run(compose_command(exercise) + ["down", "--remove-orphans"], check=False)
+    stack = exercise.stack_dir()
+    for name in managed_files(exercise.track):
+        (stack / name).unlink(missing_ok=True)
 
 
 def run(command: list[str], *, check: bool = True) -> int:
@@ -428,7 +465,7 @@ def cmd_answer(args: argparse.Namespace) -> None:
 def cmd_apply(args: argparse.Namespace) -> None:
     """Recreate the services from the learner's edited configuration."""
     exercise = current_exercise()
-    if exercise.stack != "docker-compose":
+    if exercise.stack != "compose":
         sys.exit(f"tse: apply is not used by the {exercise.stack!r} stack")
     run(compose_command(exercise) + ["up", "-d", "--build", "--force-recreate"])
     print(f"\n{DIM}Applied. Now prove it worked with `tse check`.{OFF}")

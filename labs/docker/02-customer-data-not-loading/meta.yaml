@@ -1,0 +1,34 @@
+id: docker/02-customer-data-not-loading
+track: docker
+title: Application loads but customer data does not
+proof_question: Can I prove the application can reach its database?
+stack: compose
+tier: core
+difficulty: 2
+minutes: 30
+prerequisites:
+  - docker/01-service-unavailable-after-deploy
+
+commands_introduced:
+  - docker compose exec
+  - docker inspect
+  - getent hosts
+  - printenv
+
+evidence_layers:
+  - container state
+  - application logs
+  - service name resolution
+  - runtime configuration
+
+interview_relevance: >
+  Cross-layer reasoning, which is where most candidates lose the thread. The
+  application is genuinely healthy as a process and genuinely broken as a
+  service. Being able to say "the app is running but cannot reach the database"
+  rather than "the app is broken" is the difference between an escalation
+  engineering can act on and one they have to redo.
+
+teaches: >
+  Inside a container, localhost means that container, not the host and not
+  another service. Name resolution is a separate provable layer from
+  credentials and from availability.

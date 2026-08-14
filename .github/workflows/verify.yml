@@ -10,6 +10,34 @@ permissions:
   contents: read
 
 jobs:
+  tests:
+    name: tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      # No install step on purpose. If tse ever grows a dependency, this fails.
+      - name: CLI runs on a stock interpreter
+        run: |
+          tools/tse list
+          tools/tse list --ids
+          tools/tse progress --json
+
+      - name: Parser and content tests
+        run: |
+          python3 tools/tests/test_meta.py
+          python3 tools/tests/test_content.py
+
+      # Installed only so the parity test can compare the subset parser against
+      # a real YAML implementation. tse itself never requires it.
+      - name: Parser agrees with PyYAML
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 tools/tests/test_meta.py MatchesPyYAML
+
+      - name: CLI smoke test
+        run: tools/tests/smoke.sh --fast
+
   discover:
     name: discover exercises
     runs-on: ubuntu-24.04
@@ -38,23 +66,14 @@ jobs:
       - name: Verify the exercise fails broken and passes fixed
         run: tools/tse verify "${{ matrix.exercise }}"
 
-  cli:
-    name: cli smoke test
+  loop:
+    name: learner loop
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-
-      - name: The CLI must run on a stock interpreter with no installs
-        run: |
-          tools/tse list
-          tools/tse list --ids
-          tools/tse progress --json
-
-      - name: Scaffolding produces a parseable exercise
-        run: |
-          tools/tse new docker/99-scaffold-smoke-test
-          tools/tse list --track docker | grep -q '99-scaffold-smoke-test'
-          rm -rf labs/docker/99-scaffold-smoke-test
+      - name: Full smoke test including the Docker loop
+        run: tools/tests/smoke.sh
 
   shellcheck:
     name: shellcheck
@@ -64,5 +83,8 @@ jobs:
       - run: |
           shellcheck --severity=warning \
             tools/lib/assert.sh \
+            tools/tests/smoke.sh \
             .devcontainer/post-create.sh \
-            labs/*/*/check.sh
+            labs/*/*/check.sh \
+            labs/*/*/setup/*.sh \
+            labs/*/*/solution/*.sh

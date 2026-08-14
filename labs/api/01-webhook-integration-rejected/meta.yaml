@@ -1,0 +1,31 @@
+id: api/01-webhook-integration-rejected
+track: api
+title: Integration rejected with an authentication error
+proof_question: Can I prove whether the caller is unknown, unauthenticated, or no longer permitted?
+stack: compose
+tier: core
+difficulty: 1
+minutes: 25
+prerequisites: []
+
+commands_introduced:
+  - curl -D
+  - curl -w
+  - X-API-Key header
+
+evidence_layers:
+  - HTTP status code
+  - problem details body
+  - error code
+  - correlation id
+
+interview_relevance: >
+  A 401 is routinely reported as "the API is down". Being able to say the API
+  answered correctly and the credential was refused, and to name which of the
+  three authentication failures it was, is the difference between an escalation
+  and a two-minute resolution.
+
+teaches: >
+  Read the machine-readable error code, not the status code alone. 401 covers
+  missing, unrecognized, and revoked credentials, and only one of those is the
+  customer's problem to fix.
