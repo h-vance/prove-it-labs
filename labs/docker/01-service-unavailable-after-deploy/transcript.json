@@ -1,0 +1,49 @@
+{
+  "recorded": "2026-08-14",
+  "entries": [
+    {
+      "command": "docker ps -a --filter \"label=com.docker.compose.project=proveit-docker\"",
+      "aliases": [
+        "docker ps -a",
+        "docker ps",
+        "docker compose ps -a"
+      ],
+      "output": "CONTAINER ID   IMAGE                COMMAND                  CREATED          STATUS                        PORTS      NAMES\ne943dd66a03f   proveit-docker-app   \"python /app/app.py\"     12 seconds ago   Restarting (1) 1 second ago              proveit-docker-app-1\nfa0255e4b1ac   postgres:16-alpine   \"docker-entrypoint.s\u2026\"   13 seconds ago   Up 12 seconds (healthy)       5432/tcp   proveit-docker-postgres-1",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/docker/_stack/compose.yaml \\\n               -f labs/docker/_stack/compose.override.yaml \\\n               logs --tail 20 app",
+      "aliases": [],
+      "output": "app-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/docker/_stack/compose.yaml -f labs/docker/_stack/compose.override.yaml logs --tail 5 app",
+      "aliases": [
+        "docker compose logs app"
+      ],
+      "output": "app-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set",
+      "exit": 0
+    },
+    {
+      "command": "cat labs/docker/_stack/compose.override.yaml",
+      "aliases": [
+        "cat compose.override.yaml"
+      ],
+      "output": "services:\n  app:\n    environment:\n      APP_SECRET: \"\"",
+      "exit": 0
+    },
+    {
+      "command": "docker inspect --format '{{.Name}} restart={{.RestartCount}} exit={{.State.ExitCode}}' proveit-docker-app-1",
+      "aliases": [],
+      "output": "/proveit-docker-app-1 restart=7 exit=1",
+      "exit": 0
+    },
+    {
+      "command": "docker inspect --format '{{.State.Health.Status}}' proveit-docker-postgres-1",
+      "aliases": [],
+      "output": "healthy",
+      "exit": 0
+    }
+  ]
+}

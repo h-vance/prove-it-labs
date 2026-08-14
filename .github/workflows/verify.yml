@@ -27,6 +27,7 @@ jobs:
         run: |
           python3 tools/tests/test_meta.py
           python3 tools/tests/test_content.py
+          python3 tools/tests/test_scrub.py
 
       # Installed only so the parity test can compare the subset parser against
       # a real YAML implementation. tse itself never requires it.
@@ -73,6 +74,19 @@ jobs:
       # let a lab that is not actually broken ship green.
       - name: Verify the exercise fails broken and passes fixed
         run: tools/tse verify "${{ matrix.exercise }}"
+
+      # The site replays these recordings in its terminal, so they are only
+      # worth anything if they still match the system. This re-runs every
+      # recorded command against the real stack and fails if the output moved.
+      # Exercises without a transcript are skipped rather than failed, so a new
+      # one can land before it has been recorded.
+      - name: Recorded output still matches the system
+        run: |
+          if [ -f "labs/${{ matrix.exercise }}/transcript.json" ]; then
+            tools/tse record --check "${{ matrix.exercise }}"
+          else
+            echo "no transcript for ${{ matrix.exercise }}, nothing to check"
+          fi
 
   loop:
     name: learner loop

@@ -10,11 +10,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
 import sys
+import time
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 STATE_FILENAME = ".tse-state.json"
@@ -289,6 +292,193 @@ def current_exercise() -> Exercise:
     if not state.get("current"):
         sys.exit("tse: no active exercise. Start one with `tse start <id>`.")
     return resolve(state["current"])
+
+
+# --------------------------------------------------------------------------- #
+# Recording
+# --------------------------------------------------------------------------- #
+
+# One entry's output is capped so a single chatty command cannot inflate every
+# page that embeds the transcript.
+TRANSCRIPT_LINE_CAP = 120
+TRUNCATION_NOTE = "... output truncated. Run it for real to see the rest."
+
+# Fragments of genuine output that differ between two runs of the same broken
+# system. Recording exists so the site can replay real output, and comparing a
+# recording against a fresh run then needs a way to tell "the system changed"
+# from "time passed and Docker handed out new identifiers".
+#
+# Every rule here is narrow on purpose and every one has a real captured sample
+# in tools/tests/test_scrub.py. The danger is not a rule that misses; it is a
+# rule broad enough to erase the evidence, because then the comparison passes
+# no matter what happened. That is what the `# keep:` markers in commands.txt
+# defend against: anything named there has to survive scrubbing.
+#
+# Deliberately absent: a general rule for durations in milliseconds. `191` in
+# "7500|191" is the answer to sql/03, not noise, and a tidy \d+ms rule would
+# quietly delete the thing the exercise is about.
+SCRUB_RULES: list[tuple[str, "re.Pattern[str]", str]] = [
+    ("sha256", re.compile(r"\bsha256:[0-9a-f]{12,64}\b"), "sha256:<digest>"),
+    ("digest", re.compile(r"\b[0-9a-f]{64}\b"), "<digest>"),
+    # The first column of `docker ps`. Anchored to the line start so a short
+    # hex string elsewhere in a log line is left alone.
+    ("container-id", re.compile(r"(?m)^[0-9a-f]{12}(?=\s)"), "<container-id>"),
+    # Docker switches to words below one second, so the numeric form alone
+    # leaves a check that fails only when provisioning happened to be fast.
+    ("relative-age", re.compile(
+        r"\b(?:\d+\s+(?:second|minute|hour|day|week|month|year)s?"
+        r"|[Ll]ess than a second)\s+ago\b"), "<age> ago"),
+    ("uptime", re.compile(
+        r"\bUp\s+\d+\s+(?:second|minute|hour|day|week|month|year)s?\b"), "Up <duration>"),
+    ("iso-timestamp", re.compile(
+        r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?"),
+        "<timestamp>"),
+    # `kubectl describe` prints wall-clock times in RFC 1123, which the ISO
+    # rule above does not match.
+    ("rfc1123-timestamp", re.compile(
+        r"\w{3}, \d{2} \w{3} \d{4} \d{2}:\d{2}:\d{2} [+-]\d{4}"), "<timestamp>"),
+    # Query plan timings. The row counts either side of these are meaningful
+    # and are left exactly as they are.
+    ("plan-node-time", re.compile(r"actual time=\d+\.\d+\.\.\d+\.\d+"),
+        "actual time=<t>..<t>"),
+    ("plan-total-time", re.compile(r"\b(Planning|Execution) Time: \d+\.\d+ ms"),
+        r"\1 Time: <t> ms"),
+    # Whether a page came from disk or from cache depends on what ran before,
+    # so the first run of a query reports `read` and the next reports `hit` for
+    # the very same work. The row counts beside these are left untouched.
+    ("plan-buffers", re.compile(r"Buffers: shared [^\n]+"), "Buffers: shared <buffers>"),
+    # A crash loop is meant to be counted, and the count is meant to climb. How
+    # far it has climbed depends only on how fast the machine is, so the number
+    # is noise while the fact of restarting is the evidence. commands.txt keeps
+    # the latter with a `# keep: restart=` marker.
+    ("restart-count", re.compile(r"\brestart=\d+"), "restart=<n>"),
+    # Kubernetes hands out a fresh suffix to every pod on every rollout.
+    ("pod-suffix", re.compile(r"\b([a-z0-9-]+?)-[a-z0-9]{8,10}-[a-z0-9]{5}\b"), r"\1-<pod>"),
+    # The RESTARTS column carries how long ago the last one was, and both halves
+    # move. That it is restarting at all is the evidence, and that survives.
+    ("k8s-restarts", re.compile(r"\b\d+ \(\d+[smhd](?:\d+[smhd])? ago\)"),
+        "<restarts> (<age> ago)"),
+    ("k8s-restart-count", re.compile(r"(Restart Count:\s+)\d+"), r"\1<n>"),
+    # The AGE column, always last on a line: 13s, 5m32s, 2d4h.
+    ("k8s-age", re.compile(r"(?m)(\s)\d+[smhd](?:\d+[smhd])?(?=\s*$)"), r"\1<age>"),
+    # kind publishes its API server on a random high port.
+    ("ephemeral-port", re.compile(r"127\.0\.0\.1:\d{4,5}->6443/tcp"),
+        "127.0.0.1:<port>->6443/tcp"),
+    # Column padding, and it has to come last.
+    #
+    # Tools like `docker ps` and `kubectl get` pad every column to its widest
+    # value, so "Up 2 seconds" and "Up 14 seconds" produce different spacing on
+    # the *header* line. Scrubbing the values cannot fix that: the alignment
+    # encodes widths from before the scrub. Without this rule the comparison
+    # fails at random depending on how long provisioning took, which is exactly
+    # the flakiness that gets a check switched off.
+    #
+    # The lookbehind matters. Only padding that follows content is collapsed,
+    # so leading indentation in YAML and JSON output survives and a real change
+    # to a file's structure is still caught.
+    ("column-padding", re.compile(r"(?m)(?<=\S) {2,}"), " "),
+]
+
+
+def scrub(text: str) -> str:
+    """Replace the parts of output that legitimately differ between runs."""
+    for _, pattern, replacement in SCRUB_RULES:
+        text = pattern.sub(replacement, text)
+    return text
+
+
+def rules_that_fire(text: str) -> list[str]:
+    """Which rules match, for tests and for explaining a comparison failure."""
+    return [name for name, pattern, _ in SCRUB_RULES if pattern.search(text)]
+
+
+def foreign_projects() -> set[str]:
+    """Compose projects on this machine that are not part of the course.
+
+    Recording happens on a developer's laptop, where `docker ps` lists whatever
+    else that person is running. Committing that output would publish their
+    unrelated work in a repository meant to go public, and it could never match
+    a fresh run in CI. Rather than trusting the author to notice, the recorder
+    asks Docker what else exists and refuses to record output naming any of it.
+    """
+    result = subprocess.run(
+        ["docker", "compose", "ls", "--all", "--format", "json"],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        return set()
+    try:
+        projects = json.loads(result.stdout or "[]")
+    except json.JSONDecodeError:
+        return set()
+    names = {project.get("Name", "") for project in projects if project.get("Name")}
+    return {name for name in names if not name.startswith("proveit")}
+
+
+def parse_commands(text: str) -> list[dict]:
+    """Parse commands.txt: blocks separated by a line of exactly ---.
+
+    A block may open with annotations, which are dropped from the command:
+
+        # keep: OOMKilled, Exit Code: 137
+        # alias: docker ps -a
+        kubectl -n tse-training get pods
+
+    Multi-line commands are kept as written, because the real vocabulary
+    already includes backslash continuations, pipes and loops, and rewriting
+    those to fit a tidier format would mean recording something a learner would
+    never actually type.
+    """
+    blocks: list[dict] = []
+    for raw in text.split("\n---\n"):
+        keep: list[str] = []
+        aliases: list[str] = []
+        lines: list[str] = []
+        # Seconds to wait before running this block. A freshly provisioned
+        # stack has not finished failing yet: docker/01 needs its container to
+        # have crashed a few times before a restart loop is visible at all.
+        wait = 0.0
+        for line in raw.strip().splitlines():
+            stripped = line.strip()
+            if stripped.startswith("# keep:"):
+                keep += [part.strip() for part in stripped[7:].split(",") if part.strip()]
+            elif stripped.startswith("# alias:"):
+                aliases.append(stripped[8:].strip())
+            elif stripped.startswith("# wait:"):
+                wait = float(stripped[7:].strip())
+            elif stripped.startswith("#"):
+                continue
+            else:
+                lines.append(line)
+        command = "\n".join(lines).strip()
+        if command:
+            blocks.append(
+                {"command": command, "aliases": aliases, "keep": keep, "wait": wait}
+            )
+    return blocks
+
+
+def normalize_command(command: str) -> str:
+    """Collapse a typed command to the form used for lookups.
+
+    Joins backslash continuations and squeezes whitespace, so a command copied
+    across three lines out of a hint matches the same recording as one typed on
+    a single line. Case is left alone: these commands are case sensitive.
+    """
+    joined = re.sub(r"\\\s*\n", " ", command)
+    return " ".join(joined.split())
+
+
+def run_for_record(command: str) -> tuple[str, int]:
+    """Run one block and capture stdout and stderr exactly as a terminal shows them."""
+    result = subprocess.run(
+        ["bash", "-c", command], capture_output=True, text=True, cwd=ROOT,
+    )
+    output = (result.stdout or "") + (result.stderr or "")
+    lines = output.rstrip("\n").split("\n")
+    if len(lines) > TRANSCRIPT_LINE_CAP:
+        lines = lines[:TRANSCRIPT_LINE_CAP] + [TRUNCATION_NOTE]
+    return "\n".join(lines), result.returncode
 
 
 # --------------------------------------------------------------------------- #
@@ -700,6 +890,165 @@ def cmd_quiz(args: argparse.Namespace) -> None:
         write_state(state)
 
 
+def private_leaks(output: str, foreign: set[str]) -> list[str]:
+    """Anything in this output that belongs to the author rather than the lab."""
+    found = [name for name in sorted(foreign) if name in output]
+    home = str(Path.home())
+    if home in output:
+        found.append(home)
+    user = os.environ.get("USER") or ""
+    if user and re.search(rf"\b{re.escape(user)}\b", output):
+        found.append(user)
+    return found
+
+
+def cmd_record(args: argparse.Namespace) -> None:
+    """Capture real output for the site's terminal, or check a recording still holds.
+
+    The terminal on the exercise page replays what these commands actually
+    printed. That is only worth anything if the recording cannot drift away
+    from the system, so --check re-runs everything and compares.
+    """
+    exercise = resolve(args.exercise)
+    if exercise.stack == "none":
+        sys.exit(f"tse: {exercise.id} has no system, so there is nothing to record.")
+
+    source = exercise.path / "commands.txt"
+    if not source.is_file():
+        sys.exit(f"tse: {exercise.id} has no commands.txt")
+    blocks = parse_commands(source.read_text())
+    if not blocks:
+        sys.exit(f"tse: {exercise.id} has an empty commands.txt")
+
+    transcript_path = exercise.path / "transcript.json"
+    previous: dict | None = None
+    if args.check:
+        if not transcript_path.is_file():
+            sys.exit(f"tse: {exercise.id} has no transcript.json to check against")
+        previous = json.loads(transcript_path.read_text())
+
+    foreign = foreign_projects()
+    print(f"{BOLD}{exercise.id}{OFF}  {'checking' if args.check else 'recording'} "
+          f"{len(blocks)} command(s)\n")
+
+    entries: list[dict] = []
+    problems: list[str] = []
+    missing: dict[str, list[str]] = {}
+    try:
+        provision(exercise, variant="setup")
+        for block in blocks:
+            if block["wait"]:
+                time.sleep(block["wait"])
+            output, code = run_for_record(block["command"])
+            label = normalize_command(block["command"])[:70]
+
+            leaked = private_leaks(output, foreign)
+            if leaked:
+                problems.append(
+                    f"{label}\n      names something outside the lab: {leaked}.\n"
+                    f"      Scope the command, for example filter by the compose "
+                    f"project, so the recording contains only this exercise."
+                )
+                continue
+
+            entry = {
+                "command": block["command"],
+                "aliases": block["aliases"],
+                "output": output,
+                "exit": code,
+            }
+            entry_missing = [m for m in block["keep"] if m not in scrub(output)]
+            entries.append(entry)
+            missing[block["command"]] = entry_missing
+            if entry_missing:
+                print(f"  {RED}lost{OFF}  {label}")
+            else:
+                print(f"  {GREEN}ok{OFF}    {label}")
+    finally:
+        teardown(exercise)
+
+    if problems:
+        print(f"\n{RED}{len(problems)} command(s) cannot be recorded:{OFF}")
+        for problem in problems:
+            print(f"  {problem}")
+        sys.exit(1)
+
+    if args.check:
+        # Compare before diagnosing missing markers. A changed system and an
+        # over-broad scrub rule both lose a marker, and only the comparison
+        # tells them apart. Reporting "a rule is too broad" when the truth is
+        # "the system changed" sends the reader to the wrong file.
+        drifted = compare_transcript(previous or {}, entries)
+        if drifted:
+            print(f"\n{RED}The recording no longer matches the system.{OFF}")
+            for line in drifted:
+                print(f"  {line}")
+            print(f"\nRe-record with `tse record {exercise.id}` once you have "
+                  f"confirmed the change is intended.")
+            sys.exit(1)
+        if any(missing.values()):
+            print(f"\n{RED}The output is unchanged, so a scrub rule has grown "
+                  f"too broad and is erasing evidence:{OFF}")
+            for command, markers in missing.items():
+                if markers:
+                    print(f"  {normalize_command(command)[:70]}\n      lost {markers}")
+            sys.exit(1)
+        print(f"\n{GREEN}{exercise.id}: the recording still matches.{OFF}")
+        return
+
+    if any(missing.values()):
+        print(f"\n{RED}Evidence did not survive scrubbing:{OFF}")
+        for command, markers in missing.items():
+            if markers:
+                print(f"  {normalize_command(command)[:70]}\n      lost {markers}")
+        print("\nEither the system is not in the state the exercise describes, "
+              "or a scrub rule is too broad.")
+        sys.exit(1)
+
+    if len(entries) < 4:
+        print(f"\n{YELLOW}Only {len(entries)} command(s) recorded.{OFF} A thin "
+              f"transcript makes the terminal frustrating rather than useful.")
+
+    transcript_path.write_text(
+        json.dumps({"recorded": date.today().isoformat(), "entries": entries}, indent=2) + "\n"
+    )
+    print(f"\n{GREEN}Wrote {transcript_path.relative_to(ROOT)}{OFF}")
+
+
+def compare_transcript(previous: dict, fresh: list[dict]) -> list[str]:
+    """Differences that survive scrubbing, which are the ones that mean something."""
+    before = previous.get("entries", [])
+    if len(before) != len(fresh):
+        return [f"the recording has {len(before)} command(s), the run produced {len(fresh)}"]
+
+    differences: list[str] = []
+    for old, new in zip(before, fresh):
+        label = normalize_command(new["command"])[:70]
+        if normalize_command(old.get("command", "")) != normalize_command(new["command"]):
+            differences.append(f"{label}\n      commands.txt changed since the recording")
+            continue
+        if old.get("exit") != new["exit"]:
+            differences.append(
+                f"{label}\n      exited {new['exit']}, the recording has {old.get('exit')}"
+            )
+        if scrub(old.get("output", "")) != scrub(new["output"]):
+            differences.append(f"{label}\n      output changed" + first_difference(
+                scrub(old.get("output", "")), scrub(new["output"])
+            ))
+    return differences
+
+
+def first_difference(before: str, after: str) -> str:
+    """The first line that differs, which is usually enough to see what moved."""
+    old_lines, new_lines = before.split("\n"), after.split("\n")
+    for index in range(max(len(old_lines), len(new_lines))):
+        old = old_lines[index] if index < len(old_lines) else "<nothing>"
+        new = new_lines[index] if index < len(new_lines) else "<nothing>"
+        if old != new:
+            return f" at line {index + 1}:\n        recorded: {old}\n        now:      {new}"
+    return ""
+
+
 def cmd_apply(args: argparse.Namespace) -> None:
     """Recreate the services from the learner's edited configuration."""
     exercise = current_exercise()
@@ -952,6 +1301,12 @@ def main() -> None:
     p = sub.add_parser("quiz", help="answer the exercise's questions and see why")
     p.add_argument("exercise", nargs="?")
     p.set_defaults(func=cmd_quiz)
+
+    p = sub.add_parser("record", help="capture real output for the site's terminal")
+    p.add_argument("exercise")
+    p.add_argument("--check", action="store_true",
+                   help="re-run and assert the recording still matches the system")
+    p.set_defaults(func=cmd_record)
 
     p = sub.add_parser("apply", help="recreate the services after you edit the configuration")
     p.set_defaults(func=cmd_apply)

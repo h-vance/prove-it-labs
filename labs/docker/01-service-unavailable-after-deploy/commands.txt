@@ -1,0 +1,34 @@
+# The lab's own containers, in the format `docker ps` prints.
+#
+# Filtered by compose project on purpose. Unfiltered, this lists whatever else
+# is running on the machine doing the recording, which would publish somebody's
+# unrelated work and could never match a fresh run. In a Codespace, where the
+# lab is the only thing running, plain `docker ps -a` shows exactly this.
+# alias: docker ps -a
+# alias: docker ps
+# alias: docker compose ps -a
+# wait: 10
+# keep: Restarting, proveit-docker-app-1
+docker ps -a --filter "label=com.docker.compose.project=proveit-docker"
+---
+# keep: APP_SECRET is not set
+docker compose -f labs/docker/_stack/compose.yaml \
+               -f labs/docker/_stack/compose.override.yaml \
+               logs --tail 20 app
+---
+# alias: docker compose logs app
+# keep: APP_SECRET is not set
+docker compose -f labs/docker/_stack/compose.yaml -f labs/docker/_stack/compose.override.yaml logs --tail 5 app
+---
+# alias: cat compose.override.yaml
+# keep: APP_SECRET
+cat labs/docker/_stack/compose.override.yaml
+---
+# The count itself is a function of how fast the machine is. That it is
+# counting at all, and the code it exits with, are the evidence.
+# keep: restart=, exit=1
+docker inspect --format '{{.Name}} restart={{.RestartCount}} exit={{.State.ExitCode}}' proveit-docker-app-1
+---
+# The database was never the problem, and proving that early is the point.
+# keep: healthy
+docker inspect --format '{{.State.Health.Status}}' proveit-docker-postgres-1
