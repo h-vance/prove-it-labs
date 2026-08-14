@@ -6,6 +6,7 @@
 # test_content.py fails the build if one is missing.
 labs/*/_stack/compose.override.yaml
 labs/*/_stack/request.sh
+labs/*/_stack/query.sql
 
 # Site build output.
 site/node_modules/

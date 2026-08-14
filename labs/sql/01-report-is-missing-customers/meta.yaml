@@ -1,0 +1,30 @@
+id: sql/01-report-is-missing-customers
+track: sql
+title: A report is quietly missing customers
+proof_question: Can I prove the report is asking for what the customer thinks it asks for?
+stack: compose
+tier: core
+difficulty: 2
+minutes: 30
+prerequisites: []
+
+commands_introduced:
+  - psql
+  - LEFT JOIN
+  - COUNT(DISTINCT ...)
+
+evidence_layers:
+  - row counts against a known total
+  - join behaviour
+  - the difference between filtering and reading
+
+interview_relevance: >
+  Wrong numbers are harder than errors, because nothing fails. Candidates who
+  reach for the query text first usually miss it. Establishing the true total
+  independently, then finding where rows are lost, is the move that separates a
+  guess from a diagnosis.
+
+teaches: >
+  A join is a filter. An inner join silently discards rows that have no match,
+  so a report can be perfectly valid SQL, run without error, and still answer a
+  different question than the one asked.

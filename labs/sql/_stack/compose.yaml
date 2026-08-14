@@ -1,0 +1,29 @@
+name: proveit-sql
+
+# There is deliberately no named volume for the database.
+#
+# PGDATA lives in the container's writable layer, so `up --force-recreate`
+# destroys it and the seed runs again from scratch. That is what makes these
+# exercises idempotent: sql/03's solution creates an index, and with a
+# persistent volume that index would survive into the next run, the broken
+# state would quietly pass, and the exercise would verify as valid while
+# teaching nothing. Adding a volume here breaks that silently.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: support_lab
+      POSTGRES_USER: support
+      POSTGRES_PASSWORD: demo-password
+    volumes:
+      - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+    ports:
+      - "127.0.0.1:5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U support -d support_lab"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 200

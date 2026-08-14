@@ -97,8 +97,8 @@ prose, which includes a lot of very good engineers.
 | Docker | 3 | Available |
 | APIs | 4 | Available |
 | Kubernetes | 5 | Available |
-| SQL and PostgreSQL | | Next |
-| Linux and CLI foundations | | Planned |
+| SQL and PostgreSQL | 3 | Available |
+| Linux and CLI foundations | | Next |
 | Networking, DNS, TLS | | Planned |
 | Observability | | Planned |
 | Customer communication | | Planned |

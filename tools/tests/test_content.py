@@ -287,6 +287,98 @@ class Resolution(unittest.TestCase):
             tse.resolve("nonexistent/99")
 
 
+def evidence_rows(solution: str) -> list[list[str]]:
+    """The rows of the "What the evidence proved" table.
+
+    Load bearing twice: it is the quality signal that an exercise actually
+    reasons about evidence, and it is the source the site's drills are
+    generated from.
+    """
+    rows = []
+    inside = False
+    for line in solution.splitlines():
+        if line.startswith("## What the evidence proved"):
+            inside = True
+            continue
+        if inside and line.startswith("## "):
+            break
+        if inside and line.startswith("|") and not re.match(r"^\|[\s|:-]+\|$", line):
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            if len(cells) >= 2 and cells[0].lower() not in {"command", "query", "evidence"}:
+                rows.append(cells)
+    return rows
+
+
+class NotFiller(unittest.TestCase):
+    """Guards against the failure mode of scale.
+
+    At a hundred exercises the danger is not effort, it is variations on a
+    theme with the names changed. Each check here is something a filler
+    exercise does and a real one does not, so quality is a failing build
+    rather than a matter of vigilance.
+    """
+
+    def _assert_unique(self, values: dict[str, str], label: str):
+        seen: dict[str, str] = {}
+        for exercise_id, value in values.items():
+            normalized = " ".join((value or "").split()).lower()
+            if not normalized:
+                continue
+            if normalized in seen:
+                self.fail(f"{label} is duplicated between {seen[normalized]} and {exercise_id}")
+            seen[normalized] = exercise_id
+
+    def test_proof_questions_are_unique(self):
+        self._assert_unique(
+            {e.id: e.meta.get("proof_question", "") for e in EXERCISES}, "proof_question"
+        )
+
+    def test_teaches_are_unique(self):
+        """Two exercises teaching the same distinction means one is redundant."""
+        self._assert_unique({e.id: e.meta.get("teaches", "") for e in EXERCISES}, "teaches")
+
+    def test_first_hints_are_unique(self):
+        """Copy-pasting hint 1 is how a filler run starts."""
+        self._assert_unique(
+            {e.id: (e.path / "hints" / "1.md").read_text() for e in EXERCISES}, "hints/1.md"
+        )
+
+    def test_solutions_are_not_stubs(self):
+        for exercise in EXERCISES:
+            body = (exercise.path / "solution.md").read_text()
+            with self.subTest(exercise.id):
+                self.assertGreaterEqual(
+                    len(body.splitlines()), 40,
+                    f"{exercise.id}: solution.md is too short to be a real writeup",
+                )
+
+    def test_solutions_show_their_evidence(self):
+        for exercise in EXERCISES:
+            rows = evidence_rows((exercise.path / "solution.md").read_text())
+            with self.subTest(exercise.id):
+                self.assertGreaterEqual(
+                    len(rows), 2,
+                    f"{exercise.id}: needs an evidence table with at least two rows",
+                )
+
+    def test_setup_states_are_not_duplicated(self):
+        """Two exercises breaking the system identically are one exercise."""
+        seen: dict[str, str] = {}
+        for exercise in EXERCISES:
+            directory = exercise.path / "setup"
+            if not directory.is_dir():
+                continue
+            fingerprint = repr(sorted(
+                (item.name, item.read_bytes()) for item in directory.iterdir() if item.is_file()
+            ))
+            with self.subTest(exercise.id):
+                self.assertNotIn(
+                    fingerprint, seen,
+                    f"{exercise.id} has the same broken state as {seen.get(fingerprint)}",
+                )
+            seen[fingerprint] = exercise.id
+
+
 class DetectorsActuallyFire(unittest.TestCase):
     """A linter that cannot fail is not a linter.
 

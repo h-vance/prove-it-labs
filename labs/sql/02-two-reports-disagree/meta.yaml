@@ -1,0 +1,30 @@
+id: sql/02-two-reports-disagree
+track: sql
+title: Two reports disagree about the same number
+proof_question: Can I prove which of the two numbers is the wrong one?
+stack: compose
+tier: core
+difficulty: 3
+minutes: 30
+prerequisites:
+  - sql/01-report-is-missing-customers
+
+commands_introduced:
+  - COUNT(DISTINCT ...)
+  - inspecting join output before aggregating
+
+evidence_layers:
+  - row counts before and after aggregation
+  - join multiplicity
+  - independent verification of a total
+
+interview_relevance: >
+  The instinct is to assume the smaller number is missing data. Half the time
+  the larger one is inflated instead, and proving which before touching either
+  is the whole skill. Interviewers watch for whether you verify the total
+  independently rather than trusting either report.
+
+teaches: >
+  Joining through a one-to-many relationship multiplies rows before the
+  aggregate ever runs, so COUNT(*) counts result rows rather than the thing you
+  named in the report.

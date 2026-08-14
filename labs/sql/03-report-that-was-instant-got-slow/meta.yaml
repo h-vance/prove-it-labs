@@ -1,0 +1,31 @@
+id: sql/03-report-that-was-instant-got-slow
+track: sql
+title: A report that was instant is now painful
+proof_question: Can I prove how the database is finding the rows, not just how long it took?
+stack: compose
+tier: core
+difficulty: 3
+minutes: 35
+prerequisites:
+  - sql/01-report-is-missing-customers
+
+commands_introduced:
+  - EXPLAIN (ANALYZE, BUFFERS)
+  - CREATE INDEX
+  - reading a query plan
+
+evidence_layers:
+  - query plan
+  - rows examined versus rows returned
+  - table growth over time
+
+interview_relevance: >
+  "It got slow as we grew" is one of the most common support tickets there is,
+  and the useful answer is never a stopwatch. Reading a plan and naming a
+  sequential scan over a filtered lookup is a concrete, senior-sounding
+  diagnosis that takes one command.
+
+teaches: >
+  Timing tells you what happened once. The plan tells you what will keep
+  happening: a full scan grows with the table and a lookup does not, which is
+  why a report can be fine for a year and then suddenly not be.
