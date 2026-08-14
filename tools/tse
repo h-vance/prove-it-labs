@@ -1,0 +1,666 @@
+#!/usr/bin/env python3
+"""Prove It: the single entry point for every lab in the course.
+
+One CLI across all tracks so the muscle memory transfers: start an exercise,
+gather evidence yourself, then ask the grader what it can prove.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+STATE_FILENAME = ".tse-state.json"
+TRACK_ORDER = [
+    "linux",
+    "docker",
+    "networking",
+    "kubernetes",
+    "api",
+    "sql",
+    "observability",
+    "communication",
+    "mixed",
+]
+
+if sys.stdout.isatty() and not os.environ.get("NO_COLOR"):
+    BOLD, DIM, GREEN, YELLOW, RED, OFF = (
+        "\033[1m", "\033[2m", "\033[32m", "\033[33m", "\033[31m", "\033[0m"
+    )
+else:
+    BOLD = DIM = GREEN = YELLOW = RED = OFF = ""
+
+
+def repo_root() -> Path:
+    for candidate in [Path(__file__).resolve().parent, *Path(__file__).resolve().parents]:
+        if (candidate / "labs").is_dir() and (candidate / "tools").is_dir():
+            return candidate
+    sys.exit("tse: could not locate the repository root (no labs/ and tools/ found).")
+
+
+ROOT = repo_root()
+LABS = ROOT / "labs"
+LIB = ROOT / "tools" / "lib"
+TEMPLATES = ROOT / "tools" / "templates"
+
+
+# --------------------------------------------------------------------------- #
+# Metadata parsing
+#
+# tse deliberately has no third-party dependencies. On a modern Mac or Linux
+# box `pip install` into the system interpreter is refused (PEP 668), and a
+# course whose premise is "no setup friction" cannot open with a broken install
+# step. meta.yaml therefore uses a documented YAML subset that the standard
+# library can parse: scalars, flat lists, and folded block strings. PyYAML is
+# used instead when it happens to be available.
+# --------------------------------------------------------------------------- #
+
+def _coerce(value: str):
+    text = value.strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in "\"'":
+        return text[1:-1]
+    if text in {"true", "True"}:
+        return True
+    if text in {"false", "False"}:
+        return False
+    if text in {"null", "~", ""}:
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return text
+
+
+def _indent_of(line: str) -> int:
+    return len(line) - len(line.lstrip(" "))
+
+
+def parse_meta(text: str, source: str) -> dict:
+    """Parse the meta.yaml subset. Raises on anything outside it."""
+    try:
+        import yaml  # noqa: PLC0415 - optional, used only when installed
+        return yaml.safe_load(text) or {}
+    except ImportError:
+        pass
+
+    lines = text.splitlines()
+    result: dict = {}
+    index = 0
+
+    while index < len(lines):
+        raw = lines[index]
+        stripped = raw.strip()
+        index += 1
+
+        if not stripped or stripped.startswith("#"):
+            continue
+        if _indent_of(raw) != 0:
+            raise ValueError(f"{source}: unexpected indentation at line {index}: {raw!r}")
+        if ":" not in stripped:
+            raise ValueError(f"{source}: expected 'key: value' at line {index}: {raw!r}")
+
+        key, _, inline = stripped.partition(":")
+        key = key.strip()
+        inline = inline.strip()
+
+        if inline.startswith("#"):
+            inline = ""
+        elif " #" in inline and not inline.startswith(("\"", "'")):
+            inline = inline.split(" #", 1)[0].strip()
+
+        if inline in {">", "|", ">-", "|-"}:
+            block: list[str] = []
+            while index < len(lines) and (not lines[index].strip() or _indent_of(lines[index]) > 0):
+                block.append(lines[index].strip())
+                index += 1
+            joiner = " " if inline.startswith(">") else "\n"
+            result[key] = joiner.join(part for part in block if part)
+            continue
+
+        if inline.startswith("[") and inline.endswith("]"):
+            body = inline[1:-1].strip()
+            result[key] = [_coerce(item) for item in body.split(",")] if body else []
+            continue
+
+        if inline:
+            result[key] = _coerce(inline)
+            continue
+
+        items: list = []
+        while index < len(lines):
+            candidate = lines[index]
+            if not candidate.strip():
+                index += 1
+                continue
+            if _indent_of(candidate) == 0:
+                break
+            entry = candidate.strip()
+            if not entry.startswith("- "):
+                raise ValueError(
+                    f"{source}: nested mappings are not supported at line {index + 1}: "
+                    f"{candidate!r}"
+                )
+            items.append(_coerce(entry[2:]))
+            index += 1
+        result[key] = items
+
+    return result
+
+
+# --------------------------------------------------------------------------- #
+# Model
+# --------------------------------------------------------------------------- #
+
+@dataclass(frozen=True)
+class Exercise:
+    id: str
+    path: Path
+    meta: dict
+
+    @property
+    def track(self) -> str:
+        return self.meta.get("track", self.id.split("/")[0])
+
+    @property
+    def title(self) -> str:
+        return self.meta.get("title", self.id)
+
+    @property
+    def stack(self) -> str:
+        return self.meta.get("stack", "none")
+
+    @property
+    def minutes(self) -> int:
+        return int(self.meta.get("minutes", 0))
+
+    @property
+    def tier(self) -> str:
+        return self.meta.get("tier", "core")
+
+    def stack_dir(self) -> Path:
+        return LABS / self.track / "_stack"
+
+
+def load_exercises() -> list[Exercise]:
+    found: list[Exercise] = []
+    for meta_path in sorted(LABS.glob("*/*/meta.yaml")):
+        if meta_path.parent.name.startswith("_"):
+            continue
+        meta = parse_meta(meta_path.read_text(), str(meta_path.relative_to(ROOT)))
+        exercise_id = f"{meta_path.parent.parent.name}/{meta_path.parent.name}"
+        found.append(Exercise(id=exercise_id, path=meta_path.parent, meta=meta))
+
+    def sort_key(exercise: Exercise) -> tuple[int, str]:
+        track = exercise.track
+        rank = TRACK_ORDER.index(track) if track in TRACK_ORDER else len(TRACK_ORDER)
+        return rank, exercise.id
+
+    return sorted(found, key=sort_key)
+
+
+def resolve(reference: str) -> Exercise:
+    """Accept a full id, a track/number prefix, or a unique substring."""
+    exercises = load_exercises()
+    reference = reference.strip().rstrip("/")
+
+    exact = [e for e in exercises if e.id == reference]
+    if exact:
+        return exact[0]
+
+    prefix = [e for e in exercises if e.id.startswith(reference)]
+    if len(prefix) == 1:
+        return prefix[0]
+
+    partial = [e for e in exercises if reference in e.id]
+    if len(partial) == 1:
+        return partial[0]
+
+    if not prefix and not partial:
+        sys.exit(f"tse: no exercise matches {reference!r}. Run `tse list`.")
+
+    options = "\n  ".join(e.id for e in (prefix or partial))
+    sys.exit(f"tse: {reference!r} is ambiguous. Did you mean one of:\n  {options}")
+
+
+# --------------------------------------------------------------------------- #
+# State
+# --------------------------------------------------------------------------- #
+
+def read_state() -> dict:
+    path = ROOT / STATE_FILENAME
+    if not path.is_file():
+        return {"current": None, "hints": {}, "completed": []}
+    try:
+        return json.loads(path.read_text())
+    except json.JSONDecodeError:
+        return {"current": None, "hints": {}, "completed": []}
+
+
+def write_state(state: dict) -> None:
+    (ROOT / STATE_FILENAME).write_text(json.dumps(state, indent=2) + "\n")
+
+
+def current_exercise() -> Exercise:
+    state = read_state()
+    if not state.get("current"):
+        sys.exit("tse: no active exercise. Start one with `tse start <id>`.")
+    return resolve(state["current"])
+
+
+# --------------------------------------------------------------------------- #
+# Stack adapters
+# --------------------------------------------------------------------------- #
+
+def compose_command(exercise: Exercise) -> list[str]:
+    stack = exercise.stack_dir()
+    command = ["docker", "compose", "-f", str(stack / "compose.yaml")]
+    override = stack / "compose.override.yaml"
+    if override.is_file():
+        command += ["-f", str(override)]
+    return command
+
+
+def provision(exercise: Exercise, *, variant: str) -> None:
+    """Put the environment into the exercise's broken or fixed state.
+
+    variant is "setup" for the state the learner investigates, or "solution"
+    for the corrected state, which only CI and `tse check --solution` use.
+    """
+    if exercise.stack == "none":
+        return
+
+    if exercise.stack == "docker-compose":
+        source = exercise.path / variant / "compose.override.yaml"
+        if not source.is_file():
+            sys.exit(f"tse: {exercise.id} is missing {variant}/compose.override.yaml")
+        stack = exercise.stack_dir()
+        shutil.copyfile(source, stack / "compose.override.yaml")
+        run(compose_command(exercise) + ["up", "-d", "--build", "--force-recreate"])
+        return
+
+    sys.exit(
+        f"tse: the {exercise.stack!r} stack is not implemented yet.\n"
+        f"     {exercise.id} cannot be started in this phase of the course."
+    )
+
+
+def teardown(exercise: Exercise) -> None:
+    if exercise.stack == "docker-compose":
+        run(compose_command(exercise) + ["down", "--remove-orphans"], check=False)
+        (exercise.stack_dir() / "compose.override.yaml").unlink(missing_ok=True)
+
+
+def run(command: list[str], *, check: bool = True) -> int:
+    sys.stdout.flush()
+    result = subprocess.run(command)
+    if check and result.returncode != 0:
+        sys.exit(f"tse: command failed: {' '.join(command)}")
+    return result.returncode
+
+
+# --------------------------------------------------------------------------- #
+# Commands
+# --------------------------------------------------------------------------- #
+
+def cmd_list(args: argparse.Namespace) -> None:
+    state = read_state()
+    completed = set(state.get("completed", []))
+    current = state.get("current")
+    exercises = load_exercises()
+
+    if args.track:
+        exercises = [e for e in exercises if e.track == args.track]
+
+    if args.ids:
+        print(json.dumps([e.id for e in exercises if e.stack != "none"]))
+        return
+
+    if not exercises:
+        print("No exercises found.")
+        return
+
+    track = None
+    for exercise in exercises:
+        if exercise.track != track:
+            track = exercise.track
+            print(f"\n{BOLD}{track}{OFF}")
+        if exercise.id in completed:
+            mark = f"{GREEN}done{OFF}"
+        elif exercise.id == current:
+            mark = f"{YELLOW}open{OFF}"
+        else:
+            mark = "    "
+        tier = "" if exercise.tier == "core" else f" {DIM}[stretch]{OFF}"
+        print(f"  {mark}  {exercise.id:<48} {exercise.minutes:>3}m  {exercise.title}{tier}")
+
+    print(f"\n{len(completed)} of {len(load_exercises())} exercises completed.")
+
+
+def cmd_start(args: argparse.Namespace) -> None:
+    exercise = resolve(args.exercise)
+    print(f"Provisioning {exercise.id} ...\n")
+    provision(exercise, variant="setup")
+
+    state = read_state()
+    state["current"] = exercise.id
+    state.setdefault("hints", {})[exercise.id] = 0
+    write_state(state)
+
+    print()
+    print_ticket(exercise)
+
+
+def print_ticket(exercise: Exercise) -> None:
+    ticket = exercise.path / "ticket.md"
+    if ticket.is_file():
+        print(ticket.read_text().rstrip())
+    print(f"\n{DIM}Gather evidence, then run `tse check`. Stuck? `tse hint`.{OFF}")
+
+
+def cmd_ticket(args: argparse.Namespace) -> None:
+    print_ticket(current_exercise())
+
+
+def cmd_check(args: argparse.Namespace) -> None:
+    exercise = resolve(args.exercise) if args.exercise else current_exercise()
+    script = exercise.path / "check.sh"
+    if not script.is_file():
+        sys.exit(f"tse: {exercise.id} has no check.sh")
+
+    env = os.environ.copy()
+    env.update(
+        TSE_ROOT=str(ROOT),
+        TSE_LIB=str(LIB),
+        TSE_EXERCISE_DIR=str(exercise.path),
+        TSE_STACK_DIR=str(exercise.stack_dir()),
+    )
+    print(f"{BOLD}{exercise.id}{OFF}  {exercise.title}\n")
+    result = subprocess.run(["bash", str(script)], env=env)
+
+    if result.returncode == 0:
+        state = read_state()
+        completed = set(state.get("completed", []))
+        if exercise.id not in completed:
+            completed.add(exercise.id)
+            state["completed"] = sorted(completed)
+            write_state(state)
+        print(f"\n{GREEN}Resolved.{OFF} Write the customer update before you move on.")
+        print(f"{DIM}Compare your reasoning with `tse answer`.{OFF}")
+    sys.exit(result.returncode)
+
+
+def cmd_hint(args: argparse.Namespace) -> None:
+    exercise = current_exercise()
+    hints = sorted((exercise.path / "hints").glob("*.md")) if (exercise.path / "hints").is_dir() else []
+    if not hints:
+        sys.exit(f"tse: {exercise.id} has no hints. Try `tse answer`.")
+
+    state = read_state()
+    shown = int(state.get("hints", {}).get(exercise.id, 0))
+    if shown >= len(hints):
+        print(f"{DIM}All {len(hints)} hints shown. `tse answer` reveals the root cause.{OFF}")
+        return
+
+    print(f"{BOLD}Hint {shown + 1} of {len(hints)}{OFF}\n")
+    print(hints[shown].read_text().rstrip())
+    state.setdefault("hints", {})[exercise.id] = shown + 1
+    write_state(state)
+
+    remaining = len(hints) - (shown + 1)
+    if remaining:
+        print(f"\n{DIM}{remaining} hint(s) left. Run `tse hint` again if you need one.{OFF}")
+
+
+def cmd_answer(args: argparse.Namespace) -> None:
+    exercise = current_exercise()
+    solution = exercise.path / "solution.md"
+    if not solution.is_file():
+        sys.exit(f"tse: {exercise.id} has no solution.md")
+    print(solution.read_text().rstrip())
+
+
+def cmd_apply(args: argparse.Namespace) -> None:
+    """Recreate the services from the learner's edited configuration."""
+    exercise = current_exercise()
+    if exercise.stack != "docker-compose":
+        sys.exit(f"tse: apply is not used by the {exercise.stack!r} stack")
+    run(compose_command(exercise) + ["up", "-d", "--build", "--force-recreate"])
+    print(f"\n{DIM}Applied. Now prove it worked with `tse check`.{OFF}")
+
+
+def cmd_reset(args: argparse.Namespace) -> None:
+    exercise = current_exercise()
+    print(f"Resetting {exercise.id} ...")
+    provision(exercise, variant="setup")
+    state = read_state()
+    state.setdefault("hints", {})[exercise.id] = 0
+    write_state(state)
+    print("Back to the state described in the ticket.")
+
+
+def cmd_stop(args: argparse.Namespace) -> None:
+    exercise = current_exercise()
+    teardown(exercise)
+    state = read_state()
+    state["current"] = None
+    write_state(state)
+    print(f"Stopped {exercise.id}.")
+
+
+def cmd_progress(args: argparse.Namespace) -> None:
+    state = read_state()
+    exercises = load_exercises()
+    completed = set(state.get("completed", []))
+    payload = {
+        "completed": sorted(completed),
+        "total": len(exercises),
+        "by_track": {},
+    }
+    for exercise in exercises:
+        bucket = payload["by_track"].setdefault(exercise.track, {"done": 0, "total": 0})
+        bucket["total"] += 1
+        if exercise.id in completed:
+            bucket["done"] += 1
+
+    if args.json:
+        print(json.dumps(payload, indent=2))
+        return
+
+    for track, counts in payload["by_track"].items():
+        bar_width = 24
+        filled = round(bar_width * counts["done"] / counts["total"]) if counts["total"] else 0
+        bar = "#" * filled + "." * (bar_width - filled)
+        print(f"  {track:<16} {bar}  {counts['done']}/{counts['total']}")
+    print(f"\n  {BOLD}{len(completed)}/{len(exercises)}{OFF} overall")
+    print(f"\n{DIM}Export for the site with `tse progress --json`.{OFF}")
+
+
+def cmd_doctor(args: argparse.Namespace) -> None:
+    checks: list[tuple[str, bool, str]] = []
+
+    def probe(label: str, command: list[str], remedy: str) -> None:
+        binary = shutil.which(command[0])
+        if not binary:
+            checks.append((label, False, remedy))
+            return
+        result = subprocess.run(command, capture_output=True, text=True)
+        detail = (result.stdout or result.stderr).strip().splitlines()
+        checks.append((label, result.returncode == 0, detail[0] if detail else ""))
+
+    probe("docker", ["docker", "--version"], "Install Docker, or open this repo in a Codespace.")
+    probe("docker compose", ["docker", "compose", "version"], "Docker Compose v2 is required.")
+    probe("docker daemon", ["docker", "info", "--format", "{{.ServerVersion}}"], "Start Docker.")
+    probe("kubectl", ["kubectl", "version", "--client=true", "-o", "yaml"], "Needed for the Kubernetes track.")
+    probe("kind", ["kind", "version"], "Needed for the Kubernetes track.")
+    probe("curl", ["curl", "--version"], "Needed by most checks.")
+    probe("jq", ["jq", "--version"], "Needed by the API and observability tracks.")
+
+    cpus = os.cpu_count() or 1
+    checks.append((
+        f"cpu cores ({cpus})",
+        cpus >= 4,
+        "The Kubernetes track needs 4 cores. Use a 4-core Codespace." if cpus < 4 else "",
+    ))
+
+    width = max(len(label) for label, _, _ in checks)
+    failures = 0
+    for label, ok, detail in checks:
+        if ok:
+            print(f"  {GREEN}ok{OFF}    {label:<{width}}  {DIM}{detail}{OFF}")
+        else:
+            failures += 1
+            print(f"  {RED}warn{OFF}  {label:<{width}}  {detail}")
+
+    print()
+    if failures:
+        print(f"{YELLOW}{failures} check(s) need attention.{OFF} "
+              "Docker tracks work as long as docker and curl are ok.")
+    else:
+        print(f"{GREEN}Environment ready.{OFF} Start with `tse start docker/01`.")
+
+
+def run_check(exercise: Exercise, *, max_retries: int | None = None) -> int:
+    env = os.environ.copy()
+    env.update(
+        TSE_ROOT=str(ROOT),
+        TSE_LIB=str(LIB),
+        TSE_EXERCISE_DIR=str(exercise.path),
+        TSE_STACK_DIR=str(exercise.stack_dir()),
+    )
+    if max_retries is not None:
+        env["TSE_MAX_RETRIES"] = str(max_retries)
+    sys.stdout.flush()
+    return subprocess.run(["bash", str(exercise.path / "check.sh")], env=env).returncode
+
+
+def verify_one(exercise: Exercise) -> bool:
+    """An exercise is only correct if it fails broken and passes fixed."""
+    print(f"\n{BOLD}=== {exercise.id} ==={OFF}\n")
+    ok = True
+    try:
+        print(f"{DIM}-- broken state: check must fail --{OFF}\n")
+        provision(exercise, variant="setup")
+        if run_check(exercise, max_retries=3) == 0:
+            print(f"{RED}BROKEN STATE PASSED.{OFF} The exercise is not actually broken, "
+                  f"or check.sh does not assert the failure.")
+            ok = False
+
+        print(f"\n{DIM}-- fixed state: check must pass --{OFF}\n")
+        provision(exercise, variant="solution")
+        if run_check(exercise) != 0:
+            print(f"{RED}FIXED STATE FAILED.{OFF} The documented solution does not "
+                  f"satisfy check.sh.")
+            ok = False
+    finally:
+        teardown(exercise)
+
+    print(f"\n{GREEN if ok else RED}{exercise.id}: {'verified' if ok else 'INVALID'}{OFF}")
+    return ok
+
+
+def cmd_verify(args: argparse.Namespace) -> None:
+    if args.exercise:
+        targets = [resolve(args.exercise)]
+    else:
+        targets = [e for e in load_exercises() if e.stack != "none"]
+
+    failed = [e.id for e in targets if not verify_one(e)]
+
+    print()
+    if failed:
+        print(f"{RED}{len(failed)} exercise(s) invalid:{OFF}")
+        for exercise_id in failed:
+            print(f"  {exercise_id}")
+        sys.exit(1)
+    print(f"{GREEN}All {len(targets)} exercise(s) verified.{OFF}")
+
+
+def cmd_new(args: argparse.Namespace) -> None:
+    try:
+        track, slug = args.exercise.split("/", 1)
+    except ValueError:
+        sys.exit("tse: expected <track>/<slug>, for example `tse new docker/04-port-mapping`")
+
+    destination = LABS / track / slug
+    if destination.exists():
+        sys.exit(f"tse: {destination.relative_to(ROOT)} already exists")
+    if not (TEMPLATES / "exercise").is_dir():
+        sys.exit("tse: tools/templates/exercise is missing")
+
+    shutil.copytree(TEMPLATES / "exercise", destination)
+    meta_path = destination / "meta.yaml"
+    meta_path.write_text(
+        meta_path.read_text()
+        .replace("{{TRACK}}", track)
+        .replace("{{SLUG}}", slug)
+    )
+    (destination / "check.sh").chmod(0o755)
+    print(f"Created {destination.relative_to(ROOT)}")
+    print("Next: write ticket.md as a symptom only, then setup/, check.sh, hints/, solution.md")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(prog="tse", description=__doc__.splitlines()[0])
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    p = sub.add_parser("list", help="show every exercise and your progress")
+    p.add_argument("--track", help="limit to one track")
+    p.add_argument("--ids", action="store_true", help="emit a JSON array of ids for CI")
+    p.set_defaults(func=cmd_list)
+
+    p = sub.add_parser("verify", help="assert an exercise fails broken and passes fixed")
+    p.add_argument("exercise", nargs="?", help="omit to verify every exercise")
+    p.set_defaults(func=cmd_verify)
+
+    p = sub.add_parser("start", help="provision an exercise and print its ticket")
+    p.add_argument("exercise")
+    p.set_defaults(func=cmd_start)
+
+    p = sub.add_parser("ticket", help="reprint the active ticket")
+    p.set_defaults(func=cmd_ticket)
+
+    p = sub.add_parser("check", help="grade the active exercise, showing the evidence used")
+    p.add_argument("exercise", nargs="?")
+    p.set_defaults(func=cmd_check)
+
+    p = sub.add_parser("hint", help="reveal the next hint")
+    p.set_defaults(func=cmd_hint)
+
+    p = sub.add_parser("answer", help="reveal the root cause and the customer wording")
+    p.set_defaults(func=cmd_answer)
+
+    p = sub.add_parser("apply", help="recreate the services after you edit the configuration")
+    p.set_defaults(func=cmd_apply)
+
+    p = sub.add_parser("reset", help="return to the state described in the ticket")
+    p.set_defaults(func=cmd_reset)
+
+    p = sub.add_parser("stop", help="tear down the active exercise")
+    p.set_defaults(func=cmd_stop)
+
+    p = sub.add_parser("progress", help="show or export progress")
+    p.add_argument("--json", action="store_true", help="emit JSON for the site to import")
+    p.set_defaults(func=cmd_progress)
+
+    p = sub.add_parser("doctor", help="verify this machine can run the labs")
+    p.set_defaults(func=cmd_doctor)
+
+    p = sub.add_parser("new", help="scaffold a new exercise from the template")
+    p.add_argument("exercise", help="<track>/<slug>")
+    p.set_defaults(func=cmd_new)
+
+    args = parser.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        sys.exit(130)

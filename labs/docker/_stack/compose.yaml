@@ -1,0 +1,54 @@
+name: proveit-docker
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: support_lab
+      POSTGRES_USER: support
+      POSTGRES_PASSWORD: demo-password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U support -d support_lab"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    mem_limit: 256m
+    cpus: 0.50
+    pids_limit: 100
+
+  app:
+    build: .
+    environment:
+      APP_SECRET: lab-secret
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: support_lab
+      DB_USER: support
+      DB_PASSWORD: demo-password
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8100:8080"
+    restart: on-failure
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    cpus: 0.50
+    pids_limit: 100
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2)"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:

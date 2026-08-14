@@ -1,0 +1,68 @@
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    name: discover exercises
+    runs-on: ubuntu-24.04
+    outputs:
+      exercises: ${{ steps.collect.outputs.exercises }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - id: collect
+        run: echo "exercises=$(tools/tse list --ids)" >> "$GITHUB_OUTPUT"
+
+  verify:
+    name: ${{ matrix.exercise }}
+    needs: discover
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        exercise: ${{ fromJSON(needs.discover.outputs.exercises) }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      # An exercise is only correct if it fails in its broken state and passes
+      # against its documented solution. Asserting only the second half would
+      # let a lab that is not actually broken ship green.
+      - name: Verify the exercise fails broken and passes fixed
+        run: tools/tse verify "${{ matrix.exercise }}"
+
+  cli:
+    name: cli smoke test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: The CLI must run on a stock interpreter with no installs
+        run: |
+          tools/tse list
+          tools/tse list --ids
+          tools/tse progress --json
+
+      - name: Scaffolding produces a parseable exercise
+        run: |
+          tools/tse new docker/99-scaffold-smoke-test
+          tools/tse list --track docker | grep -q '99-scaffold-smoke-test'
+          rm -rf labs/docker/99-scaffold-smoke-test
+
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - run: |
+          shellcheck --severity=warning \
+            tools/lib/assert.sh \
+            .devcontainer/post-create.sh \
+            labs/*/*/check.sh

@@ -1,0 +1,33 @@
+id: docker/01-service-unavailable-after-deploy
+track: docker
+title: Service unavailable after a release
+proof_question: Can I prove the application started at all?
+stack: docker-compose
+tier: core
+difficulty: 1
+minutes: 25
+prerequisites: []
+
+commands_introduced:
+  - docker ps
+  - docker ps -a
+  - docker compose ps
+  - docker compose logs
+  - docker inspect
+
+evidence_layers:
+  - container state
+  - container logs
+  - runtime configuration
+
+interview_relevance: >
+  The most common opening move a candidate gets wrong. "The site is down" invites
+  a guess about the application, when the cheapest available evidence proves
+  whether a process ever started. Interviewers watch for whether you widen from
+  running containers to all containers, and whether you read the exit output
+  before naming a cause.
+
+teaches: >
+  A running container is not a healthy application, and an absent container is
+  not a missing image. Separate "never started", "started and exited", and
+  "running but unhealthy" before you form a hypothesis.
