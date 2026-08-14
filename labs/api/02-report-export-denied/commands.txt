@@ -1,0 +1,29 @@
+# alias: bash request.sh
+# alias: ./request.sh
+# alias: bash labs/api/_stack/request.sh
+# wait: 8
+# keep: 403, insufficient_scope
+bash labs/api/_stack/request.sh
+---
+# 403 rather than 401 is the whole ticket. The caller is recognized and is
+# declined anyway, which rules out everything to do with her login.
+# alias: curl -i http://127.0.0.1:8101/v2/reports/incidents
+# keep: required_scope, reports:admin, reports:read
+curl -s -i http://127.0.0.1:8101/v2/reports/incidents \
+     -H 'Authorization: Bearer tok_viewer_5d10'
+---
+# What a genuine identity problem looks like, for contrast. Sending nothing at
+# all is refused on different grounds and with a different status.
+# keep: 401, authorization_missing
+curl -s -i http://127.0.0.1:8101/v2/reports/incidents
+---
+# alias: cat credentials.md
+# keep: tok_admin_9b44, reports:admin
+cat labs/api/_stack/credentials.md
+---
+# Proving which scope is missing rather than guessing that one is. Note that
+# this does not fix her account: it establishes what her administrator has to
+# grant.
+# keep: 200, authorized
+curl -s -i http://127.0.0.1:8101/v2/reports/incidents \
+     -H 'Authorization: Bearer tok_admin_9b44'

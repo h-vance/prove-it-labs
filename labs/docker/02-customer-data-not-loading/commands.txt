@@ -1,0 +1,47 @@
+# Both containers are up and the database is healthy, which is the fact that
+# makes this interesting rather than the fact that solves it.
+# alias: docker ps -a
+# alias: docker ps
+# alias: docker compose ps
+# wait: 12
+# keep: healthy, proveit-docker-app-1
+docker ps -a --filter "label=com.docker.compose.project=proveit-docker"
+---
+# The symptom the customer reported, reproduced.
+# alias: curl -i http://127.0.0.1:8100/customers
+# alias: curl http://127.0.0.1:8100/customers
+# keep: 503
+curl -s -i http://127.0.0.1:8100/customers | head -12
+---
+# alias: docker compose logs app
+# keep: database_connection_failed
+docker compose -f labs/docker/_stack/compose.yaml \
+               -f labs/docker/_stack/compose.override.yaml \
+               logs --tail 15 app
+---
+# What the application is aiming at, asked of the running process rather than
+# read out of a file.
+# alias: docker compose exec app printenv DB_HOST
+# keep: localhost
+docker compose -f labs/docker/_stack/compose.yaml \
+               -f labs/docker/_stack/compose.override.yaml \
+               exec -T app printenv DB_HOST
+---
+# What that name resolves to from inside the container, which is the only
+# place it means anything.
+# alias: docker compose exec app getent hosts localhost
+# keep: localhost
+docker compose -f labs/docker/_stack/compose.yaml \
+               -f labs/docker/_stack/compose.override.yaml \
+               exec -T app getent hosts localhost
+---
+# And the name Compose actually publishes for the database.
+# alias: docker compose exec app getent hosts postgres
+# keep: postgres
+docker compose -f labs/docker/_stack/compose.yaml \
+               -f labs/docker/_stack/compose.override.yaml \
+               exec -T app getent hosts postgres
+---
+# The database was never down. Worth proving rather than assuming.
+# keep: healthy
+docker inspect --format '{{.State.Health.Status}}' proveit-docker-postgres-1

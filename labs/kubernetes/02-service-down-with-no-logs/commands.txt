@@ -1,0 +1,28 @@
+# alias: kubectl get pods
+# alias: k get pods
+# wait: 25
+# keep: CreateContainerConfigError
+kubectl -n tse-training get pods
+---
+# Asking for logs returns a refusal rather than nothing, and the refusal names
+# the container state outright. The command that looks like a dead end is
+# carrying the answer.
+# alias: kubectl logs
+# keep: CreateContainerConfigError
+kubectl -n tse-training logs -l app.kubernetes.io/name=orders-api --tail=5 2>&1 | head -5
+---
+# alias: kubectl describe pod
+# keep: CreateContainerConfigError
+kubectl -n tse-training describe pod -l app.kubernetes.io/name=orders-api \
+  | grep -E 'State|Reason|Warning|couldn|not found' | head -12
+---
+# What the workload asks for by name.
+# keep: APP_SECRET_V2
+kubectl -n tse-training get deployment orders-api \
+  -o jsonpath='{.spec.template.spec.containers[0].env[*].valueFrom.configMapKeyRef.key}{"\n"}'
+---
+# And what the configuration actually holds. The source exists; the specific
+# key inside it never did.
+# alias: kubectl get configmap orders-api-config
+# keep: APP_SECRET
+kubectl -n tse-training get configmap orders-api-config -o jsonpath='{.data}' | tr ',' '\n'

@@ -1,0 +1,34 @@
+# The customer said the API is down. A status line coming back at all settles
+# that in one command, before anything else is looked at.
+# alias: bash request.sh
+# alias: ./request.sh
+# alias: bash labs/api/_stack/request.sh
+# wait: 8
+# keep: 401, api_key_revoked
+bash labs/api/_stack/request.sh
+---
+# The status is a category. The body is the specific claim, and it names both
+# the reason and the date it happened.
+# keep: revoked on 2026-08-12
+curl -s -i -X POST http://127.0.0.1:8101/v2/webhooks/events \
+     -H 'X-API-Key: wk_live_revoked_8f21' \
+     -H 'Content-Type: application/json' \
+     -d '{"event":"order.created","id":"evt_1"}'
+---
+# alias: cat credentials.md
+# keep: wk_live_active_3c95
+cat labs/api/_stack/credentials.md
+---
+# The service is healthy throughout. The refusal is a considered answer from a
+# working system, not an outage.
+# alias: curl http://127.0.0.1:8101/health
+# keep: healthy
+curl -s http://127.0.0.1:8101/health
+---
+# The same call with the key that replaced it. This is what turns a diagnosis
+# into something proved rather than asserted.
+# keep: 202, accepted
+curl -s -i -X POST http://127.0.0.1:8101/v2/webhooks/events \
+     -H 'X-API-Key: wk_live_active_3c95' \
+     -H 'Content-Type: application/json' \
+     -d '{"event":"order.created","id":"evt_1"}'

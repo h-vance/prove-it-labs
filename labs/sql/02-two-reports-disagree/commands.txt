@@ -1,0 +1,35 @@
+# A third number, derived independently of either report. Without it you are
+# choosing which report to believe rather than diagnosing anything.
+# alias: select count(*) from customers where plan = 'enterprise';
+# wait: 12
+# keep: 12
+docker compose -f labs/sql/_stack/compose.yaml exec -T \
+  -e PGPASSWORD=demo-password postgres \
+  psql -U support -d support_lab -A --pset=footer=off \
+  -c "SELECT count(*) AS true_enterprise FROM customers WHERE plan = 'enterprise';"
+---
+# The report under suspicion. Now you know which of the two is wrong.
+# alias: bash run.sh
+# alias: bash labs/sql/_stack/run.sh
+# keep: enterprise
+bash labs/sql/_stack/run.sh
+---
+# What the joins actually produce before anything is counted. The same customer
+# appears once per user.
+# keep: Customer 1
+docker compose -f labs/sql/_stack/compose.yaml exec -T \
+  -e PGPASSWORD=demo-password postgres \
+  psql -U support -d support_lab -A -F'|' --pset=footer=off \
+  -c "SELECT c.id, c.name, u.email FROM customers c JOIN workspaces w ON w.customer_id = c.id JOIN users u ON u.workspace_id = w.id ORDER BY c.id LIMIT 12;"
+---
+# The inflation factor is not random, and that is what identifies it: each plan
+# is multiplied by how many users its accounts have.
+# keep: enterprise
+docker compose -f labs/sql/_stack/compose.yaml exec -T \
+  -e PGPASSWORD=demo-password postgres \
+  psql -U support -d support_lab -A -F'|' --pset=footer=off \
+  -c "SELECT c.plan, count(DISTINCT c.id) AS customers, count(*) AS result_rows FROM customers c JOIN workspaces w ON w.customer_id = c.id JOIN users u ON u.workspace_id = w.id GROUP BY c.plan ORDER BY c.plan;"
+---
+# alias: cat query.sql
+# keep: COUNT(*)
+cat labs/sql/_stack/query.sql

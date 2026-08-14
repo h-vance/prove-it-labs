@@ -12,6 +12,7 @@ import json
 import os
 import re
 import shutil
+import socket
 import subprocess
 import tempfile
 import sys
@@ -333,10 +334,35 @@ SCRUB_RULES: list[tuple[str, "re.Pattern[str]", str]] = [
     ("iso-timestamp", re.compile(
         r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?"),
         "<timestamp>"),
-    # `kubectl describe` prints wall-clock times in RFC 1123, which the ISO
-    # rule above does not match.
+    # `kubectl describe` prints wall-clock times in RFC 1123 with a numeric
+    # offset, and an HTTP Date header uses the same shape ending in GMT.
+    # Neither is matched by the ISO rule above.
     ("rfc1123-timestamp", re.compile(
-        r"\w{3}, \d{2} \w{3} \d{4} \d{2}:\d{2}:\d{2} [+-]\d{4}"), "<timestamp>"),
+        r"\w{3}, \d{2} \w{3} \d{4} \d{2}:\d{2}:\d{2} (?:[+-]\d{4}|GMT)"), "<timestamp>"),
+    # Every response carries a fresh correlation id. That one exists is the
+    # point, and api/01 tells the learner to quote it to engineering; which
+    # particular id this run produced is not.
+    # It appears twice per response, once as a header and once in the body, and
+    # a rule covering only one of them leaves the check failing every run.
+    ("request-id", re.compile(
+        r'("request_id":\s*"|X-Request-Id:\s*)[0-9a-f]{8,}', re.IGNORECASE),
+        r"\1<request-id>"),
+    # Compose assigns the bridge network a different subnet each time it is
+    # created, so an error naming the address it dialed moves between runs.
+    # 127.0.0.1 is deliberately excluded: in these labs it is the answer.
+    # Written as three complete addresses rather than a shared tail. The
+    # earlier form only consumed three octets of a 10.x address, so a pod IP
+    # scrubbed to "<ip>.23" and every run disagreed on the last octet.
+    ("private-ip", re.compile(
+        r"\b(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}"
+        r"|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}"
+        r"|192\.168\.\d{1,3}\.\d{1,3})\b"), "<ip>"),
+    # The planner's estimates, which drift with table statistics even when the
+    # data and the plan shape are identical. Matched as a whole parenthetical
+    # so the measured `(actual time=... rows=7500 loops=1)` beside it, which is
+    # the evidence the exercise turns on, is left completely alone.
+    ("plan-estimate", re.compile(r"\(cost=[\d.]+\.\.[\d.]+ rows=\d+ width=\d+\)"),
+        "(cost=<cost> rows=<est> width=<w>)"),
     # Query plan timings. The row counts either side of these are meaningful
     # and are left exactly as they are.
     ("plan-node-time", re.compile(r"actual time=\d+\.\d+\.\.\d+\.\d+"),
@@ -354,11 +380,32 @@ SCRUB_RULES: list[tuple[str, "re.Pattern[str]", str]] = [
     ("restart-count", re.compile(r"\brestart=\d+"), "restart=<n>"),
     # Kubernetes hands out a fresh suffix to every pod on every rollout.
     ("pod-suffix", re.compile(r"\b([a-z0-9-]+?)-[a-z0-9]{8,10}-[a-z0-9]{5}\b"), r"\1-<pod>"),
+    # An EndpointSlice gets one random suffix rather than a template hash and a
+    # pod suffix, so the rule above does not reach it. Anchored to the start of
+    # a line, which is where these names appear, and it runs after the pod rule
+    # so an already-replaced pod name cannot match it.
+    ("endpointslice-suffix", re.compile(r"(?m)^([a-z0-9-]+?)-[a-z0-9]{5}(?=\s)"),
+        r"\1-<slice>"),
     # The RESTARTS column carries how long ago the last one was, and both halves
     # move. That it is restarting at all is the evidence, and that survives.
     ("k8s-restarts", re.compile(r"\b\d+ \(\d+[smhd](?:\d+[smhd])? ago\)"),
         "<restarts> (<age> ago)"),
     ("k8s-restart-count", re.compile(r"(Restart Count:\s+)\d+"), r"\1<n>"),
+    # A failing image pull alternates between these two while it retries, and
+    # which one a command catches is purely when it ran. They report the same
+    # fact, so a recording showing one must not fail against a run showing the
+    # other. Comparison only: whichever was captured is what the learner sees.
+    ("image-pull-state", re.compile(r"\b(?:ErrImagePull|ImagePullBackOff)\b"),
+        "<image-pull-failure>"),
+    # A crash loop cycles through Error and CrashLoopBackOff, and which one a
+    # command catches depends only on where in the backoff it ran. Both say the
+    # container is failing and being restarted.
+    #
+    # "Running" is deliberately not in this list. A pod that is Running while
+    # reporting 0/1 is the entire point of kubernetes/05, and folding that in
+    # would erase the distinction the exercise exists to teach.
+    ("crash-loop-state", re.compile(r"\b(?:CrashLoopBackOff|Error)\b(?=\s)"),
+        "<crash-loop>"),
     # The AGE column, always last on a line: 13s, 5m32s, 2d4h.
     ("k8s-age", re.compile(r"(?m)(\s)\d+[smhd](?:\d+[smhd])?(?=\s*$)"), r"\1<age>"),
     # kind publishes its API server on a random high port.
@@ -380,9 +427,26 @@ SCRUB_RULES: list[tuple[str, "re.Pattern[str]", str]] = [
 ]
 
 
-def scrub(text: str) -> str:
-    """Replace the parts of output that legitimately differ between runs."""
-    for _, pattern, replacement in SCRUB_RULES:
+# Rules that run before anything is written to disk, because what they match
+# describes the machine rather than the lab: its clock, and the addresses its
+# container runtime handed out. Everything else here is cosmetic variation and
+# is normalized only when two runs are compared.
+#
+# Keeping that distinction is what lets a transcript stay readable. A container
+# id and an uptime say nothing about whose laptop this was, and replacing them
+# in storage would turn every table into ragged columns of placeholders for no
+# privacy gain at all.
+PRIVACY_RULES = {"iso-timestamp", "rfc1123-timestamp", "private-ip"}
+
+
+def scrub(text: str, *, privacy_only: bool = False) -> str:
+    """Replace the parts of output that legitimately differ between runs.
+
+    With privacy_only, apply just the rules that must never reach disk.
+    """
+    for name, pattern, replacement in SCRUB_RULES:
+        if privacy_only and name not in PRIVACY_RULES:
+            continue
         text = pattern.sub(replacement, text)
     return text
 
@@ -891,15 +955,36 @@ def cmd_quiz(args: argparse.Namespace) -> None:
 
 
 def private_leaks(output: str, foreign: set[str]) -> list[str]:
-    """Anything in this output that belongs to the author rather than the lab."""
+    """Anything in this output that belongs to the machine rather than the lab.
+
+    Transcripts are committed and published, so the standard is that nothing
+    identifying the person who recorded them can survive. This is the second
+    line of defence: the first is that stored output is scrubbed, and this
+    catches the categories a scrub rule would not think to look for.
+    """
     found = [name for name in sorted(foreign) if name in output]
+
     home = str(Path.home())
     if home in output:
         found.append(home)
+
     user = os.environ.get("USER") or ""
     if user and re.search(rf"\b{re.escape(user)}\b", output):
         found.append(user)
-    return found
+
+    hostname = socket.gethostname()
+    if hostname and hostname not in {"localhost"} and hostname in output:
+        found.append(hostname)
+
+    # Cloud account identifiers. A kubeconfig commonly holds a production
+    # cluster next to the lab one, and an ARN carries an account number.
+    for pattern in (r"arn:aws:\S+", r"\b\d{12}\.dkr\.ecr\b", r"\b[A-Z0-9]{20}\b"):
+        found += re.findall(pattern, output)
+
+    # Home directories from any platform, not just this one.
+    found += re.findall(r"/(?:Users|home)/[A-Za-z0-9._-]+", output)
+
+    return sorted(set(found))
 
 
 def cmd_record(args: argparse.Namespace) -> None:
@@ -927,6 +1012,25 @@ def cmd_record(args: argparse.Namespace) -> None:
             sys.exit(f"tse: {exercise.id} has no transcript.json to check against")
         previous = json.loads(transcript_path.read_text())
 
+    # Recorded commands run through `bash -c` exactly as a learner would type
+    # them, which means a Kubernetes exercise runs against whatever context
+    # happens to be current. Plenty of people have a production cluster in
+    # their kubeconfig, so this refuses rather than pointing lab commands at
+    # something real. tse's own calls always pass --context and were never at
+    # risk; the commands in commands.txt are.
+    if exercise.stack == "kind":
+        current = subprocess.run(
+            ["kubectl", "config", "current-context"], capture_output=True, text=True,
+        ).stdout.strip()
+        if current != KIND_CONTEXT:
+            sys.exit(
+                f"tse: the current kubectl context is {current or 'unset'!r}, "
+                f"not {KIND_CONTEXT!r}.\n"
+                f"     Recorded commands run against the current context, so this "
+                f"would capture\n     output from the wrong cluster. Switch with:\n"
+                f"       kubectl config use-context {KIND_CONTEXT}"
+            )
+
     foreign = foreign_projects()
     print(f"{BOLD}{exercise.id}{OFF}  {'checking' if args.check else 'recording'} "
           f"{len(blocks)} command(s)\n")
@@ -939,8 +1043,18 @@ def cmd_record(args: argparse.Namespace) -> None:
         for block in blocks:
             if block["wait"]:
                 time.sleep(block["wait"])
-            output, code = run_for_record(block["command"])
+            captured, code = run_for_record(block["command"])
             label = normalize_command(block["command"])[:70]
+
+            # Store the scrubbed form, not what was captured.
+            #
+            # These files are committed and published. Raw output carries the
+            # ids, addresses and clock of the machine that happened to run the
+            # recording, and none of that belongs to the course. Scrubbing at
+            # write time means the values that differ per machine are shown as
+            # placeholders, which is also more honest for the reader: it marks
+            # exactly which parts of the output are theirs rather than mine.
+            output = scrub(captured, privacy_only=True)
 
             leaked = private_leaks(output, foreign)
             if leaked:
@@ -957,7 +1071,7 @@ def cmd_record(args: argparse.Namespace) -> None:
                 "output": output,
                 "exit": code,
             }
-            entry_missing = [m for m in block["keep"] if m not in scrub(output)]
+            entry_missing = [m for m in block["keep"] if m not in output]
             entries.append(entry)
             missing[block["command"]] = entry_missing
             if entry_missing:

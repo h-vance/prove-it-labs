@@ -1,0 +1,42 @@
+{
+  "recorded": "2026-08-14",
+  "entries": [
+    {
+      "command": "docker compose -f labs/sql/_stack/compose.yaml exec -T \\\n  -e PGPASSWORD=demo-password postgres \\\n  psql -U support -d support_lab -A --pset=footer=off \\\n  -c \"SELECT count(*) AS true_enterprise FROM customers WHERE plan = 'enterprise';\"",
+      "aliases": [
+        "select count(*) from customers where plan = 'enterprise';"
+      ],
+      "output": "true_enterprise\n12",
+      "exit": 0
+    },
+    {
+      "command": "bash labs/sql/_stack/run.sh",
+      "aliases": [
+        "bash run.sh",
+        "bash labs/sql/_stack/run.sh"
+      ],
+      "output": "plan|customer_count\nenterprise|108\ngrowth|32\nstarter|12",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/sql/_stack/compose.yaml exec -T \\\n  -e PGPASSWORD=demo-password postgres \\\n  psql -U support -d support_lab -A -F'|' --pset=footer=off \\\n  -c \"SELECT c.id, c.name, u.email FROM customers c JOIN workspaces w ON w.customer_id = c.id JOIN users u ON u.workspace_id = w.id ORDER BY c.id LIMIT 12;\"",
+      "aliases": [],
+      "output": "id|name|email\n1|Customer 1|user1_1@example.invalid\n1|Customer 1|user1_2@example.invalid\n1|Customer 1|user1_3@example.invalid\n1|Customer 1|user1_4@example.invalid\n1|Customer 1|user1_5@example.invalid\n1|Customer 1|user1_6@example.invalid\n1|Customer 1|user1_7@example.invalid\n1|Customer 1|user1_8@example.invalid\n1|Customer 1|user1_9@example.invalid\n2|Customer 2|user2_1@example.invalid\n2|Customer 2|user2_2@example.invalid\n2|Customer 2|user2_3@example.invalid",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/sql/_stack/compose.yaml exec -T \\\n  -e PGPASSWORD=demo-password postgres \\\n  psql -U support -d support_lab -A -F'|' --pset=footer=off \\\n  -c \"SELECT c.plan, count(DISTINCT c.id) AS customers, count(*) AS result_rows FROM customers c JOIN workspaces w ON w.customer_id = c.id JOIN users u ON u.workspace_id = w.id GROUP BY c.plan ORDER BY c.plan;\"",
+      "aliases": [],
+      "output": "plan|customers|result_rows\nenterprise|12|108\ngrowth|16|32\nstarter|6|12",
+      "exit": 0
+    },
+    {
+      "command": "cat labs/sql/_stack/query.sql",
+      "aliases": [
+        "cat query.sql"
+      ],
+      "output": "-- Active accounts report: customers with at least one user, by plan.\n-- Edit this until it answers the question correctly, then run `tse check`.\nSELECT c.plan, COUNT(*) AS customer_count\nFROM customers c\nJOIN workspaces w ON w.customer_id = c.id\nJOIN users u ON u.workspace_id = w.id\nGROUP BY c.plan\nORDER BY c.plan;",
+      "exit": 0
+    }
+  ]
+}

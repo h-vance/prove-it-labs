@@ -1,0 +1,42 @@
+{
+  "recorded": "2026-08-14",
+  "entries": [
+    {
+      "command": "docker compose -f labs/sql/_stack/compose.yaml exec -T \\\n  -e PGPASSWORD=demo-password postgres \\\n  psql -U support -d support_lab -A --pset=footer=off \\\n  -c \"SELECT count(*) AS true_customer_count FROM customers;\"",
+      "aliases": [
+        "select count(*) from customers;"
+      ],
+      "output": "true_customer_count\n40",
+      "exit": 0
+    },
+    {
+      "command": "bash labs/sql/_stack/run.sh",
+      "aliases": [
+        "bash run.sh",
+        "bash labs/sql/_stack/run.sh"
+      ],
+      "output": "plan|customer_count\nenterprise|12\ngrowth|16\nstarter|6",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/sql/_stack/compose.yaml exec -T \\\n  -e PGPASSWORD=demo-password postgres \\\n  psql -U support -d support_lab -A -F'|' --pset=footer=off \\\n  -c \"SELECT c.id, c.name, c.plan FROM customers c LEFT JOIN workspaces w ON w.customer_id = c.id WHERE w.id IS NULL ORDER BY c.id;\"",
+      "aliases": [],
+      "output": "id|name|plan\n35|Customer 35|starter\n36|Customer 36|starter\n37|Customer 37|starter\n38|Customer 38|starter\n39|Customer 39|starter\n40|Customer 40|starter",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/sql/_stack/compose.yaml exec -T \\\n  -e PGPASSWORD=demo-password postgres \\\n  psql -U support -d support_lab -A -F'|' --pset=footer=off \\\n  -c \"SELECT c.plan, count(*) AS without_workspace FROM customers c LEFT JOIN workspaces w ON w.customer_id = c.id WHERE w.id IS NULL GROUP BY c.plan ORDER BY c.plan;\"",
+      "aliases": [],
+      "output": "plan|without_workspace\nstarter|6",
+      "exit": 0
+    },
+    {
+      "command": "cat labs/sql/_stack/query.sql",
+      "aliases": [
+        "cat query.sql"
+      ],
+      "output": "-- Plan mix report: how many customers are on each plan.\n-- Edit this until it answers the question correctly, then run `tse check`.\nSELECT c.plan, COUNT(*) AS customer_count\nFROM customers c\nJOIN workspaces w ON w.customer_id = c.id\nGROUP BY c.plan\nORDER BY c.plan;",
+      "exit": 0
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+# The pipeline reported success and the customer is offline. Both are true:
+# the desired state was accepted, and accepting a description is not the same
+# event as running it.
+# alias: kubectl get pods
+# alias: k get pods
+# wait: 25
+# keep: orders-api, 0/1
+kubectl -n tse-training get pods
+---
+# The state, then the reason. They are different questions, and the second one
+# also shows the reference that was asked for.
+# alias: kubectl describe pod
+# keep: 3.12-alpne, Waiting
+kubectl -n tse-training describe pod -l app.kubernetes.io/name=orders-api \
+  | grep -E 'State|Reason|Image:|Warning' | head -12
+---
+# The events carry the registry's own words. Deduplicated and sorted on
+# purpose: the raw event list arrives in whatever order things happened, with a
+# leading age column, and none of that is stable enough to record.
+# alias: kubectl get events
+# keep: not found, Failed to pull image
+kubectl -n tse-training get events \
+  -o jsonpath='{range .items[?(@.reason=="Failed")]}{.message}{"\n"}{end}' \
+  | sort -u | grep -v '^$'
+---
+# What the release actually asked for. The repository is right and the tag is
+# not, which is why nothing about the spec looked wrong.
+# alias: kubectl get deployment orders-api -o jsonpath image
+# keep: 3.12-alpne
+kubectl -n tse-training get deployment orders-api \
+  -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+---
+# There are no logs to read, and that absence is evidence rather than a dead
+# end: the container never started, so no application cause is possible.
+# alias: kubectl logs
+# keep: orders-api
+kubectl -n tse-training logs -l app.kubernetes.io/name=orders-api --tail=5 2>&1 | head -5

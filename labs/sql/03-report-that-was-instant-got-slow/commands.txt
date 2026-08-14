@@ -1,0 +1,35 @@
+# The report still returns the right answer. Slow and wrong are different
+# tickets, and ruling one out costs a single command.
+# alias: bash run.sh
+# alias: bash labs/sql/_stack/run.sh
+# wait: 12
+# keep: 7500|191
+bash labs/sql/_stack/run.sh
+---
+# Ask the database how it intends to answer, rather than how long it took. A
+# duration describes one run on one machine. The plan describes the shape of
+# the work, which is what the customer actually asked about.
+# alias: bash explain.sh
+# keep: Seq Scan on api_requests, Rows Removed by Filter: 292500, rows=7500
+bash labs/sql/_stack/explain.sh "SELECT count(*), avg(duration_ms)::int FROM api_requests WHERE customer_id = 7 AND requested_at >= TIMESTAMPTZ '2026-07-01' AND requested_at < TIMESTAMPTZ '2026-07-08';"
+---
+# 300,000 rows read to return 7,500. The cost of that is the size of the table,
+# and the table grows every day.
+# keep: 300000
+docker compose -f labs/sql/_stack/compose.yaml exec -T \
+  -e PGPASSWORD=demo-password postgres \
+  psql -U support -d support_lab -A --pset=footer=off \
+  -c "SELECT count(*) AS total_rows FROM api_requests;"
+---
+# Nothing supports looking rows up by account, so reading all of them is the
+# only option the database has.
+# alias: \d api_requests
+# keep: api_requests
+docker compose -f labs/sql/_stack/compose.yaml exec -T \
+  -e PGPASSWORD=demo-password postgres \
+  psql -U support -d support_lab -A --pset=footer=off \
+  -c "SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'api_requests';"
+---
+# alias: cat query.sql
+# keep: api_requests
+cat labs/sql/_stack/query.sql

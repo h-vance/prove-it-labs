@@ -47,6 +47,16 @@ SAMPLES: dict[str, str] = {
     "uptime": "a070a8d795f8   postgres:16-alpine   13 seconds ago   Up 12 seconds (healthy)",
     "iso-timestamp": "requested_at >= '2026-07-01 00:00:00+00'::timestamp with time zone",
     "rfc1123-timestamp": "      Started:      Fri, 14 Aug 2026 14:42:00 -0400",
+    "request-id": 'X-Request-Id: 3fdd64a1f2ad\n  "request_id": "6c9286061d44",',
+    "private-ip": (
+        "app-1  | level=error event=database_connection_failed "
+        "detail='psql: error: connection to server at \"postgres\" (172.22.0.2), "
+        "port 5432 failed: FATAL'"
+    ),
+    "plan-estimate": (
+        "Seq Scan on api_requests  (cost=0.00..7978.00 rows=7568 width=4) "
+        "(actual time=0.005..14.669 rows=7500 loops=1)"
+    ),
     "plan-node-time": (
         "Aggregate  (cost=8015.84..8015.86 rows=1 width=12) "
         "(actual time=14.940..14.940 rows=1 loops=1)"
@@ -57,6 +67,9 @@ SAMPLES: dict[str, str] = {
     "pod-suffix": "orders-api-8c8575974-4bx5s   0/1     CrashLoopBackOff   2 (23s ago)   48s",
     "k8s-restarts": "orders-api-8c8575974-4bx5s   0/1     CrashLoopBackOff   2 (23s ago)   48s",
     "k8s-restart-count": "    Restart Count:  2",
+    "image-pull-state": "orders-api-77bc985956-bml6h   0/1   ImagePullBackOff   0   14s",
+    "crash-loop-state": "orders-api-8c8575974-dkg9b   0/1   CrashLoopBackOff   3 (9s ago)   45s",
+    "endpointslice-suffix": "orders-api-kdwnq   IPv4   8080   10.244.0.23,10.244.0.24   12m",
     "k8s-age": "orders-api-8c8575974-4bx5s   0/1     CrashLoopBackOff   2 (23s ago)   48s",
     "ephemeral-port": (
         "0c02ee579b5d   kindest/node:v1.36.1   Up 4 days   "
@@ -90,6 +103,11 @@ MUST_SURVIVE = [
     "7500|191",
     "exit=1",
     "0/1",
+    # The loopback address is the whole point of docker/02, so the rule that
+    # tidies away Compose's bridge addresses must not touch it.
+    "127.0.0.1",
+    "port 5432 failed: Connection refused",
+    "HTTP/1.0 503 Service Unavailable",
 ]
 
 
@@ -125,6 +143,10 @@ class RulesFire(unittest.TestCase):
                 "  Buffers: shared read=2728\nExecution Time: 17.385 ms",
                 "  Buffers: shared hit=2728\nExecution Time: 14.965 ms",
             ),
+            (
+                "orders-api-kdwnq   IPv4   8080   10.244.0.23,10.244.0.24   12m",
+                "orders-api-hk8zx   IPv4   8080   10.244.0.46,10.244.0.45   3m2s",
+            ),
         ]
         for first, second in pairs:
             with self.subTest(first[:40]):
@@ -134,11 +156,42 @@ class RulesFire(unittest.TestCase):
 class RulesDoNotOverReach(unittest.TestCase):
     """A scrubber that erases the evidence passes everything, which is worse."""
 
-    def test_evidence_survives(self):
+    def test_evidence_survives_into_storage(self):
+        """What a learner reads is the stored form, so that is what is checked.
+
+        Storage applies only the privacy rules. The comparison pass is allowed
+        to be more aggressive, because it is answering a narrower question:
+        whether two runs of the same broken system agree.
+        """
         for phrase in MUST_SURVIVE:
             with self.subTest(phrase):
-                self.assertIn(phrase, scrub(phrase),
+                self.assertIn(phrase, scrub(phrase, privacy_only=True),
                               f"scrubbing destroyed evidence: {phrase}")
+
+    def test_comparison_treats_only_genuine_equivalents_as_equal(self):
+        """The states comparison is allowed to fold together, and why.
+
+        Each pair is the same fact caught at two moments. Anything not listed
+        here has to compare unequal, or the check stops meaning anything.
+        """
+        equivalent = [
+            ("Reason: ErrImagePull", "Reason: ImagePullBackOff"),
+            ("restart=3 exit=1", "restart=19 exit=1"),
+            ("Restart Count:  2", "Restart Count:  7"),
+        ]
+        for first, second in equivalent:
+            with self.subTest(first):
+                self.assertEqual(scrub(first), scrub(second))
+
+        distinct = [
+            ("Reason: OOMKilled", "Reason: Completed"),
+            ("restart=3 exit=1", "restart=3 exit=0"),
+            ("Seq Scan on api_requests", "Bitmap Index Scan on api_requests"),
+            ("HTTP/1.1 429 Too Many Requests", "HTTP/1.1 200 OK"),
+        ]
+        for first, second in distinct:
+            with self.subTest(first):
+                self.assertNotEqual(scrub(first), scrub(second))
 
     def test_evidence_survives_in_context(self):
         """The same strings, inside output that does trigger rules."""
@@ -165,14 +218,23 @@ class RulesDoNotOverReach(unittest.TestCase):
         yaml = 'services:\n  app:\n    environment:\n      APP_SECRET: ""\n'
         self.assertEqual(scrub(yaml), yaml)
 
-    def test_row_counts_beside_scrubbed_timings_are_left_alone(self):
+    def test_measured_rows_survive_while_estimates_do_not(self):
+        """A plan line carries both a guess and a measurement, and they differ.
+
+        `rows=7568` in the cost parenthetical is what the planner expected and
+        it drifts with table statistics. `rows=7500` in the actual parenthetical
+        is what the query really read, and the writeup quotes it. Only the
+        second one is evidence, so only the second one is preserved.
+        """
         line = ("Seq Scan on api_requests  (cost=0.00..7978.00 rows=7568 width=4) "
                 "(actual time=0.005..14.669 rows=7500 loops=1)")
         scrubbed = scrub(line)
+        self.assertIn("Seq Scan on api_requests", scrubbed)
         self.assertIn("rows=7500", scrubbed)
-        self.assertIn("rows=7568", scrubbed)
         self.assertIn("loops=1", scrubbed)
         self.assertIn("actual time=<t>..<t>", scrubbed)
+        self.assertNotIn("rows=7568", scrubbed)
+        self.assertIn("(cost=<cost> rows=<est> width=<w>)", scrubbed)
 
     def test_scrubbing_is_stable(self):
         """Scrubbing an already scrubbed string changes nothing further."""

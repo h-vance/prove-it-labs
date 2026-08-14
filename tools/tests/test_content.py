@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import importlib.machinery
 import importlib.util
+import json
 import re
 import sys
 import unittest
@@ -548,6 +549,87 @@ class Questions(unittest.TestCase):
                 f"the answer sits in slot {slot + 1} for {count} of {len(positions)} "
                 f"questions, which is a pattern a learner can exploit",
             )
+
+
+class Transcripts(unittest.TestCase):
+    """Recorded output is committed and published, so it is held to that bar.
+
+    Nothing here should be able to tell a reader anything about the machine
+    that produced the recording. The recorder enforces this at write time; this
+    enforces it on every build, including for a transcript edited by hand.
+    """
+
+    # Patterns that would mean somebody's own environment ended up in the repo.
+    PRIVATE = (
+        (re.compile(r"/(?:Users|home)/(?!runner\b)[A-Za-z0-9._-]+"), "a home directory"),
+        (re.compile(r"arn:aws:"), "an AWS ARN"),
+        (re.compile(r"\b\d{12}\.dkr\.ecr\b"), "an ECR registry with an account id"),
+        (re.compile(r"\b(?:10|172\.(?:1[6-9]|2\d|3[01])|192\.168)\.\d{1,3}\.\d{1,3}\b"),
+         "a private network address"),
+        (re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}"), "a wall-clock timestamp"),
+        (re.compile(r"\w{3}, \d{2} \w{3} \d{4} \d{2}:\d{2}:\d{2}"), "a wall-clock timestamp"),
+    )
+
+    def transcripts(self):
+        for exercise in EXERCISES:
+            path = exercise.path / "transcript.json"
+            if path.is_file():
+                yield exercise, json.loads(path.read_text())
+
+    def test_no_transcript_carries_anything_from_a_real_machine(self):
+        for exercise, transcript in self.transcripts():
+            for entry in transcript.get("entries", []):
+                for pattern, description in self.PRIVATE:
+                    found = pattern.search(entry.get("output", ""))
+                    with self.subTest(f"{exercise.id}:{entry['command'][:40]}"):
+                        self.assertIsNone(
+                            found,
+                            f"{exercise.id} transcript contains {description}: "
+                            f"{found.group(0) if found else ''!r}. Re-record it.",
+                        )
+
+    def test_stored_output_carries_no_privacy_rule_matches(self):
+        """Applying the privacy rules to a transcript must change nothing.
+
+        If it does, the file was written before a rule existed and is still
+        carrying whatever that rule was added to remove. Only the privacy rules
+        are checked: container ids, ages and column alignment are deliberately
+        kept as captured, because they keep the output readable and say nothing
+        about the machine that produced it.
+        """
+        for exercise, transcript in self.transcripts():
+            for entry in transcript.get("entries", []):
+                output = entry.get("output", "")
+                with self.subTest(f"{exercise.id}:{entry['command'][:40]}"):
+                    self.assertEqual(tse.scrub(output, privacy_only=True), output,
+                                     f"{exercise.id}: transcript needs re-recording")
+
+    def test_no_forbidden_command_is_recorded(self):
+        """The terminal replays investigation, never grading or the answer."""
+        forbidden = re.compile(r"\btse\s+(answer|hint|check|quiz)\b")
+        for exercise, transcript in self.transcripts():
+            for entry in transcript.get("entries", []):
+                with self.subTest(exercise.id):
+                    self.assertIsNone(
+                        forbidden.search(entry["command"]),
+                        f"{exercise.id} records {entry['command']!r}, which would "
+                        f"hand over the diagnosis",
+                    )
+
+    def test_entries_match_their_commands_file(self):
+        for exercise, transcript in self.transcripts():
+            blocks = tse.parse_commands((exercise.path / "commands.txt").read_text())
+            recorded = [e["command"] for e in transcript.get("entries", [])]
+            with self.subTest(exercise.id):
+                self.assertEqual([b["command"] for b in blocks], recorded,
+                                 f"{exercise.id}: commands.txt and transcript disagree")
+
+    def test_every_entry_produced_output(self):
+        for exercise, transcript in self.transcripts():
+            for entry in transcript.get("entries", []):
+                with self.subTest(f"{exercise.id}:{entry['command'][:40]}"):
+                    self.assertTrue(entry.get("output", "").strip(),
+                                    f"{exercise.id}: {entry['command'][:40]} recorded nothing")
 
 
 class DetectorsActuallyFire(unittest.TestCase):

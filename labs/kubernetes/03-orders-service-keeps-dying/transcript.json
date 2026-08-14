@@ -1,0 +1,42 @@
+{
+  "recorded": "2026-08-14",
+  "entries": [
+    {
+      "command": "kubectl -n tse-training get pods",
+      "aliases": [
+        "kubectl get pods",
+        "k get pods"
+      ],
+      "output": "NAME                         READY   STATUS             RESTARTS      AGE\norders-api-8c8575974-6n2ts   0/1     CrashLoopBackOff   3 (41s ago)   75s\norders-api-8c8575974-krbtq   0/1     CrashLoopBackOff   3 (35s ago)   75s",
+      "exit": 0
+    },
+    {
+      "command": "kubectl -n tse-training describe pod -l app.kubernetes.io/name=orders-api \\\n  | grep -A6 'Last State' | head -14",
+      "aliases": [
+        "kubectl describe pod"
+      ],
+      "output": "    Last State:     Terminated\n      Reason:       OOMKilled\n      Exit Code:    137\n      Started:      <timestamp>\n      Finished:     <timestamp>\n    Ready:          False\n    Restart Count:  3\n--\n    Last State:     Terminated\n      Reason:       OOMKilled\n      Exit Code:    137\n      Started:      <timestamp>\n      Finished:     <timestamp>\n    Ready:          False",
+      "exit": 0
+    },
+    {
+      "command": "kubectl -n tse-training logs -l app.kubernetes.io/name=orders-api --previous --tail=8 2>&1 | head -8",
+      "aliases": [
+        "kubectl logs --previous"
+      ],
+      "output": "level=info event=allocating mb=200\nlevel=info event=allocating mb=200",
+      "exit": 0
+    },
+    {
+      "command": "kubectl -n tse-training get deployment orders-api \\\n  -o jsonpath='{.spec.template.spec.containers[0].resources}{\"\\n\"}'",
+      "aliases": [],
+      "output": "{\"limits\":{\"cpu\":\"500m\",\"memory\":\"128Mi\"},\"requests\":{\"cpu\":\"50m\",\"memory\":\"64Mi\"}}",
+      "exit": 0
+    },
+    {
+      "command": "kubectl -n tse-training get deployment orders-api \\\n  -o jsonpath='{.spec.template.spec.containers[0].env}{\"\\n\"}'",
+      "aliases": [],
+      "output": "[{\"name\":\"ALLOCATE_MB\",\"value\":\"200\"}]",
+      "exit": 0
+    }
+  ]
+}

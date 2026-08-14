@@ -1,0 +1,28 @@
+# alias: bash request.sh
+# alias: ./request.sh
+# alias: bash labs/api/_stack/request.sh
+# wait: 8
+# keep: 404
+bash labs/api/_stack/request.sh
+---
+# A not-found answer is about an address, and there were two candidates: the
+# record, or the route used to ask for it. The code in the body separates them,
+# and two headers name both the date and the replacement.
+# alias: curl -i http://127.0.0.1:8101/v1/customers/cus_8823
+# keep: route_not_found, Sunset, successor-version
+curl -s -i http://127.0.0.1:8101/v1/customers/cus_8823
+---
+# The same identifier against the current path. The account was never missing,
+# which is the half of this the customer could not see.
+# alias: curl -i http://127.0.0.1:8101/v2/customers/cus_8823
+# keep: 200, cus_8823, Northwind Freight
+curl -s -i http://127.0.0.1:8101/v2/customers/cus_8823
+---
+# Every route under the withdrawn version answers the same way, so this is not
+# specific to one account.
+# keep: route_not_found
+curl -s http://127.0.0.1:8101/v1/customers/cus_4410
+---
+# alias: curl http://127.0.0.1:8101/health
+# keep: healthy
+curl -s http://127.0.0.1:8101/health

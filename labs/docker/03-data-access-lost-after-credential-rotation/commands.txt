@@ -1,0 +1,39 @@
+# alias: docker ps -a
+# alias: docker ps
+# alias: docker compose ps
+# wait: 12
+# keep: healthy, proveit-docker-app-1
+docker ps -a --filter "label=com.docker.compose.project=proveit-docker"
+---
+# alias: curl -i http://127.0.0.1:8100/customers
+# alias: curl http://127.0.0.1:8100/customers
+# keep: 503
+curl -s -i http://127.0.0.1:8100/customers | head -12
+---
+# The wording matters more than the status. A rejection means something
+# listened, read the credential and said no, which rules out the whole
+# networking story in one line.
+# alias: docker compose logs app
+# keep: password authentication failed
+docker compose -f labs/docker/_stack/compose.yaml \
+               -f labs/docker/_stack/compose.override.yaml \
+               logs --tail 15 app
+---
+# What the application presents.
+# alias: docker compose exec app printenv DB_USER DB_PASSWORD
+# keep: support
+docker compose -f labs/docker/_stack/compose.yaml \
+               -f labs/docker/_stack/compose.override.yaml \
+               exec -T app printenv DB_USER DB_PASSWORD
+---
+# What the database was built with. Only one side took the rotation.
+# alias: docker compose exec postgres printenv POSTGRES_USER POSTGRES_PASSWORD
+# keep: support
+docker compose -f labs/docker/_stack/compose.yaml \
+               -f labs/docker/_stack/compose.override.yaml \
+               exec -T postgres printenv POSTGRES_USER POSTGRES_PASSWORD
+---
+# The database is healthy and accepting connections throughout. It is refusing
+# this credential, which is a different thing from being unavailable.
+# keep: healthy
+docker inspect --format '{{.State.Health.Status}}' proveit-docker-postgres-1

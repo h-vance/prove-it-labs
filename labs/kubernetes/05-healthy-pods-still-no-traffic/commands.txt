@@ -1,0 +1,34 @@
+# READY says 0/1 while STATUS says Running. Both numbers are accurate and they
+# answer two different questions: alive, and fit to be sent traffic.
+# alias: kubectl get pods
+# alias: k get pods
+# wait: 40
+# keep: Running, 0/1
+kubectl -n tse-training get pods
+---
+# The labels match. The engineer who checked them was right, and being selected
+# is necessary for routing without being sufficient.
+# alias: kubectl get pods --show-labels
+# keep: orders-api
+kubectl -n tse-training get pods --show-labels
+---
+# alias: kubectl get service orders-api -o jsonpath selector
+# keep: orders-api
+kubectl -n tse-training get service orders-api -o jsonpath='{.spec.selector}{"\n"}'
+---
+# Still nothing routed, and this time the selector is not the reason.
+# alias: kubectl get endpointslices
+# keep: orders-api
+kubectl -n tse-training get endpointslices -l kubernetes.io/service-name=orders-api
+---
+# The second condition, enforced quietly. The readiness check is aimed at a
+# port nothing listens on, so it never passes and the pod is never admitted.
+# alias: kubectl describe pod
+# keep: Readiness
+kubectl -n tse-training describe pod -l app.kubernetes.io/name=orders-api \
+  | grep -E 'Readiness|Warning|refused' | head -8
+---
+# Against what the container actually serves.
+# keep: containerPort
+kubectl -n tse-training get deployment orders-api \
+  -o jsonpath='{.spec.template.spec.containers[0].ports}{"\n"}'

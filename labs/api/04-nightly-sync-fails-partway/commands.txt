@@ -1,0 +1,41 @@
+# alias: bash request.sh
+# alias: ./request.sh
+# alias: bash labs/api/_stack/request.sh
+# wait: 8
+# keep: 429
+bash labs/api/_stack/request.sh
+---
+# Where in the run it fails, rather than which records sit at that point. The
+# position stays put while the data moves, which is what kills the corruption
+# theory. The wait first lets the previous window clear so the count starts
+# from a known place.
+# alias: for i in $(seq 1 8); do curl ... done
+# wait: 12
+# keep: 200, 429
+for i in $(seq 1 8); do
+  printf 'page %s -> ' "$i"
+  curl -s -o /dev/null -w '%{http_code}\n' \
+    -H 'X-API-Key: wk_live_sync_7a02' \
+    "http://127.0.0.1:8101/v2/usage?page=$i"
+done
+---
+# The refusal explains itself: the allowance, what is left of it, and exactly
+# how long to wait. Everything needed to repair the client is already arriving
+# in the response the client is throwing away.
+# wait: 12
+# keep: RateLimit-Limit, RateLimit-Remaining, Retry-After
+for i in $(seq 1 8); do
+  curl -s -o /dev/null -D - -H 'X-API-Key: wk_live_headers_11b3' \
+    "http://127.0.0.1:8101/v2/usage?page=$i"
+done | grep -E 'HTTP/|RateLimit-|Retry-After' | tail -10
+---
+# Waiting out the window and asking again returns the same page perfectly well.
+# Nothing about the data was ever wrong.
+# wait: 12
+# keep: 200
+curl -s -o /dev/null -w 'page 6 after waiting -> %{http_code}\n' \
+  -H 'X-API-Key: wk_live_waited_44c1' "http://127.0.0.1:8101/v2/usage?page=6"
+---
+# alias: curl http://127.0.0.1:8101/health
+# keep: healthy
+curl -s http://127.0.0.1:8101/health

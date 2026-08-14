@@ -1,0 +1,33 @@
+# The restart count climbs, which is the whole shape of the complaint: fails,
+# comes back, fails again. Waited long enough that the backoff has grown and the
+# pod is reliably between attempts rather than caught mid-restart.
+# alias: kubectl get pods
+# alias: k get pods
+# wait: 75
+# keep: orders-api, 0/1
+kubectl -n tse-training get pods
+---
+# How the previous instance ended. Stopped from outside, not failed from
+# inside, and those point at completely different fixes.
+# alias: kubectl describe pod
+# keep: OOMKilled, 137, Terminated
+kubectl -n tse-training describe pod -l app.kubernetes.io/name=orders-api \
+  | grep -A6 'Last State' | head -14
+---
+# The output simply stops rather than ending in an error, because a terminated
+# process is given no chance to write one. What it was doing when it stopped is
+# the other half of the answer.
+# alias: kubectl logs --previous
+# keep: allocating, mb=200
+kubectl -n tse-training logs -l app.kubernetes.io/name=orders-api --previous --tail=8 2>&1 | head -8
+---
+# What it is allowed.
+# keep: memory
+kubectl -n tse-training get deployment orders-api \
+  -o jsonpath='{.spec.template.spec.containers[0].resources}{"\n"}'
+---
+# And what Tuesday's change told it to allocate. A value that decides how much
+# memory to reserve stops a process just as thoroughly as any code change.
+# keep: ALLOCATE_MB
+kubectl -n tse-training get deployment orders-api \
+  -o jsonpath='{.spec.template.spec.containers[0].env}{"\n"}'

@@ -1,0 +1,29 @@
+# Everything the customer checked was accurate. The pods really are running.
+# alias: kubectl get pods
+# alias: k get pods
+# wait: 30
+# keep: Running
+kubectl -n tse-training get pods
+---
+# The fact that turns the ticket. Nothing is being selected, which proves the
+# break is in the matching rather than in the workload or the network.
+# alias: kubectl get endpointslices
+# keep: orders-api
+kubectl -n tse-training get endpointslices -l kubernetes.io/service-name=orders-api
+---
+# What the Service is asking for.
+# alias: kubectl get service orders-api -o jsonpath selector
+# keep: orders
+kubectl -n tse-training get service orders-api -o jsonpath='{.spec.selector}{"\n"}'
+---
+# And what the pods actually carry. A Service holds no reference to a
+# workload: it runs this query continuously and routes to whatever matches.
+# alias: kubectl get pods --show-labels
+# keep: orders-api
+kubectl -n tse-training get pods --show-labels
+---
+# The Service exists and resolves perfectly well. It simply has nowhere to send
+# anything, which is why the client gets silence rather than an error.
+# alias: kubectl get service orders-api
+# keep: ClusterIP
+kubectl -n tse-training get service orders-api
