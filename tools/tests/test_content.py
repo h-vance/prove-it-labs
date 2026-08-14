@@ -49,6 +49,14 @@ SPOILER_TERMS = re.compile(
     # the trailing \b on the group requires the word to end there.
     r"rate.?limit\w*|throttl\w*|scopes?|revok\w*|deprecat\w*|"
     r"dns|hostname|localhost|"
+    # SQL, networking, Linux, and observability vocabulary. Deliberately not
+    # banned: "report", "slow", "disk", "space", "log", and "certificate
+    # warning" as a user would phrase it, because those are what a customer
+    # genuinely says and a lint that fights good writing gets switched off.
+    r"certificates?|tls|ssl|x509|cipher|handshake|"
+    r"index|indexes|indices|joins?|seq scan|query plan|"
+    r"inode|file descriptor|chmod|chown|umask|chmod|"
+    r"metrics?|percentile|p9[59]|histogram|cardinality|"
     r"40[0-9]|41[0-9]|42[0-9]|50[0-9]"
     r")\b",
     re.IGNORECASE,
@@ -69,9 +77,8 @@ class Structure(unittest.TestCase):
                                 f"{exercise.id} has no hints/")
 
     def test_setup_and_solution_states_exist(self):
+        """Including "none" exercises: a written answer has a bad draft and a good one."""
         for exercise in EXERCISES:
-            if exercise.stack == "none":
-                continue
             with self.subTest(exercise.id):
                 for variant in ("setup", "solution"):
                     directory = exercise.path / variant
@@ -82,8 +89,6 @@ class Structure(unittest.TestCase):
     def test_setup_and_solution_provide_the_same_filenames(self):
         """Otherwise switching states leaves a stale file behind."""
         for exercise in EXERCISES:
-            if exercise.stack == "none":
-                continue
             with self.subTest(exercise.id):
                 setup = {p.name for p in (exercise.path / "setup").iterdir() if p.is_file()}
                 solution = {p.name for p in (exercise.path / "solution").iterdir() if p.is_file()}
@@ -129,6 +134,17 @@ class Metadata(unittest.TestCase):
             with self.subTest(exercise.id):
                 self.assertEqual(exercise.meta["id"], exercise.id)
                 self.assertEqual(exercise.meta["track"], exercise.path.parent.name)
+
+    def test_stack_source_points_at_a_real_stack(self):
+        """A borrowed stack that does not exist fails at provision time, not here."""
+        for exercise in EXERCISES:
+            if exercise.stack == "none":
+                continue
+            with self.subTest(exercise.id):
+                self.assertTrue(
+                    exercise.stack_dir().is_dir(),
+                    f"{exercise.id}: stack source {exercise.stack_source!r} has no _stack",
+                )
 
     def test_prerequisites_resolve(self):
         known = {e.id for e in EXERCISES}
@@ -288,6 +304,12 @@ class DetectorsActuallyFire(unittest.TestCase):
             "Postgres seems to be refusing connections.",
             "Our client is being rate limited.",
             "The DNS name stopped resolving.",
+            "Our users see a certificate warning in the browser.",
+            "The TLS handshake fails against your endpoint.",
+            "I think the report is missing an index.",
+            "The join is dropping rows from our export.",
+            "Your p99 latency metrics look wrong.",
+            "We had to chown the data directory.",
         ]
         for sentence in bad:
             with self.subTest(sentence):
@@ -301,6 +323,11 @@ class DetectorsActuallyFire(unittest.TestCase):
             "Our order events are not showing up in your system any more.",
             "One of our analysts cannot export the incident report.",
             "The sync gets partway through and then starts erroring.",
+            "Our monthly report is missing about a third of our accounts.",
+            "Customers get a security warning when they visit the portal.",
+            "The service stopped writing and the disk still looks fine to us.",
+            "Two of our reports disagree about the same number.",
+            "Everything is slow for one of our teams but nobody else.",
         ]
         for sentence in good:
             with self.subTest(sentence):

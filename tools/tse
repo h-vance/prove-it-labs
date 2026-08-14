@@ -198,8 +198,18 @@ class Exercise:
     def tier(self) -> str:
         return self.meta.get("tier", "core")
 
+    @property
+    def stack_source(self) -> str:
+        """Which track's stack this exercise runs against.
+
+        Almost always its own. Mixed incidents borrow an existing stack rather
+        than duplicating one, because the point of that track is a familiar
+        system with an unfamiliar, unlabelled failure.
+        """
+        return self.meta.get("stack_source") or self.track
+
     def stack_dir(self) -> Path:
-        return LABS / self.track / "_stack"
+        return LABS / self.stack_source / "_stack"
 
 
 def load_exercises() -> list[Exercise]:
@@ -398,10 +408,14 @@ def managed_files(track: str) -> set[str]:
     """
     names: set[str] = set()
     for exercise in load_exercises():
-        # Only compose exercises copy files into a shared stack directory.
-        # Kubernetes manifests are applied to a cluster and stay in the
-        # exercise, so they are committed source rather than generated state.
-        if exercise.track != track or exercise.stack != "compose":
+        # Keyed on the stack source rather than the exercise's own track, or a
+        # mixed incident borrowing the Docker stack would leave its files
+        # behind and silently change what the next Docker exercise starts from.
+        #
+        # Kubernetes is excluded: its manifests are applied to a cluster and
+        # stay in the exercise, so they are committed source, not generated
+        # state.
+        if exercise.stack_source != track or exercise.stack not in {"compose", "none"}:
             continue
         for variant in ("setup", "solution"):
             directory = exercise.path / variant
@@ -416,9 +430,6 @@ def provision(exercise: Exercise, *, variant: str) -> None:
     variant is "setup" for the state the learner investigates, or "solution"
     for the corrected state, which only `tse verify` uses.
     """
-    if exercise.stack == "none":
-        return
-
     source_dir = exercise.path / variant
     if not source_dir.is_dir():
         sys.exit(f"tse: {exercise.id} has no {variant}/ directory")
@@ -431,14 +442,25 @@ def provision(exercise: Exercise, *, variant: str) -> None:
             run(kubectl("apply", "-n", LAB_NAMESPACE, "-f", str(manifest)))
         return
 
-    if exercise.stack != "compose":
+    if exercise.stack not in {"compose", "none"}:
         sys.exit(
             f"tse: the {exercise.stack!r} stack is not implemented yet.\n"
             f"     {exercise.id} cannot be started in this phase of the course."
         )
 
+    materialize(exercise, source_dir)
+
+    # A "none" exercise has files but no system. Communication exercises are
+    # graded on what the learner writes, so there is nothing to bring up.
+    if exercise.stack == "compose":
+        run(compose_command(exercise) + ["up", "-d", "--build", "--force-recreate"])
+
+
+def materialize(exercise: Exercise, source_dir: Path) -> None:
+    """Copy a variant's files into the shared stack, clearing prior ones first."""
     stack = exercise.stack_dir()
-    for name in managed_files(exercise.track):
+    stack.mkdir(parents=True, exist_ok=True)
+    for name in managed_files(exercise.stack_source):
         (stack / name).unlink(missing_ok=True)
     for item in sorted(source_dir.iterdir()):
         if item.is_file():
@@ -446,8 +468,6 @@ def provision(exercise: Exercise, *, variant: str) -> None:
             shutil.copyfile(item, destination)
             if item.suffix == ".sh":
                 destination.chmod(0o755)
-
-    run(compose_command(exercise) + ["up", "-d", "--build", "--force-recreate"])
 
 
 def teardown(exercise: Exercise) -> None:
@@ -457,11 +477,12 @@ def teardown(exercise: Exercise) -> None:
         if cluster_exists():
             reset_namespace()
         return
-    if exercise.stack != "compose":
+    if exercise.stack not in {"compose", "none"}:
         return
-    run(compose_command(exercise) + ["down", "--remove-orphans"], check=False)
+    if exercise.stack == "compose":
+        run(compose_command(exercise) + ["down", "--remove-orphans"], check=False)
     stack = exercise.stack_dir()
-    for name in managed_files(exercise.track):
+    for name in managed_files(exercise.stack_source):
         (stack / name).unlink(missing_ok=True)
 
 
@@ -487,7 +508,7 @@ def cmd_list(args: argparse.Namespace) -> None:
         exercises = [e for e in exercises if e.track == args.track]
 
     if args.ids:
-        print(json.dumps([e.id for e in exercises if e.stack != "none"]))
+        print(json.dumps([e.id for e in exercises]))
         return
 
     if not exercises:
@@ -597,6 +618,11 @@ def cmd_answer(args: argparse.Namespace) -> None:
 def cmd_apply(args: argparse.Namespace) -> None:
     """Recreate the services from the learner's edited configuration."""
     exercise = current_exercise()
+    if exercise.stack == "none":
+        sys.exit(
+            "tse: this exercise has no system to apply to.\n"
+            "     Edit the file named in the ticket, then run `tse check`."
+        )
     if exercise.stack == "kind":
         sys.exit(
             "tse: the Kubernetes track has no apply step.\n"
@@ -768,7 +794,10 @@ def cmd_verify(args: argparse.Namespace) -> None:
     if args.exercise:
         targets = [resolve(args.exercise)]
     else:
-        targets = [e for e in load_exercises() if e.stack != "none"]
+        # Every exercise is verifiable, including the ones with no system.
+        # A communication exercise still has a broken draft that must fail
+        # the rubric and a good one that must pass it.
+        targets = load_exercises()
 
     failed = [e.id for e in targets if not verify_one(e)]
 
