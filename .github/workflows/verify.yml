@@ -35,6 +35,7 @@ jobs:
           python3 tools/tests/test_meta.py
           python3 tools/tests/test_content.py
           python3 tools/tests/test_scrub.py
+          python3 tools/tests/test_rubric.py
 
       # Installed only so the parity test can compare the subset parser against
       # a real YAML implementation. tse itself never requires it.

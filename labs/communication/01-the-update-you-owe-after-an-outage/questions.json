@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The draft you were handed was factually correct in every claim it made, and it still failed. What was wrong with it?",
+    "options": [
+      {
+        "text": "It described the system instead of describing what the customer could not do",
+        "correct": true,
+        "explanation": "That is the whole gap. Being right about the system and being useful to the reader are separate achievements, and only the second one closes a ticket."
+      },
+      {
+        "text": "It was too informal for a business account",
+        "correct": false,
+        "explanation": "Tone was not the problem. The same words in a more formal register would have failed for exactly the same reasons."
+      },
+      {
+        "text": "It should not have admitted the change came from maintenance",
+        "correct": false,
+        "explanation": "The opposite. Saying how it reached them is what stops the question about whether it will happen again, and hiding it invites a worse conversation later."
+      },
+      {
+        "text": "It needed more technical detail to be convincing",
+        "correct": false,
+        "explanation": "The customer had already asked for less. Detail is only convincing when the reader can do something with it, and this reader had said outright that they could not."
+      }
+    ]
+  },
+  {
+    "question": "The customer never asked whether their data had been altered. Why does a good update answer it anyway?",
+    "options": [
+      {
+        "text": "Because a longer update signals that the incident was taken seriously",
+        "correct": false,
+        "explanation": "Length signals nothing on its own, and the rubric caps it for that reason. This is about one specific unasked question, not about volume."
+      },
+      {
+        "text": "Because it is the question underneath the ticket, and leaving it unanswered means they raise it themselves a day later",
+        "correct": true,
+        "explanation": "Right. Data integrity is what people worry about privately after an outage. Answering it before it is asked is most of what makes an update read as competent rather than defensive."
+      },
+      {
+        "text": "Because support is required to state it for compliance reasons",
+        "correct": false,
+        "explanation": "Some organizations do require it, but that is not why it works here. It works because it is the reader's real concern."
+      },
+      {
+        "text": "Because it fills space that would otherwise need technical detail",
+        "correct": false,
+        "explanation": "It is not filler. It is a specific claim you were able to make because the investigation established it, which is different from something written to occupy a paragraph."
+      }
+    ]
+  },
+  {
+    "question": "The grader checks six rules and then prints a checklist it explicitly does not score. Why is that split worth having?",
+    "options": [
+      {
+        "text": "Because the unscored items are optional extras for people with spare time",
+        "correct": false,
+        "explanation": "They are the opposite of optional. They are the parts that decide whether the message lands, which is exactly why leaving them ungraded has to be stated rather than hidden."
+      },
+      {
+        "text": "Because grading them automatically would be slower",
+        "correct": false,
+        "explanation": "Speed has nothing to do with it. The obstacle is that no rule can tell whether a sentence sounds like a person wrote it."
+      },
+      {
+        "text": "Because a rubric that claimed to score tone would be trusted for a judgment it cannot make",
+        "correct": true,
+        "explanation": "That is the honest reason. A green result on the checkable rules is worth something precisely because it does not pretend to cover the rest, and the reader is told where the machine stops."
+      },
+      {
+        "text": "Because the checklist changes for every exercise",
+        "correct": false,
+        "explanation": "It does not change. What changes between the two exercises is the mechanical rule set, which is a different part of the design."
+      }
+    ]
+  }
+]

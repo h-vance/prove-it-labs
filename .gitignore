@@ -16,3 +16,8 @@ site/.astro/
 __pycache__/
 *.pyc
 .DS_Store
+
+# Communication track: the written answer, materialized into its own stack.
+labs/*/_stack/customer-update.md
+labs/*/_stack/escalation.md
+labs/*/_stack/evidence.md

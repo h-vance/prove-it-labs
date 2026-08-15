@@ -122,10 +122,10 @@ prose, which includes a lot of very good engineers.
 | Kubernetes | 5 | Available |
 | SQL and PostgreSQL | 3 | Available |
 | Mixed incidents | 2 | Available |
+| Customer communication | 2 | Available |
 | Linux and CLI foundations | | Next |
 | Networking, DNS, TLS | | Planned |
 | Observability | | Planned |
-| Customer communication | | Planned |
 
 Some exercises are built as pairs on purpose. `docker/02` and `docker/03`
 present the customer with the same symptom and resolve to different causes, as
@@ -139,6 +139,19 @@ no technology and no layer, and working out which system is even involved is
 the first real step. Both of the current pair share a theme, which is the one
 worth carrying into a real rotation: a signal that is green, accurate, and
 answering a narrower question than the customer asked.
+
+**Customer communication is graded on what you write.** There is no system to
+bring up. You get the evidence from an incident you already solved and a draft
+somebody else did badly, and `tse check` runs a rubric over your rewrite: does
+it state impact in the customer's terms, cite a figure, name something ruled
+out, end by committing somebody to something. The two exercises are graded on
+nearly opposite rules, because a customer update fails for naming internal
+machinery and an escalation fails for leaving it out.
+
+The rubric checks only what a machine can honestly check, then prints a short
+tone checklist you score yourself, prefaced by the admission that no linter can
+tell whether a sentence sounds like a person wrote it. Claiming otherwise would
+make a passing grade worth less, not more.
 
 The Kubernetes track needs a cluster. `tse` creates and reuses one for you:
 

@@ -1,0 +1,28 @@
+id: communication/01-the-update-you-owe-after-an-outage
+track: communication
+title: The update you owe a customer once the outage is over
+proof_question: Can I prove to the customer what happened without them having to trust me?
+stack: none
+tier: core
+difficulty: 2
+minutes: 30
+prerequisites:
+  - docker/02-customer-data-not-loading
+
+commands_introduced:
+  - tse check
+
+evidence_layers:
+  - the written update
+
+interview_relevance: >
+  Support rounds almost always include a writing prompt, and it is scored more
+  harshly than candidates expect. The reason is that a customer update is the
+  only artifact of the incident most of the company will ever read. Being able
+  to state impact, evidence and a next step in under 300 words is a skill that
+  is visible immediately and cannot be faked.
+
+teaches: >
+  A customer update is an argument, not an apology. It states what was
+  affected in terms the customer can check, cites at least one figure, names
+  what was eliminated, and ends by committing somebody to something.

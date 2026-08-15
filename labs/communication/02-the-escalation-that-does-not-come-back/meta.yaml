@@ -1,0 +1,30 @@
+id: communication/02-the-escalation-that-does-not-come-back
+track: communication
+title: The escalation that gets picked up instead of handed back
+proof_question: Can I hand this to an engineer without them needing to gather the evidence again?
+stack: none
+tier: core
+difficulty: 3
+minutes: 30
+prerequisites:
+  - communication/01-the-update-you-owe-after-an-outage
+  - mixed/01-every-check-is-green-and-nothing-works
+
+commands_introduced:
+  - tse check
+
+evidence_layers:
+  - the written escalation
+
+interview_relevance: >
+  The fastest way to lose credibility with engineering is a stream of
+  escalations that have to be sent back for detail. The fastest way to gain it
+  is one that arrives with the evidence attached and a specific request at the
+  end. Interviewers ask for this in writing because it is the artifact that
+  shows whether somebody has actually worked a queue.
+
+teaches: >
+  An escalation is graded on nearly the opposite of a customer update. Softened
+  language is a defect here, and the technical specifics are the point. What
+  makes one get picked up is a request that names something an engineer can
+  actually do.

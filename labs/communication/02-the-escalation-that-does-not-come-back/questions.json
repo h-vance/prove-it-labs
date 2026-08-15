@@ -1,0 +1,77 @@
+[
+  {
+    "question": "Priya said she could not tell what you observed, even though the draft did state what was wrong. What was she actually missing?",
+    "options": [
+      {
+        "text": "A more senior person to sign off on the finding",
+        "correct": false,
+        "explanation": "Nothing in her note is about authority. She was missing information she could act on, which is a different shortage entirely."
+      },
+      {
+        "text": "The observations themselves, rather than the conclusion you had drawn from them",
+        "correct": true,
+        "explanation": "Exactly. \"A configuration problem\" is what the evidence meant, not what was seen. She can only take a conclusion on faith or re-derive it, and re-deriving it is the cost the escalation was supposed to save."
+      },
+      {
+        "text": "Reassurance that the customer had been told",
+        "correct": false,
+        "explanation": "Useful context, and not what blocked her. She could not begin the work, which is a harder problem than not knowing the customer's status."
+      },
+      {
+        "text": "A shorter summary she could read quickly",
+        "correct": false,
+        "explanation": "The draft was already the shortest thing in the thread. Brevity was not the constraint; there was nothing in it to act on at any length."
+      }
+    ]
+  },
+  {
+    "question": "Everything you carefully removed from the customer update belongs in this escalation. What does that say about the two documents?",
+    "options": [
+      {
+        "text": "That the customer update was written badly and this one corrects it",
+        "correct": false,
+        "explanation": "Both are correct for their reader. Judging one by the other's standard is the mistake, not evidence that either was wrong."
+      },
+      {
+        "text": "That escalations should always be written first and softened afterwards",
+        "correct": false,
+        "explanation": "Order does not fix it, because these are not the same document at two levels of detail. Each answers questions the other never asks."
+      },
+      {
+        "text": "That audience decides what counts as a defect, so the same sentence can be right in one and wrong in the other",
+        "correct": true,
+        "explanation": "That is the whole point of grading them on opposite rules. Naming the internal machinery fails a customer update and is required here, and neither rule is a style preference."
+      },
+      {
+        "text": "That technical writing is simply more precise than customer writing",
+        "correct": false,
+        "explanation": "The customer update was precise too, about duration, scope and what was eliminated. It was precise about different things, chosen for a reader who could check them."
+      }
+    ]
+  },
+  {
+    "question": "The incident is already fixed. Which request in this escalation is worth more, and why?",
+    "options": [
+      {
+        "text": "Checking whether the same edit exists in other services sharing the template",
+        "correct": false,
+        "explanation": "Genuinely worth asking, and it is the smaller of the two. It finds copies of one mistake; it does nothing about the reason nobody noticed."
+      },
+      {
+        "text": "Adding a check that connects from outside the published address, because no signal you own could see this at all",
+        "correct": true,
+        "explanation": "Right. The first request closes an incident, this one closes a class of incident. It was available only because somebody noticed that every dashboard was green throughout, which is the observation the whole incident turned on."
+      },
+      {
+        "text": "Asking for the release process to require review",
+        "correct": false,
+        "explanation": "Reasonable in general, and it is not supported by anything in the evidence you gathered. An escalation that asks for process changes it cannot justify is how support loses the argument it could have won."
+      },
+      {
+        "text": "Requesting a postmortem document",
+        "correct": false,
+        "explanation": "A postmortem records what happened. Neither of the two concrete changes here needs one first, and asking for the document instead of the change is how this quietly stops."
+      }
+    ]
+  }
+]

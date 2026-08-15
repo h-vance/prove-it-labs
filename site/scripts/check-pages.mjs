@@ -61,9 +61,20 @@ for (const track of directories(join(REPO, "labs"))) {
   for (const slug of directories(join(REPO, "labs", track))) {
     const dir = join(REPO, "labs", track, slug);
     if (existsSync(join(dir, "meta.yaml"))) {
+      // The ticket's own heading, so this proves *this* exercise's ticket
+      // rendered rather than that some fixed phrase appears somewhere. A
+      // literal "CUSTOMER TICKET" needle failed the moment a communication
+      // exercise arrived whose ticket is an internal note from a colleague,
+      // which is the entire premise of that exercise.
+      const ticket = join(dir, "ticket.md");
+      const heading = existsSync(ticket)
+        ? (readFileSync(ticket, "utf8").split("\n").find((line) => line.startsWith("#")) ?? "")
+        : "";
+
       expected.push({
         id: `${track}/${slug}`,
         page: join(DIST, "exercises", track, slug, "index.html"),
+        heading: heading.replace(/^#+\s*/, "").trim(),
         // A page with a transcript must actually carry the terminal. Reading
         // this from labs/ rather than trusting the page keeps the check
         // honest: the source of truth is the recording, not the build.
@@ -79,15 +90,31 @@ if (expected.length === 0) {
 
 let heaviest = { id: "", bytes: 0 };
 
-for (const { id, page, recorded } of expected) {
+/**
+ * Compare ignoring entity escaping and whitespace, which markdown rewrites.
+ *
+ * Entities are removed before the non-alphanumeric strip rather than after.
+ * `&#39;` survives that strip as the digits "39", so an apostrophe in a ticket
+ * heading turned "morning's" into "morning39s" on one side and "mornings" on
+ * the other, and every heading with an apostrophe failed.
+ */
+const squash = (text) =>
+  text
+    .replace(/&(?:#\d+|[a-z]+);/gi, "")
+    .replace(/[^a-z0-9]+/gi, "")
+    .toLowerCase();
+
+for (const { id, page, recorded, heading } of expected) {
   if (!existsSync(page)) {
     problems.push(`No page was built for ${id}`);
     continue;
   }
   const html = readFileSync(page, "utf8");
+  if (heading && !squash(html).includes(squash(heading))) {
+    problems.push(`${id}: page is missing its ticket heading (${heading.slice(0, 50)})`);
+  }
   // A page that renders but drops its content is as broken as a missing one.
   const needles = [
-    ["the ticket", "CUSTOMER TICKET"],
     ["the scratchpad", "Investigation scratchpad"],
     ["the hints island", "reveal__button"],
     ["the start command", `tse start ${id}`],
