@@ -1,8 +1,17 @@
+# The app's own health probe reads the database, so it fails here and the
+# container settles on `unhealthy` after ten attempts three seconds apart. A
+# fixed twelve second wait recorded `health: starting`, which is the phase
+# before any of that has been decided, and the check would report drift the
+# first time a runner got there a little later.
+#
+# `keep: healthy` did not catch it, because `unhealthy` contains `healthy`.
+# Naming the settled word is the marker actually doing its job.
 # alias: docker ps -a
 # alias: docker ps
 # alias: docker compose ps
 # wait: 12
-# keep: healthy, proveit-docker-app-1
+# until: (unhealthy)
+# keep: unhealthy, proveit-docker-app-1
 docker ps -a --filter "label=com.docker.compose.project=proveit-docker"
 ---
 # alias: curl -i http://127.0.0.1:8100/customers
@@ -13,11 +22,16 @@ curl -s -i http://127.0.0.1:8100/customers | head -12
 # The wording matters more than the status. A rejection means something
 # listened, read the credential and said no, which rules out the whole
 # networking story in one line.
+#
+# Read from the top rather than the bottom. The health probe runs every three
+# seconds forever, so `--tail 15` is a window sliding over a growing file and
+# what it holds depends on the moment it is asked. The first lines of a process
+# log do not move.
 # alias: docker compose logs app
-# keep: password authentication failed
+# keep: password authentication failed, server_started
 docker compose -f labs/docker/_stack/compose.yaml \
                -f labs/docker/_stack/compose.override.yaml \
-               logs --tail 15 app
+               logs app | head -9
 ---
 # What the application presents.
 # alias: docker compose exec app printenv DB_USER DB_PASSWORD

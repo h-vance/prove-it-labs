@@ -1,10 +1,21 @@
 # Both containers are up and the database is healthy, which is the fact that
 # makes this interesting rather than the fact that solves it.
+#
+# The app's own health probe reads the database, so it fails here and the
+# container settles on `unhealthy` after ten attempts three seconds apart. A
+# fixed twelve second wait recorded `health: starting`, which is the phase
+# before any of that has been decided, and the check would report drift the
+# first time a runner got there a little later. Measured: still starting at 30
+# seconds, unhealthy by 40.
+#
+# `keep: healthy` did not catch it, because `unhealthy` contains `healthy`.
+# Naming the settled word is the marker actually doing its job.
 # alias: docker ps -a
 # alias: docker ps
 # alias: docker compose ps
 # wait: 12
-# keep: healthy, proveit-docker-app-1
+# until: (unhealthy)
+# keep: unhealthy, proveit-docker-app-1
 docker ps -a --filter "label=com.docker.compose.project=proveit-docker"
 ---
 # The symptom the customer reported, reproduced.
@@ -13,11 +24,22 @@ docker ps -a --filter "label=com.docker.compose.project=proveit-docker"
 # keep: 503
 curl -s -i http://127.0.0.1:8100/customers | head -12
 ---
+# Read from the top of the log rather than the bottom of it.
+#
+# The health probe runs every three seconds forever, so `--tail 15` is a window
+# sliding over a growing file and what it holds depends on the moment it is
+# asked. That was hidden while the recording was made twelve seconds in, when
+# the whole log was still shorter than fifteen lines. Waiting for the settled
+# state exposed it: the same command then returned fifteen copies of the same
+# pair and no sign of the process starting.
+#
+# The first lines of a process log do not move. This is also the better story:
+# the server comes up, reaches for the database, and fails on the first try.
 # alias: docker compose logs app
-# keep: database_connection_failed
+# keep: database_connection_failed, server_started
 docker compose -f labs/docker/_stack/compose.yaml \
                -f labs/docker/_stack/compose.override.yaml \
-               logs --tail 15 app
+               logs app | head -9
 ---
 # What the application is aiming at, asked of the running process rather than
 # read out of a file.

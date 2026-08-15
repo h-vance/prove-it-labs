@@ -1,5 +1,5 @@
 {
-  "recorded": "2026-08-14",
+  "recorded": "2026-08-15",
   "entries": [
     {
       "command": "kubectl -n tse-training get pods",
@@ -12,7 +12,7 @@
         "kubectl -n tse-training get pods",
         "kubectl get pods"
       ],
-      "output": "NAME                         READY   STATUS             RESTARTS      AGE\norders-api-8c8575974-6n2ts   0/1     CrashLoopBackOff   3 (41s ago)   75s\norders-api-8c8575974-krbtq   0/1     CrashLoopBackOff   3 (35s ago)   75s",
+      "output": "NAME                         READY   STATUS             RESTARTS      AGE\norders-api-8c8575974-fqsgx   0/1     CrashLoopBackOff   3 (39s ago)   76s\norders-api-8c8575974-r4hd2   0/1     CrashLoopBackOff   3 (37s ago)   76s",
       "exit": 0
     },
     {

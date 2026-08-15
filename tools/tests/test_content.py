@@ -983,6 +983,66 @@ class LeakGate(unittest.TestCase):
         )
         self.assertIs(tse.leak_patterns_for("labs/sql/_stack/seed.sql"), tse.REPO_LEAK_PATTERNS)
 
+    # Every encoding a person could plausibly write a file in, and both of the
+    # ways this went wrong. The marked forms raised and were skipped, silently
+    # and without moving the count of files scanned. The unmarked wide forms did
+    # not even raise: ASCII with a null after every character is valid UTF-8, so
+    # the decode succeeded and handed the rules `g\x00h\x00p\x00_\x00`.
+    ENCODINGS = [
+        "utf-8", "utf-8-sig",
+        "utf-16", "utf-16-le", "utf-16-be",
+        "utf-32", "utf-32-le", "utf-32-be",
+    ]
+
+    def test_a_credential_is_found_whatever_it_was_written_in(self):
+        line = "Token pasted from a Windows box: ghp_" + "A" * 36 + "\n"
+        for encoding in self.ENCODINGS:
+            with self.subTest(encoding):
+                text = tse.decode_for_scanning(line.encode(encoding))
+                self.assertIsNotNone(text, f"{encoding} was not recognized as text at all")
+                found = tse.scan_for_leaks(text, tse.REPO_LEAK_PATTERNS)
+                self.assertIn(
+                    "a GitHub token", [item[1] for item in found],
+                    f"a token written in {encoding} went unreported",
+                )
+
+    def test_bytes_that_are_not_text_are_refused_rather_than_skipped(self):
+        """The caller has to be able to tell 'nothing in it' from 'never read'."""
+        png = bytes([137, 80, 78, 71, 13, 10, 26, 10]) + bytes(range(256)) * 4
+        self.assertIsNone(tse.decode_for_scanning(png))
+
+    def test_ordinary_text_is_not_mistaken_for_a_wide_encoding(self):
+        for sample in ("plain ascii\n", "café naïve\n", "日本語\n"):
+            with self.subTest(sample):
+                self.assertEqual(tse.decode_for_scanning(sample.encode("utf-8")), sample)
+
+    def test_every_declared_binary_still_exists(self):
+        """Same rule as the exemptions: a note about a file that is gone is a hole."""
+        for path, reason in tse.LEAK_BINARY.items():
+            with self.subTest(path):
+                self.assertTrue((ROOT / path).is_file(),
+                                f"{path} is declared binary ({reason}) but does not exist")
+
+    def test_nothing_tracked_is_currently_unreadable(self):
+        """The list of declared binaries is empty because it can be.
+
+        Every file in the repository is text and every one of them is read. If
+        this starts failing, a binary was added: either it belongs here and goes
+        in LEAK_BINARY with a reason, or it does not belong here at all.
+        """
+        import subprocess
+        listed = subprocess.run(
+            ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True,
+        ).stdout.split()
+        unreadable = []
+        for name in listed:
+            path = ROOT / name
+            if not path.is_file() or name in tse.LEAK_BINARY:
+                continue
+            if tse.decode_for_scanning(path.read_bytes()) is None:
+                unreadable.append(name)
+        self.assertEqual(unreadable, [], "tracked files the leak scan cannot read")
+
 
 class DetectorsActuallyFire(unittest.TestCase):
     """A linter that cannot fail is not a linter.

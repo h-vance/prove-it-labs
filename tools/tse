@@ -8,6 +8,7 @@ gather evidence yourself, then ask the grader what it can prove.
 from __future__ import annotations
 
 import argparse
+import codecs
 import getpass
 import json
 import os
@@ -959,6 +960,91 @@ LEAK_EXEMPT: dict[str, str] = {
 }
 
 
+# Tracked files the scanner is allowed to give up on, with the reason.
+#
+# Empty, and that is the point: every file in the repository today is text and
+# every one of them is read. A binary added later has to be named here, which
+# is a sentence of thought rather than a silent hole.
+LEAK_BINARY: dict[str, str] = {}
+
+# Byte order marks, longest first. UTF-32-LE opens with the same two bytes as
+# UTF-16-LE, so testing the short one first would decode a UTF-32 file as
+# UTF-16 and produce nonsense that scans clean.
+BOM_ENCODINGS: list[tuple[bytes, str]] = [
+    (codecs.BOM_UTF32_LE, "utf-32"),
+    (codecs.BOM_UTF32_BE, "utf-32"),
+    (codecs.BOM_UTF8, "utf-8-sig"),
+    (codecs.BOM_UTF16_LE, "utf-16"),
+    (codecs.BOM_UTF16_BE, "utf-16"),
+]
+
+
+def decode_for_scanning(raw: bytes) -> str | None:
+    """
+    Every text form of a file, so a credential cannot hide behind an encoding.
+
+    `read_text()` decodes as UTF-8 and raises on anything else, and the scanner
+    caught that and moved on. A secret written to a file by a Windows tool is
+    UTF-16, so it decoded to nothing, was skipped, and was not even counted:
+    the run reported the same number of files as before it existed and said
+    clean. Proven with a real GitHub token, which the scan found as UTF-8 and
+    did not find one byte-order-mark later.
+
+    The byte order mark is checked before anything, because UTF-16 without one
+    is the harder half of this and trying UTF-8 first gets it wrong in a way
+    that looks like success. ASCII encoded as UTF-16 is every character
+    followed by a zero byte, and that is perfectly valid UTF-8, so the decode
+    returns `g\\x00h\\x00p\\x00_\\x00` where the rule is looking for `ghp_`. No
+    exception, no skip, no sign anywhere that a file went unread. Only the
+    marked forms were caught by the first version of this, which is worse than
+    catching none, because it reads as a solved problem.
+
+    Unmarked wide encodings are guessed only from the zero bytes that make them
+    what they are, and only when a guess yields text that is almost entirely
+    ordinary characters. Every byte order decodes without complaint, some into
+    plausible CJK, so the reading has to be chosen on what comes out rather than
+    on not raising. Without that bar a PNG would decode into something
+    text-shaped and be reported as scanned.
+
+    Scored on printable ASCII that is not a null, which is the part that took a
+    second attempt. Scoring on "is ASCII" alone reads UTF-32 text as UTF-16 and
+    calls it a perfect match, because every character is then a real letter
+    followed by a null and nulls are ASCII. The rule still sees `g\\x00h\\x00`
+    and finds nothing. Penalising the null is what makes the wider reading win.
+
+    Returns None when the bytes are not text, which the caller must treat as a
+    file it failed to check rather than a file with nothing in it.
+    """
+    for mark, encoding in BOM_ENCODINGS:
+        if raw.startswith(mark):
+            try:
+                return raw.decode(encoding)
+            except (UnicodeDecodeError, UnicodeError):
+                return None
+
+    sample = raw[:8192]
+    if sample and sample.count(0) * 3 > len(sample):
+        best, best_share = None, 0.0
+        for encoding in ("utf-32-le", "utf-32-be", "utf-16-le", "utf-16-be"):
+            try:
+                text = raw.decode(encoding)
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+            if not text:
+                continue
+            real = sum(character.isascii() and character != "\0" for character in text)
+            share = real / len(text)
+            if share > best_share:
+                best, best_share = text, share
+        if best is not None and best_share >= 0.8:
+            return best
+
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
 def leak_patterns_for(path: str) -> list[tuple["re.Pattern[str]", str]]:
     """The rules a given committed file is held to."""
     return TRANSCRIPT_LEAK_PATTERNS if path.endswith("transcript.json") else REPO_LEAK_PATTERNS
@@ -977,7 +1063,7 @@ def scan_for_leaks(text: str, patterns) -> list[tuple[int, str, str]]:
 def tracked_files() -> list[str]:
     """Every file git knows about, which is exactly the set that would be published."""
     result = subprocess.run(
-        ["git", "ls-files"], capture_output=True, text=True, cwd=ROOT,
+        ["git", "ls-files"], capture_output=True, text=True, encoding="utf-8", cwd=ROOT,
     )
     if result.returncode != 0:
         sys.exit("tse: `git ls-files` failed, so there is nothing to scan.")
@@ -1001,7 +1087,7 @@ def foreign_projects() -> set[str]:
     """
     result = subprocess.run(
         ["docker", "compose", "ls", "--all", "--format", "json"],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8",
     )
     if result.returncode != 0:
         sys.exit(
@@ -1124,10 +1210,20 @@ def run_for_record(command: str) -> tuple[str, int]:
     The bound is also what makes the `# until:` retry loop mean anything. That
     loop has a ninety second deadline, and a deadline measured around a call
     that can never return is not a deadline.
+
+    The encoding is named rather than inherited from the environment. `text=True`
+    alone decodes with whatever the locale says, and on Linux under `LANG=C`
+    that is US-ASCII, which raises on the first byte outside it. Every `docker
+    ps` recording in this course carries an ellipsis in `docker-entrypoint.s...`,
+    so recording crashed with a traceback for anybody whose shell was not set to
+    UTF-8. `errors="replace"` on top, because this one reads whatever a
+    container decided to print and a stray byte should mark itself in the output
+    rather than end the run.
     """
     try:
         result = subprocess.run(
             ["bash", "-c", command], capture_output=True, text=True, cwd=ROOT,
+            encoding="utf-8", errors="replace",
             timeout=RECORD_TIMEOUT_S,
         )
     except subprocess.TimeoutExpired:
@@ -1162,7 +1258,7 @@ def kubectl(*args: str) -> list[str]:
 
 
 def cluster_exists() -> bool:
-    result = subprocess.run(["kind", "get", "clusters"], capture_output=True, text=True)
+    result = subprocess.run(["kind", "get", "clusters"], capture_output=True, text=True, encoding="utf-8")
     return KIND_CLUSTER in result.stdout.split()
 
 
@@ -1179,7 +1275,7 @@ def node_platform() -> str | None:
     skipped rather than guessed at.
     """
     result = subprocess.run(
-        ["docker", "version", "--format", "{{.Server.Arch}}"], capture_output=True, text=True
+        ["docker", "version", "--format", "{{.Server.Arch}}"], capture_output=True, text=True, encoding="utf-8"
     )
     arch = result.stdout.strip()
     if result.returncode != 0 or not arch or "/" in arch or " " in arch:
@@ -1192,7 +1288,7 @@ def image_in_node(image: str) -> bool:
     result = subprocess.run(
         ["docker", "exec", f"{KIND_CLUSTER}-control-plane", "crictl", "images"],
         capture_output=True,
-        text=True,
+        text=True, encoding="utf-8",
     )
     repository, _, tag = image.rpartition(":")
     return any(
@@ -1632,7 +1728,7 @@ def history_leaks() -> list[str]:
     # scan at all: it is the one result somebody would trust before going public.
     shallow = subprocess.run(
         ["git", "rev-parse", "--is-shallow-repository"],
-        capture_output=True, text=True, cwd=ROOT,
+        capture_output=True, text=True, encoding="utf-8", cwd=ROOT,
     )
     # The guard has to survive its own command failing. Comparing only the text
     # meant a git that errored produced an empty string, which is not "true",
@@ -1658,7 +1754,7 @@ def history_leaks() -> list[str]:
     identities = subprocess.run(
         ["git", "log", "--all", "--no-color",
          "--format=%h%x00%an%x00%ae%x00%cn%x00%ce"],
-        capture_output=True, text=True, cwd=ROOT,
+        capture_output=True, text=True, encoding="utf-8", cwd=ROOT,
     )
     if identities.returncode != 0:
         sys.exit("tse: `git log` failed, so the history could not be scanned.")
@@ -1674,7 +1770,7 @@ def history_leaks() -> list[str]:
     result = subprocess.run(
         ["git", "log", "--all", "-p", "--no-color", "--no-merges",
          "--format=commit %h"],
-        capture_output=True, text=True, cwd=ROOT,
+        capture_output=True, text=True, encoding="utf-8", cwd=ROOT,
     )
     if result.returncode != 0:
         sys.exit("tse: `git log -p` failed, so the history could not be scanned.")
@@ -1705,26 +1801,47 @@ def cmd_leaks(args: argparse.Namespace) -> None:
     # An exemption that outlives the file it was written for is a hole nobody
     # argued for, so renaming an exempt file has to fail rather than silently
     # exempt nothing.
-    missing = [path for path in LEAK_EXEMPT if not (ROOT / path).is_file()]
+    declared = {**LEAK_EXEMPT, **LEAK_BINARY}
+    missing = [path for path in declared if not (ROOT / path).is_file()]
     if missing:
         sys.exit(
             "tse: these paths are exempt from the leak scan but no longer exist.\n"
             "     Either restore them or remove the exemption:\n"
-            + "\n".join(f"       {path}  ({LEAK_EXEMPT[path]})" for path in missing)
+            + "\n".join(f"       {path}  ({declared[path]})" for path in missing)
         )
 
     findings: list[str] = []
+    unreadable: list[str] = []
     scanned = 0
     for path in tracked_files():
         if path in LEAK_EXEMPT:
             continue
         try:
-            text = (ROOT / path).read_text()
-        except (UnicodeDecodeError, OSError):
-            continue  # Binary or unreadable: no pattern here can read it anyway.
+            raw = (ROOT / path).read_bytes()
+        except OSError as error:
+            unreadable.append(f"{path}: could not be opened ({error.strerror})")
+            continue
+        text = decode_for_scanning(raw)
+        if text is None:
+            if path not in LEAK_BINARY:
+                unreadable.append(f"{path}: is not text in any encoding this reads")
+            continue
         scanned += 1
         for number, description, matched in scan_for_leaks(text, leak_patterns_for(path)):
             findings.append(f"{path}:{number}: {description}: {matched!r}")
+
+    # A file the scanner could not read is not a file with nothing in it. This
+    # used to be a `continue` and nothing else, so the count of files scanned
+    # stayed where it was and the run said clean.
+    if unreadable:
+        print(f"{RED}tse: {len(unreadable)} tracked files the leak scan could not read:{OFF}\n")
+        for entry in unreadable:
+            print(f"  {entry}")
+        print(
+            f"\n{DIM}Nothing was checked in these. If a file is genuinely binary, "
+            f"name it in LEAK_BINARY with the reason.{OFF}"
+        )
+        sys.exit(1)
 
     scope = f"{scanned} files"
     if args.history:
@@ -1782,7 +1899,7 @@ def cmd_record(args: argparse.Namespace) -> None:
     # risk; the commands in commands.txt are.
     if exercise.stack == "kind":
         current = subprocess.run(
-            ["kubectl", "config", "current-context"], capture_output=True, text=True,
+            ["kubectl", "config", "current-context"], capture_output=True, text=True, encoding="utf-8",
         ).stdout.strip()
         if current != KIND_CONTEXT:
             sys.exit(
@@ -2061,7 +2178,7 @@ def cmd_doctor(args: argparse.Namespace) -> None:
         if not binary:
             checks.append((label, False, remedy))
             return
-        result = subprocess.run(command, capture_output=True, text=True)
+        result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8")
         detail = (result.stdout or result.stderr).strip().splitlines()
         checks.append((label, result.returncode == 0, detail[0] if detail else ""))
 

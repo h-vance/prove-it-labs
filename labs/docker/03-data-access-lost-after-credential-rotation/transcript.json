@@ -1,5 +1,5 @@
 {
-  "recorded": "2026-08-14",
+  "recorded": "2026-08-15",
   "entries": [
     {
       "command": "docker ps -a --filter \"label=com.docker.compose.project=proveit-docker\"",
@@ -14,7 +14,7 @@
         "docker ps -a",
         "docker ps -a --filter \"label=com.docker.compose.project=proveit-docker\""
       ],
-      "output": "CONTAINER ID   IMAGE                COMMAND                  CREATED          STATUS                             PORTS                      NAMES\n33db65af037b   proveit-docker-app   \"python /app/app.py\"     14 seconds ago   Up 12 seconds (health: starting)   127.0.0.1:8100->8080/tcp   proveit-docker-app-1\n8b1ee5443182   postgres:16-alpine   \"docker-entrypoint.s\u2026\"   14 seconds ago   Up 14 seconds (healthy)            5432/tcp                   proveit-docker-postgres-1",
+      "output": "CONTAINER ID   IMAGE                COMMAND                  CREATED          STATUS                      PORTS                      NAMES\nfe3c386ec08d   proveit-docker-app   \"python /app/app.py\"     37 seconds ago   Up 34 seconds (unhealthy)   127.0.0.1:8100->8080/tcp   proveit-docker-app-1\n16ec025469ad   postgres:16-alpine   \"docker-entrypoint.s\u2026\"   37 seconds ago   Up 36 seconds (healthy)     5432/tcp                   proveit-docker-postgres-1",
       "exit": 0
     },
     {
@@ -32,15 +32,15 @@
       "exit": 0
     },
     {
-      "command": "docker compose -f labs/docker/_stack/compose.yaml \\\n               -f labs/docker/_stack/compose.override.yaml \\\n               logs --tail 15 app",
+      "command": "docker compose -f labs/docker/_stack/compose.yaml \\\n               -f labs/docker/_stack/compose.override.yaml \\\n               logs app | head -9",
       "aliases": [
         "docker compose logs app"
       ],
       "match": [
-        "docker compose -f labs/docker/_stack/compose.yaml -f labs/docker/_stack/compose.override.yaml logs --tail 15 app",
+        "docker compose -f labs/docker/_stack/compose.yaml -f labs/docker/_stack/compose.override.yaml logs app | head -9",
         "docker compose logs app"
       ],
-      "output": "app-1  | level=info event=server_started port=8080\napp-1  | level=error event=database_connection_failed detail='psql: error: connection to server at \"postgres\" (<ip>), port 5432 failed: FATAL:  password authentication failed for user \"support\"'\napp-1  | level=info client=127.0.0.1 message=\"GET /health HTTP/1.1\" 503 -\napp-1  | level=error event=database_connection_failed detail='psql: error: connection to server at \"postgres\" (<ip>), port 5432 failed: FATAL:  password authentication failed for user \"support\"'\napp-1  | level=info client=127.0.0.1 message=\"GET /health HTTP/1.1\" 503 -\napp-1  | level=error event=database_connection_failed detail='psql: error: connection to server at \"postgres\" (<ip>), port 5432 failed: FATAL:  password authentication failed for user \"support\"'\napp-1  | level=info client=127.0.0.1 message=\"GET /health HTTP/1.1\" 503 -\napp-1  | level=error event=database_connection_failed detail='psql: error: connection to server at \"postgres\" (<ip>), port 5432 failed: FATAL:  password authentication failed for user \"support\"'\napp-1  | level=info client=<ip> message=\"GET /customers HTTP/1.1\" 503 -",
+      "output": "app-1  | level=info event=server_started port=8080\napp-1  | level=error event=database_connection_failed detail='psql: error: connection to server at \"postgres\" (<ip>), port 5432 failed: FATAL:  password authentication failed for user \"support\"'\napp-1  | level=info client=127.0.0.1 message=\"GET /health HTTP/1.1\" 503 -\napp-1  | level=error event=database_connection_failed detail='psql: error: connection to server at \"postgres\" (<ip>), port 5432 failed: FATAL:  password authentication failed for user \"support\"'\napp-1  | level=info client=127.0.0.1 message=\"GET /health HTTP/1.1\" 503 -\napp-1  | level=error event=database_connection_failed detail='psql: error: connection to server at \"postgres\" (<ip>), port 5432 failed: FATAL:  password authentication failed for user \"support\"'\napp-1  | level=info client=127.0.0.1 message=\"GET /health HTTP/1.1\" 503 -\napp-1  | level=error event=database_connection_failed detail='psql: error: connection to server at \"postgres\" (<ip>), port 5432 failed: FATAL:  password authentication failed for user \"support\"'\napp-1  | level=info client=127.0.0.1 message=\"GET /health HTTP/1.1\" 503 -",
       "exit": 0
     },
     {

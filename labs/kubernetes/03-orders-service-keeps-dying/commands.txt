@@ -1,10 +1,19 @@
 # The restart count climbs, which is the whole shape of the complaint: fails,
 # comes back, fails again. Waited long enough that the backoff has grown and the
 # pod is reliably between attempts rather than caught mid-restart.
+#
+# The scrub rules already fold `Error` and `CrashLoopBackOff` together, and the
+# restart count and both ages with them, so a check does not drift over which
+# phase of the loop a run happened to see. What they do not fold is `Running`,
+# which is what a slower machine records if seventy five seconds was not enough
+# for the pod to get there. Waiting for the state rather than for the clock
+# removes the machine from the answer, and it also pins the word a learner reads
+# on the site to the one the exercise is about.
 # alias: kubectl get pods
 # alias: k get pods
 # wait: 75
-# keep: orders-api, 0/1
+# until: CrashLoopBackOff
+# keep: orders-api, 0/1, CrashLoopBackOff
 kubectl -n tse-training get pods
 ---
 # How the previous instance ended. Stopped from outside, not failed from

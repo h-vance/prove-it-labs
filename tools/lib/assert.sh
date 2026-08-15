@@ -69,6 +69,7 @@ _tse_matches() {
 assert() {
     local description=$1; shift
     local command='' mode='' expected='' expectation='' retries=1 delay=1
+    local tolerate_failure=0
 
     while (( $# )); do
         case "$1" in
@@ -80,6 +81,7 @@ assert() {
             --expect)       expectation=$2; shift 2 ;;
             --retries)      retries=$2;     shift 2 ;;
             --delay)        delay=$2;       shift 2 ;;
+            --even-if-it-fails) tolerate_failure=1; shift ;;
             *) printf 'assert: unknown option %s\n' "$1" >&2; return 2 ;;
         esac
     done
@@ -96,7 +98,7 @@ assert() {
         retries=$TSE_MAX_RETRIES
     fi
 
-    local output='' attempt=0 ok=1
+    local output='' attempt=0 ok=1 status=0 died=0
     while (( attempt < retries )); do
         attempt=$((attempt + 1))
         # Bounded, once, here, rather than in each of the twenty five graders.
@@ -110,13 +112,38 @@ assert() {
         #
         # `timeout` is not on every machine. Where it is missing the command
         # runs unbounded, which is what happened before, so this can only help.
+        #
+        # `-uo pipefail` matches what the sourced-in options give the `eval`
+        # branch. Without it the same assertion reports a different exit status
+        # depending on whether the machine has `timeout`, which is Linux and CI
+        # against a stock Mac: a broken first stage of a pipeline is invisible
+        # in one and fatal in the other.
         if [[ -n ${_TSE_TIMEOUT_BIN:-} ]]; then
             output=$("$_TSE_TIMEOUT_BIN" "${TSE_ASSERT_TIMEOUT:-60}" \
-                     bash -c "$command" 2>&1)
+                     bash -uo pipefail -c "$command" 2>&1)
         else
             output=$(eval "$command" 2>&1)
         fi
-        if _tse_matches "$mode" "$expected" "$output"; then
+        status=$?
+
+        # Absence is only evidence when the command ran.
+        #
+        # `--not-contains` passes when a string is missing from the output. If
+        # the command itself failed there is no output to be missing from, so
+        # the assertion passes on an error message and reports success. Both
+        # uses in the course were doing exactly that: sql/03 asks a stopped
+        # database for a query plan, gets `service "postgres" is not running`,
+        # observes no sequential scan in it, and grades the exercise complete.
+        #
+        # Only the negative matcher needs this. `--equals` and `--contains`
+        # already have to see the thing they are looking for, and an error
+        # message does not contain it. `--matches` is the author's own regex and
+        # is left alone. `--even-if-it-fails` is the way out for an assertion
+        # that genuinely expects a non-zero exit.
+        died=0
+        if (( status != 0 )) && [[ $mode == not-contains ]] && (( tolerate_failure == 0 )); then
+            died=1
+        elif _tse_matches "$mode" "$expected" "$output"; then
             ok=0
             break
         fi
@@ -135,6 +162,10 @@ assert() {
     printf '%s' "$output" | _tse_indent
 
     if (( ok != 0 )); then
+        if (( died )); then
+            printf '      %sThe command itself failed, exit %d. What it did not print proves nothing.%s\n' \
+                "$_C_FAIL" "$status" "$_C_OFF"
+        fi
         printf '      %sExpected: %s%s\n' "$_C_FAIL" "${expectation:-$mode $expected}" "$_C_OFF"
     fi
     printf '\n'
