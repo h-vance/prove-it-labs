@@ -1064,7 +1064,7 @@ def private_leaks(output: str, foreign: set[str]) -> list[str]:
 
     Transcripts are committed and published, so the standard is that nothing
     identifying the person who recorded them can survive. This is the second
-    line of defence: the first is that stored output is scrubbed, and this
+    line of defense: the first is that stored output is scrubbed, and this
     catches the categories a scrub rule would not think to look for.
     """
     found = [name for name in sorted(foreign) if name in output]

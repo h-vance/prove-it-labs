@@ -39,8 +39,15 @@ jobs:
         run: npm run check:pages
         working-directory: site
 
-      - name: Install the browser axe drives
+      - name: Install the browser the checks drive
         run: npx playwright install --with-deps chromium
+        working-directory: site
+
+      # The terminal's normalizer is a second implementation of one in
+      # tools/tse. This is what proves the two still agree, by driving the
+      # shipped page rather than a copy of the rules.
+      - name: The terminal replays what was recorded
+        run: npm run check:terminal
         working-directory: site
 
       - name: WCAG 2.2 AA, every page, both themes

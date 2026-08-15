@@ -253,6 +253,41 @@ class Editorial(unittest.TestCase):
             with self.subTest(str(path.relative_to(ROOT))):
                 self.assertNotIn("—", path.read_text(), f"{path} contains an em dash")
 
+    # US spelling throughout. Caught "join behaviour" sitting in an evidence
+    # layer, which renders as a chip on the exercise page, so it was learner
+    # visible rather than an internal note. Only the endings that actually
+    # differ are listed: a general -our or -ise rule would fire on "our",
+    # "rise" and half the prose in the repository.
+    BRITISH = re.compile(
+        r"\b(?:colour|behaviour|favour|honour|labour|neighbour|rumour"
+        r"|normalis|recognis|organis|initialis|customis|optimis|specialis|apologis|analyse"
+        r"|centre|metre|litre|defence|offence|licence|pretence"
+        r"|catalogue|dialogue|analogue"
+        r"|labelled|cancelled|travelling|modelling|signalling)\w*",
+        re.IGNORECASE,
+    )
+
+    def test_us_spelling(self):
+        """Every word a reader sees, not only the one somebody happened to notice."""
+        paths = (
+            sorted(ROOT.glob("labs/*/*/*.md"))
+            + sorted(ROOT.glob("labs/*/*/hints/*.md"))
+            + sorted(ROOT.glob("labs/*/*/meta.yaml"))
+            + sorted(ROOT.glob("labs/*/*/questions.json"))
+            + sorted(ROOT.glob("reference/*.md"))
+            + [ROOT / "README.md", ROOT / "CONTRIBUTING.md"]
+        )
+        for path in paths:
+            if not path.is_file():
+                continue
+            found = self.BRITISH.search(path.read_text())
+            with self.subTest(str(path.relative_to(ROOT))):
+                self.assertIsNone(
+                    found,
+                    f"{path.relative_to(ROOT)} uses British spelling: "
+                    f"{found.group(0) if found else ''!r}",
+                )
+
 
 class ClusterHelpers(unittest.TestCase):
     """Guards on the Kubernetes preload path.

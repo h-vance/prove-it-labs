@@ -9,7 +9,8 @@
     "preview": "astro preview",
     "check": "astro check",
     "a11y": "node scripts/a11y.mjs",
-    "check:pages": "node scripts/check-pages.mjs"
+    "check:pages": "node scripts/check-pages.mjs",
+    "check:terminal": "node scripts/check-terminal.mjs"
   },
   "dependencies": {
     "@astrojs/preact": "^6.0.2",

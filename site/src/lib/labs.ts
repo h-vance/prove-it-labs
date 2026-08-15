@@ -86,6 +86,21 @@ export interface QuizQuestion {
   options: QuizOption[];
 }
 
+export interface TranscriptEntry {
+  /** As written in commands.txt. Shown only when the list is deliberately revealed. */
+  command: string;
+  /**
+   * The normalized spellings this entry answers to, written by `tse record`.
+   *
+   * The aliases from commands.txt are already folded in here, which is why they
+   * are not carried separately onto the page: they would be bytes in every
+   * built exercise page that nothing reads.
+   */
+  match: string[];
+  output: string;
+  exit: number;
+}
+
 export interface Exercise {
   id: string;
   track: string;
@@ -108,12 +123,20 @@ export interface Exercise {
   hintsHtml: string[];
   solutionHtml: string;
   questions: QuizQuestion[];
+  transcript: TranscriptEntry[];
 }
 
 marked.setOptions({ gfm: true, breaks: false });
 
 function md(source: string): string {
-  return marked.parse(source, { async: false }) as string;
+  const html = marked.parse(source, { async: false }) as string;
+  // A block that scrolls has to be reachable from a keyboard, which is WCAG
+  // 2.1.1 and is what axe's scrollable-region-focusable rule checks. Tickets in
+  // the SQL track carry wide preformatted tables, and on a narrow screen those
+  // scroll, so without this they are content nobody navigating by keyboard can
+  // read. Starlight adds this to its own fenced blocks; markdown rendered here
+  // never passes through that.
+  return html.replace(/<pre>/g, '<pre tabindex="0">');
 }
 
 function readIfPresent(path: string): string | null {
@@ -143,6 +166,31 @@ function readQuestions(dir: string): QuizQuestion[] {
     return JSON.parse(source) as QuizQuestion[];
   } catch (error) {
     throw new Error(`${join(dir, "questions.json")} is not valid JSON: ${String(error)}`);
+  }
+}
+
+/**
+ * The exercise's recorded output.
+ *
+ * Only the fields the page actually uses are carried through. Everything here
+ * is embedded verbatim into the built HTML, so a field nobody reads is weight
+ * on every visit, and site/scripts/check-pages.mjs holds that to a budget.
+ *
+ * Throws on malformed JSON for the same reason readQuestions does.
+ */
+function readTranscript(dir: string): TranscriptEntry[] {
+  const source = readIfPresent(join(dir, "transcript.json"));
+  if (!source) return [];
+  try {
+    const parsed = JSON.parse(source) as { entries?: TranscriptEntry[] };
+    return (parsed.entries ?? []).map(({ command, match, output, exit }) => ({
+      command,
+      match,
+      output,
+      exit,
+    }));
+  } catch (error) {
+    throw new Error(`${join(dir, "transcript.json")} is not valid JSON: ${String(error)}`);
   }
 }
 
@@ -193,6 +241,7 @@ export function loadExercises(): Exercise[] {
         hintsHtml: hintFiles.map((name) => md(readFileSync(join(hintsDir, name), "utf8"))),
         solutionHtml: md(readIfPresent(join(dir, "solution.md")) ?? ""),
         questions: readQuestions(dir),
+        transcript: readTranscript(dir),
       });
     }
   }

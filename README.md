@@ -48,8 +48,11 @@ newer. There is nothing to install: `tse doctor` will tell you what is missing.
 | `tse answer` | Root cause, customer update, and escalation wording |
 | `tse apply` | Recreate the services after you edit the configuration |
 | `tse reset` | Return to the state described in the ticket |
+| `tse quiz` | Answer the exercise's questions and see why |
 | `tse progress` | See or export your progress |
 | `tse doctor` | Check this machine can run the labs |
+| `tse record` | Capture real output for the site's terminal |
+| `tse leaks` | Scan committed files for anything from a real machine |
 | `tse new` | Scaffold a new exercise |
 
 ## How the exercises work
@@ -68,12 +71,32 @@ Every exercise has the same shape, so there is never a surprise about where to
 look:
 
 ```
-ticket.md     the customer symptom, and nothing else
-setup/        the broken state
-check.sh      the assertions, and the evidence behind them
-hints/        three escalating nudges
-solution.md   root cause, the fix, and the words you would send
+ticket.md       the customer symptom, and nothing else
+setup/          the broken state
+check.sh        the assertions, and the evidence behind them
+hints/          three escalating nudges
+solution.md     root cause, the fix, and the words you would send
+questions.json  three questions on what the evidence proved
+commands.txt    the commands worth replaying on the site
+transcript.json their real output, captured and re-verified in CI
 ```
+
+## The terminal on the site is a replay, not a shell
+
+Every exercise page carries a terminal you can type into. It replays output
+captured by genuinely running those commands against the broken system, and CI
+re-runs all of them against a freshly provisioned stack on every push. If a byte
+of the evidence has moved, the build fails rather than the page quietly showing
+something that is no longer true.
+
+It will not replay `tse check`, `tse hint` or `tse answer`. The first two are
+obvious; the third is the interesting one, because `tse check` states the
+expected fixed state in order to assert it, so recording that would hand over
+the diagnosis through the back door. Commands that were never recorded are told
+so plainly rather than given invented output.
+
+Nothing typed into a page can finish an exercise. That still means changing a
+real system.
 
 ## Design notes
 
@@ -147,12 +170,17 @@ cd site
 npm install
 npm run dev           # http://localhost:4321/technical-support-engineering
 npm run build
-npm run check:pages   # every exercise has a complete page
-npm run a11y          # WCAG 2.2 AA, every page, light and dark
+npm run check:pages    # every exercise has a complete page, inside its weight budget
+npm run check:terminal # the terminal replays what was actually recorded
+npm run a11y           # WCAG 2.2 AA, every page, light and dark
 ```
 
 The accessibility gate is a gate, not a report: CI fails on any violation, in
-either theme.
+either theme, and it drives the components rather than scanning them at rest.
+
+`check:pages` also holds each built exercise page and the total JavaScript to a
+budget. Recorded output is embedded in the pages, so without that the terminal
+could grow every page indefinitely and nothing would say so.
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 

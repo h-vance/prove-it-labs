@@ -142,7 +142,8 @@ html[data-stretch="hidden"] [data-tier="stretch"] {
 
 .reveal,
 .pad,
-.start {
+.start,
+.terminal {
   margin-block: 2rem;
   padding-top: 0.5rem;
   border-top: var(--proveit-rule);
@@ -250,6 +251,135 @@ html[data-stretch="hidden"] [data-tier="stretch"] {
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-top: 1rem;
+}
+
+/* ------------------------------------------------------ overflow safety */
+
+/* Bare <pre> written directly in a page template, which Starlight's own code
+ * styling does not reach: that styling is applied to fenced blocks in Markdown.
+ *
+ * Found on a phone. `tse start kubernetes/03-orders-service-keeps-dying` is
+ * wider than 375px, so it pushed the whole document to 454px and every exercise
+ * page scrolled sideways. Nothing signals this on a desktop, and the rule at the
+ * top of this file says the body never scrolls sideways, so it gets a rule
+ * rather than a shorter exercise name. */
+.sl-markdown-content pre {
+  overflow-x: auto;
+}
+
+/* -------------------------------------------------------- lab terminal */
+
+.terminal__screen {
+  margin-block: 1rem;
+  padding: 0.75rem 0.9rem;
+  border: var(--proveit-rule);
+  border-radius: var(--proveit-radius);
+  background: var(--proveit-panel);
+}
+
+.terminal__idle {
+  margin: 0;
+  color: var(--sl-color-gray-2);
+}
+
+.terminal__entry + .terminal__entry {
+  margin-top: 1.1rem;
+  padding-top: 0.9rem;
+  border-top: var(--proveit-rule);
+}
+
+.terminal__echo {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0 0 0.4rem;
+  font-family: var(--__sl-font-mono, monospace);
+  font-size: var(--sl-text-sm);
+}
+
+.terminal__prompt {
+  color: var(--sl-color-gray-2);
+}
+
+/* Wrap rather than scroll. What was typed is the one thing a reader already
+ * knows, so hiding part of it behind a scrollbar helps nobody. */
+.terminal__typed {
+  overflow-wrap: anywhere;
+}
+
+/* The output scrolls inside its own box so the page body never scrolls
+ * sideways, and it is focusable so a keyboard can reach that scrolling. */
+.terminal__output {
+  margin: 0;
+  max-height: 26rem;
+  overflow: auto;
+  font-size: var(--sl-text-sm);
+  line-height: 1.5;
+}
+
+.terminal__refusal,
+.terminal__note {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: var(--sl-text-sm);
+}
+
+.terminal__refusal {
+  border-inline-start: 3px solid var(--sl-color-gray-4);
+  padding-inline-start: 0.75rem;
+  color: var(--sl-color-gray-2);
+}
+
+.terminal__note {
+  color: var(--sl-color-gray-2);
+}
+
+/* The live region. Visible rather than hidden: what it announces is useful to
+ * everyone, and a status nobody can see is a status nobody can debug. */
+.terminal__status {
+  min-height: 1.5em;
+  margin: 0.4rem 0 0;
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-2);
+}
+
+.terminal__input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.6rem;
+}
+
+.terminal__input label {
+  flex-basis: 100%;
+  font-weight: 600;
+}
+
+.terminal__field {
+  flex: 1 1 20rem;
+  font-family: var(--__sl-font-mono, monospace);
+  font-size: var(--sl-text-sm);
+  line-height: 1.5;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--sl-color-gray-4);
+  border-radius: var(--proveit-radius);
+  background: var(--sl-color-bg);
+  color: var(--sl-color-text);
+  resize: none;
+  overflow: hidden;
+}
+
+.terminal__hint {
+  margin: 0.4rem 0 0;
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-2);
+}
+
+.terminal__list ul {
+  margin-block: 0.5rem 0;
+}
+
+.terminal__list code {
+  overflow-wrap: anywhere;
 }
 
 /* ----------------------------------------------------- start-here routing */

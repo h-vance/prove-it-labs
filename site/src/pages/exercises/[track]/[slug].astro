@@ -5,6 +5,7 @@ import HintReveal from "../../../components/HintReveal";
 import SolutionReveal from "../../../components/SolutionReveal";
 import ScratchPad from "../../../components/ScratchPad";
 import Quiz from "../../../components/Quiz";
+import LabTerminal from "../../../components/LabTerminal";
 
 export function getStaticPaths() {
   return loadExercises().map((exercise) => ({
@@ -33,6 +34,9 @@ const difficultyLabel = ["", "Gentle", "Straightforward", "Involved", "Hard", "B
 const headings = [
   { depth: 2, slug: "start-it", text: "Start it" },
   { depth: 2, slug: "the-ticket", text: "The ticket" },
+  ...(exercise.transcript.length > 0
+    ? [{ depth: 2, slug: `terminal-${exercise.id}`, text: "Look at the evidence" }]
+    : []),
   { depth: 2, slug: `pad-${exercise.id}`, text: "Investigation scratchpad" },
   { depth: 2, slug: `hints-${exercise.id}`, text: "Hints" },
   { depth: 2, slug: `solution-${exercise.id}`, text: "Solution" },
@@ -88,7 +92,7 @@ const headings = [
 
   <h2 id="start-it">Start it</h2>
   <p>In a Codespace or a local clone:</p>
-  <pre><code>tse start {exercise.id}</code></pre>
+  <pre tabindex="0"><code>tse start {exercise.id}</code></pre>
   <p>
     That provisions the broken system and prints the ticket below. Investigate with
     ordinary tools, then run <code>tse check</code>.
@@ -105,6 +109,12 @@ const headings = [
     and the hints and solution are the point of the page rather than an
     enhancement to it.
   */}
+  {/*
+    Investigation comes before notes, so the terminal sits between the ticket
+    and the scratchpad rather than after it.
+  */}
+  <LabTerminal exerciseId={exercise.id} entries={exercise.transcript} client:load />
+
   <ScratchPad exerciseId={exercise.id} client:load />
 
   <HintReveal exerciseId={exercise.id} hints={exercise.hintsHtml} client:load />

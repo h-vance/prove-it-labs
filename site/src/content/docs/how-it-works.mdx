@@ -83,6 +83,31 @@ stop there without guilt:
 Every exercise states its time cost before you start, so you can decide up front
 rather than discovering halfway through that you do not have the capacity.
 
+## The terminal on the exercise pages is a replay
+
+Every exercise page carries a terminal you can type into. It is worth being
+exact about what it is, because a page that quietly invents plausible output
+would be the walkthrough this course exists to avoid.
+
+Each command it knows was run against the genuinely broken system and its
+output captured. Nothing there is written by hand. CI re-runs every one of them
+against a freshly provisioned stack and fails the build if a single byte of the
+evidence has moved, which is the only reason the replay is worth trusting.
+
+What it deliberately will not do:
+
+- **Grade anything.** `tse check` states what a fixed system should look like in
+  order to check it, so replaying that would hand over the diagnosis through the
+  back door. Neither will it replay `tse hint` or `tse answer`.
+- **Invent output.** A command that was not recorded gets told so plainly. If
+  something close was recorded you are told that much and no more, because a
+  list of the exact commands that matter is the third hint wearing a hat.
+- **Finish an exercise.** Nothing typed into a page changes a system. That still
+  happens in a Codespace or a local clone, and it is still the point.
+
+Use it to see what the evidence looks like before deciding whether to set
+anything up. It lowers the cost of looking. It does not replace a shell.
+
 ## Stretch material
 
 Some material is genuinely optional. Rather than marking it and leaving it on

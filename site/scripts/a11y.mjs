@@ -70,6 +70,7 @@ const pages = findPages();
 const browser = await chromium.launch();
 const failures = [];
 const seenVerdicts = new Set();
+const seenTerminalStates = new Set();
 let checks = 0;
 
 for (const theme of ["dark", "light"]) {
@@ -94,6 +95,42 @@ for (const theme of ["dark", "light"]) {
     checks += 1;
     if (violations.length > 0) {
       failures.push({ theme, path, violations });
+    }
+
+    // Same reasoning as the quiz below: an empty terminal is the one state that
+    // cannot fail. The scrollable output box, the refusal panel and the status
+    // line only exist once something has been run, so they are put on screen
+    // before the second scan. Both a replay and a refusal, because they are
+    // styled differently and only one of them is a scrollable region.
+    const hasTerminal = await page.locator(".terminal__field").count();
+    if (hasTerminal) {
+      // Open the reveal first. Its list gets scanned too, and it is where a
+      // command known to be recorded on this page comes from, so nothing here
+      // needs to know which exercise it is looking at.
+      await page.locator(".terminal .reveal__button--quiet").click();
+      await page.waitForSelector(".terminal__list code");
+
+      // Real fill and keypress rather than a dispatched KeyboardEvent. A
+      // synthetic event sent in the same tick as the input reaches the handler
+      // before the component's state has flushed, so it submits an empty field
+      // and nothing ever appears.
+      const recorded = await page.locator(".terminal__list code").first().textContent();
+      const field = page.locator(".terminal__field");
+      for (const command of [recorded, "definitely not a recorded command"]) {
+        await field.fill(command);
+        await field.press("Enter");
+      }
+
+      // Counted rather than waited on. waitForSelector would throw on a state
+      // that never rendered, and an uncaught timeout is a worse report than the
+      // guard at the end of this file, which says which state went unchecked.
+      await page.waitForSelector(".terminal__entry");
+      for (const [state, selector] of [
+        ["output", ".terminal__output"],
+        ["refusal", ".terminal__refusal"],
+      ]) {
+        if (await page.locator(selector).count()) seenTerminalStates.add(state);
+      }
     }
 
     // The quiz's verdict colors, its disabled options and its feedback panel
@@ -162,10 +199,24 @@ for (const verdict of ["correct", "wrong"]) {
   }
 }
 
+// Same for the terminal. The scrollable output box and the refusal panel are
+// the two states with anything to fail on, and neither exists until something
+// has been run.
+for (const [state, described] of [
+  ["output", "replayed output"],
+  ["refusal", "a refusal"],
+]) {
+  if (!seenTerminalStates.has(state)) {
+    console.error(`axe: the terminal never rendered ${described}, so that state went unchecked.`);
+    process.exit(1);
+  }
+}
+
 if (failures.length === 0) {
   console.log(
     `axe: ${checks} checks across ${pages.length} pages in 2 themes, ` +
-      `including both quiz verdicts, no violations.`,
+      `including both quiz verdicts and the terminal showing output and a refusal, ` +
+      `no violations.`,
   );
   process.exit(0);
 }
