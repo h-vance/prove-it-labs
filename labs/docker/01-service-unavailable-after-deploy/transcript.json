@@ -8,18 +8,31 @@
         "docker ps",
         "docker compose ps -a"
       ],
+      "match": [
+        "docker compose ps -a",
+        "docker ps",
+        "docker ps -a",
+        "docker ps -a --filter \"label=com.docker.compose.project=proveit-docker\""
+      ],
       "output": "CONTAINER ID   IMAGE                COMMAND                  CREATED          STATUS                        PORTS      NAMES\n2a753e2b4be1   proveit-docker-app   \"python /app/app.py\"     13 seconds ago   Restarting (1) 1 second ago              proveit-docker-app-1\nefcac66ccabc   postgres:16-alpine   \"docker-entrypoint.s\u2026\"   13 seconds ago   Up 12 seconds (healthy)       5432/tcp   proveit-docker-postgres-1",
       "exit": 0
     },
     {
       "command": "docker compose -f labs/docker/_stack/compose.yaml \\\n               -f labs/docker/_stack/compose.override.yaml \\\n               logs --tail 20 app",
       "aliases": [],
+      "match": [
+        "docker compose -f labs/docker/_stack/compose.yaml -f labs/docker/_stack/compose.override.yaml logs --tail 20 app"
+      ],
       "output": "app-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set",
       "exit": 0
     },
     {
       "command": "docker compose -f labs/docker/_stack/compose.yaml -f labs/docker/_stack/compose.override.yaml logs --tail 5 app",
       "aliases": [
+        "docker compose logs app"
+      ],
+      "match": [
+        "docker compose -f labs/docker/_stack/compose.yaml -f labs/docker/_stack/compose.override.yaml logs --tail 5 app",
         "docker compose logs app"
       ],
       "output": "app-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set\napp-1  | ERROR: required environment variable APP_SECRET is not set",
@@ -30,18 +43,28 @@
       "aliases": [
         "cat compose.override.yaml"
       ],
+      "match": [
+        "cat compose.override.yaml",
+        "cat labs/docker/_stack/compose.override.yaml"
+      ],
       "output": "services:\n  app:\n    environment:\n      APP_SECRET: \"\"",
       "exit": 0
     },
     {
       "command": "docker inspect --format '{{.Name}} restart={{.RestartCount}} exit={{.State.ExitCode}}' proveit-docker-app-1",
       "aliases": [],
+      "match": [
+        "docker inspect --format '{{.Name}} restart={{.RestartCount}} exit={{.State.ExitCode}}' proveit-docker-app-1"
+      ],
       "output": "/proveit-docker-app-1 restart=7 exit=1",
       "exit": 0
     },
     {
       "command": "docker inspect --format '{{.State.Health.Status}}' proveit-docker-postgres-1",
       "aliases": [],
+      "match": [
+        "docker inspect --format '{{.State.Health.Status}}' proveit-docker-postgres-1"
+      ],
       "output": "healthy",
       "exit": 0
     }

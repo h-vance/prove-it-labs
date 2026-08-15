@@ -623,6 +623,21 @@ def normalize_command(command: str) -> str:
     return " ".join(joined.split())
 
 
+def match_keys(command: str, aliases: list[str]) -> list[str]:
+    """Every spelling an entry answers to, normalized once and stored.
+
+    The site looks up what a learner types by normalizing it and comparing
+    against this list. Storing the normalized forms, rather than normalizing the
+    recorded text again in the browser, keeps one implementation authoritative
+    for the whole recorded side: a difference between the two normalizers can
+    then only ever affect what was typed, never what was captured.
+
+    tools/tests/fixtures/normalize.json holds the cases both sides must agree
+    on, and is asserted here and against the built page.
+    """
+    return sorted({normalize_command(text) for text in [command, *aliases] if text.strip()})
+
+
 def run_for_record(command: str) -> tuple[str, int]:
     """Run one block and capture stdout and stderr exactly as a terminal shows them."""
     result = subprocess.run(
@@ -1259,6 +1274,7 @@ def cmd_record(args: argparse.Namespace) -> None:
             entry = {
                 "command": block["command"],
                 "aliases": block["aliases"],
+                "match": match_keys(block["command"], block["aliases"]),
                 "output": output,
                 "exit": code,
             }
@@ -1332,6 +1348,15 @@ def compare_transcript(previous: dict, fresh: list[dict]) -> list[str]:
         if normalize_command(old.get("command", "")) != normalize_command(new["command"]):
             differences.append(f"{label}\n      commands.txt changed since the recording")
             continue
+        # The site looks a typed command up against `match`, so an alias added
+        # to commands.txt without re-recording is a command that silently does
+        # nothing on the page. Nothing else would notice: the output is
+        # identical, and it is the lookup key that went stale.
+        if old.get("match") != new["match"]:
+            differences.append(
+                f"{label}\n      the spellings in commands.txt changed since the "
+                f"recording:\n        recorded: {old.get('match')}\n        now:      {new['match']}"
+            )
         if old.get("exit") != new["exit"]:
             differences.append(
                 f"{label}\n      exited {new['exit']}, the recording has {old.get('exit')}"

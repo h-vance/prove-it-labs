@@ -8,6 +8,11 @@
         "./request.sh",
         "bash labs/api/_stack/request.sh"
       ],
+      "match": [
+        "./request.sh",
+        "bash labs/api/_stack/request.sh",
+        "bash request.sh"
+      ],
       "output": "HTTP/1.1 404 Not Found\n{\n  \"type\": \"https://proveit.invalid/errors/route_not_found\",\n  \"title\": \"Route not found\",\n  \"status\": 404,\n  \"detail\": \"/v1/customers/cus_8823 is not served. The v1 API was withdrawn on 2026-08-01. The current API is served under /v2.\",\n  \"instance\": \"/v1/customers/cus_8823\",\n  \"code\": \"route_not_found\",\n  \"request_id\": \"c6b4d11f1555\"\n}",
       "exit": 0
     },
@@ -15,6 +20,10 @@
       "command": "curl -s -i http://127.0.0.1:8101/v1/customers/cus_8823",
       "aliases": [
         "curl -i http://127.0.0.1:8101/v1/customers/cus_8823"
+      ],
+      "match": [
+        "curl -i http://127.0.0.1:8101/v1/customers/cus_8823",
+        "curl -s -i http://127.0.0.1:8101/v1/customers/cus_8823"
       ],
       "output": "HTTP/1.1 404 Not Found\nServer: ProveItAPI/2.0 Python/3.12.14\nDate: <timestamp>\nContent-Type: application/problem+json\nContent-Length: 340\nX-Request-Id: 16d0d11e9229\nSunset: <timestamp>\nLink: </v2>; rel=\"successor-version\"\n\n{\n  \"type\": \"https://proveit.invalid/errors/route_not_found\",\n  \"title\": \"Route not found\",\n  \"status\": 404,\n  \"detail\": \"/v1/customers/cus_8823 is not served. The v1 API was withdrawn on 2026-08-01. The current API is served under /v2.\",\n  \"instance\": \"/v1/customers/cus_8823\",\n  \"code\": \"route_not_found\",\n  \"request_id\": \"16d0d11e9229\"\n}",
       "exit": 0
@@ -24,18 +33,29 @@
       "aliases": [
         "curl -i http://127.0.0.1:8101/v2/customers/cus_8823"
       ],
+      "match": [
+        "curl -i http://127.0.0.1:8101/v2/customers/cus_8823",
+        "curl -s -i http://127.0.0.1:8101/v2/customers/cus_8823"
+      ],
       "output": "HTTP/1.1 200 OK\nServer: ProveItAPI/2.0 Python/3.12.14\nDate: <timestamp>\nContent-Type: application/json\nContent-Length: 112\nX-Request-Id: 4c7867a74e8e\n\n{\n  \"id\": \"cus_8823\",\n  \"company\": \"Northwind Freight\",\n  \"plan\": \"enterprise\",\n  \"request_id\": \"4c7867a74e8e\"\n}",
       "exit": 0
     },
     {
       "command": "curl -s http://127.0.0.1:8101/v1/customers/cus_4410",
       "aliases": [],
+      "match": [
+        "curl -s http://127.0.0.1:8101/v1/customers/cus_4410"
+      ],
       "output": "{\n  \"type\": \"https://proveit.invalid/errors/route_not_found\",\n  \"title\": \"Route not found\",\n  \"status\": 404,\n  \"detail\": \"/v1/customers/cus_4410 is not served. The v1 API was withdrawn on 2026-08-01. The current API is served under /v2.\",\n  \"instance\": \"/v1/customers/cus_4410\",\n  \"code\": \"route_not_found\",\n  \"request_id\": \"a894515185c6\"\n}",
       "exit": 0
     },
     {
       "command": "curl -s http://127.0.0.1:8101/health",
       "aliases": [
+        "curl http://127.0.0.1:8101/health"
+      ],
+      "match": [
+        "curl -s http://127.0.0.1:8101/health",
         "curl http://127.0.0.1:8101/health"
       ],
       "output": "{\n  \"status\": \"healthy\",\n  \"request_id\": \"ba136eac9189\"\n}",

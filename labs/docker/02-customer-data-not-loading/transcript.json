@@ -8,6 +8,12 @@
         "docker ps",
         "docker compose ps"
       ],
+      "match": [
+        "docker compose ps",
+        "docker ps",
+        "docker ps -a",
+        "docker ps -a --filter \"label=com.docker.compose.project=proveit-docker\""
+      ],
       "output": "CONTAINER ID   IMAGE                COMMAND                  CREATED          STATUS                             PORTS                      NAMES\nd797e72390c3   proveit-docker-app   \"python /app/app.py\"     15 seconds ago   Up 12 seconds (health: starting)   127.0.0.1:8100->8080/tcp   proveit-docker-app-1\nb419ab8c3ad7   postgres:16-alpine   \"docker-entrypoint.s\u2026\"   15 seconds ago   Up 14 seconds (healthy)            5432/tcp                   proveit-docker-postgres-1",
       "exit": 0
     },
@@ -15,6 +21,11 @@
       "command": "curl -s -i http://127.0.0.1:8100/customers | head -12",
       "aliases": [
         "curl -i http://127.0.0.1:8100/customers",
+        "curl http://127.0.0.1:8100/customers"
+      ],
+      "match": [
+        "curl -i http://127.0.0.1:8100/customers",
+        "curl -s -i http://127.0.0.1:8100/customers | head -12",
         "curl http://127.0.0.1:8100/customers"
       ],
       "output": "HTTP/1.0 503 Service Unavailable\nServer: ProveItLab/1.0 Python/3.12.14\nDate: <timestamp>\nContent-Type: application/json\nContent-Length: 64\n\n{\"status\": \"unavailable\", \"error\": \"database_connection_failed\"}",
@@ -25,12 +36,20 @@
       "aliases": [
         "docker compose logs app"
       ],
+      "match": [
+        "docker compose -f labs/docker/_stack/compose.yaml -f labs/docker/_stack/compose.override.yaml logs --tail 15 app",
+        "docker compose logs app"
+      ],
       "output": "app-1  | level=info event=server_started port=8080\napp-1  | level=error event=database_connection_failed detail='psql: error: connection to server at \"localhost\" (::1), port 5432 failed: Connection refused'\napp-1  | level=info client=127.0.0.1 message=\"GET /health HTTP/1.1\" 503 -\napp-1  | level=error event=database_connection_failed detail='psql: error: connection to server at \"localhost\" (::1), port 5432 failed: Connection refused'\napp-1  | level=info client=127.0.0.1 message=\"GET /health HTTP/1.1\" 503 -\napp-1  | level=error event=database_connection_failed detail='psql: error: connection to server at \"localhost\" (::1), port 5432 failed: Connection refused'\napp-1  | level=info client=127.0.0.1 message=\"GET /health HTTP/1.1\" 503 -\napp-1  | level=error event=database_connection_failed detail='psql: error: connection to server at \"localhost\" (::1), port 5432 failed: Connection refused'\napp-1  | level=info client=<ip> message=\"GET /customers HTTP/1.1\" 503 -",
       "exit": 0
     },
     {
       "command": "docker compose -f labs/docker/_stack/compose.yaml \\\n               -f labs/docker/_stack/compose.override.yaml \\\n               exec -T app printenv DB_HOST",
       "aliases": [
+        "docker compose exec app printenv DB_HOST"
+      ],
+      "match": [
+        "docker compose -f labs/docker/_stack/compose.yaml -f labs/docker/_stack/compose.override.yaml exec -T app printenv DB_HOST",
         "docker compose exec app printenv DB_HOST"
       ],
       "output": "localhost",
@@ -41,6 +60,10 @@
       "aliases": [
         "docker compose exec app getent hosts localhost"
       ],
+      "match": [
+        "docker compose -f labs/docker/_stack/compose.yaml -f labs/docker/_stack/compose.override.yaml exec -T app getent hosts localhost",
+        "docker compose exec app getent hosts localhost"
+      ],
       "output": "::1               localhost  localhost",
       "exit": 0
     },
@@ -49,12 +72,19 @@
       "aliases": [
         "docker compose exec app getent hosts postgres"
       ],
+      "match": [
+        "docker compose -f labs/docker/_stack/compose.yaml -f labs/docker/_stack/compose.override.yaml exec -T app getent hosts postgres",
+        "docker compose exec app getent hosts postgres"
+      ],
       "output": "<ip>        postgres  postgres",
       "exit": 0
     },
     {
       "command": "docker inspect --format '{{.State.Health.Status}}' proveit-docker-postgres-1",
       "aliases": [],
+      "match": [
+        "docker inspect --format '{{.State.Health.Status}}' proveit-docker-postgres-1"
+      ],
       "output": "healthy",
       "exit": 0
     }

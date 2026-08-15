@@ -1,0 +1,47 @@
+[
+  {
+    "why": "the ordinary case, already in its stored form",
+    "typed": "kubectl -n tse-training get pods",
+    "normalized": "kubectl -n tse-training get pods"
+  },
+  {
+    "why": "surrounding whitespace, which a paste often carries",
+    "typed": "  kubectl -n tse-training get pods  ",
+    "normalized": "kubectl -n tse-training get pods"
+  },
+  {
+    "why": "runs of spaces collapse, so alignment while typing costs nothing",
+    "typed": "kubectl   -n   tse-training    get pods",
+    "normalized": "kubectl -n tse-training get pods"
+  },
+  {
+    "why": "tabs are whitespace too, and a terminal completion inserts them",
+    "typed": "kubectl\t-n tse-training\tget pods",
+    "normalized": "kubectl -n tse-training get pods"
+  },
+  {
+    "why": "backslash continuations join, because the hints wrap commands that way",
+    "typed": "kubectl -n tse-training \\\n  get pods",
+    "normalized": "kubectl -n tse-training get pods"
+  },
+  {
+    "why": "a bare newline joins as well, which is what pasting a wrapped line gives",
+    "typed": "kubectl -n tse-training\n  get pods",
+    "normalized": "kubectl -n tse-training get pods"
+  },
+  {
+    "why": "a real recorded command with a pipe, quotes and a continuation",
+    "typed": "kubectl -n tse-training describe pod -l app.kubernetes.io/name=orders-api \\\n  | grep -A6 'Last State' | head -14",
+    "normalized": "kubectl -n tse-training describe pod -l app.kubernetes.io/name=orders-api | grep -A6 'Last State' | head -14"
+  },
+  {
+    "why": "case is preserved, because every one of these commands is case sensitive",
+    "typed": "kubectl get PODS",
+    "normalized": "kubectl get PODS"
+  },
+  {
+    "why": "whitespace alone is nothing, not a command that could match an entry",
+    "typed": "   ",
+    "normalized": ""
+  }
+]

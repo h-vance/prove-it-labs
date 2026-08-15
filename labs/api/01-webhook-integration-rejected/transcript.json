@@ -8,12 +8,20 @@
         "./request.sh",
         "bash labs/api/_stack/request.sh"
       ],
+      "match": [
+        "./request.sh",
+        "bash labs/api/_stack/request.sh",
+        "bash request.sh"
+      ],
       "output": "HTTP/1.1 401 Unauthorized\n{\n  \"type\": \"https://proveit.invalid/errors/api_key_revoked\",\n  \"title\": \"API key revoked\",\n  \"status\": 401,\n  \"detail\": \"This API key was revoked on 2026-08-12 and can no longer be used. Issue or retrieve an active key.\",\n  \"instance\": \"/v2/webhooks/events\",\n  \"code\": \"api_key_revoked\",\n  \"request_id\": \"82d5be2f3621\",\n  \"key_fingerprint\": \"8dbfb52e\"\n}",
       "exit": 0
     },
     {
       "command": "curl -s -i -X POST http://127.0.0.1:8101/v2/webhooks/events \\\n     -H 'X-API-Key: wk_live_revoked_8f21' \\\n     -H 'Content-Type: application/json' \\\n     -d '{\"event\":\"order.created\",\"id\":\"evt_1\"}'",
       "aliases": [],
+      "match": [
+        "curl -s -i -X POST http://127.0.0.1:8101/v2/webhooks/events -H 'X-API-Key: wk_live_revoked_8f21' -H 'Content-Type: application/json' -d '{\"event\":\"order.created\",\"id\":\"evt_1\"}'"
+      ],
       "output": "HTTP/1.1 401 Unauthorized\nServer: ProveItAPI/2.0 Python/3.12.14\nDate: <timestamp>\nContent-Type: application/problem+json\nContent-Length: 354\nX-Request-Id: a0e7bb03ba23\n\n{\n  \"type\": \"https://proveit.invalid/errors/api_key_revoked\",\n  \"title\": \"API key revoked\",\n  \"status\": 401,\n  \"detail\": \"This API key was revoked on 2026-08-12 and can no longer be used. Issue or retrieve an active key.\",\n  \"instance\": \"/v2/webhooks/events\",\n  \"code\": \"api_key_revoked\",\n  \"request_id\": \"a0e7bb03ba23\",\n  \"key_fingerprint\": \"8dbfb52e\"\n}",
       "exit": 0
     },
@@ -21,6 +29,10 @@
       "command": "cat labs/api/_stack/credentials.md",
       "aliases": [
         "cat credentials.md"
+      ],
+      "match": [
+        "cat credentials.md",
+        "cat labs/api/_stack/credentials.md"
       ],
       "output": "# Credential reference\n\nWhat the customer's integration team gave us. This is the sort of reference a\nsupport engineer normally has: enough to reproduce, never the production secret\nitself.\n\nAll values are synthetic and work only against this lab.\n\n## Webhook API keys\n\n| Key | State | Notes |\n|---|---|---|\n| `wk_live_active_3c95` | active | Issued 2026-08-12 during the scheduled rotation |\n| `wk_live_revoked_8f21` | revoked | Revoked 2026-08-12, replaced by the key above |\n\n## Report tokens\n\n| Token | Scopes | Notes |\n|---|---|---|\n| `tok_viewer_5d10` | `reports:read` | Default token issued to all workspace members |\n| `tok_admin_9b44` | `reports:read`, `reports:admin` | Required for report export |\n\n## Base URL\n\n`http://127.0.0.1:8101`\n\nThe v1 API was withdrawn on 2026-08-01. Current routes are served under `/v2`.",
       "exit": 0
@@ -30,12 +42,19 @@
       "aliases": [
         "curl http://127.0.0.1:8101/health"
       ],
+      "match": [
+        "curl -s http://127.0.0.1:8101/health",
+        "curl http://127.0.0.1:8101/health"
+      ],
       "output": "{\n  \"status\": \"healthy\",\n  \"request_id\": \"5a79e49a5f99\"\n}",
       "exit": 0
     },
     {
       "command": "curl -s -i -X POST http://127.0.0.1:8101/v2/webhooks/events \\\n     -H 'X-API-Key: wk_live_active_3c95' \\\n     -H 'Content-Type: application/json' \\\n     -d '{\"event\":\"order.created\",\"id\":\"evt_1\"}'",
       "aliases": [],
+      "match": [
+        "curl -s -i -X POST http://127.0.0.1:8101/v2/webhooks/events -H 'X-API-Key: wk_live_active_3c95' -H 'Content-Type: application/json' -d '{\"event\":\"order.created\",\"id\":\"evt_1\"}'"
+      ],
       "output": "HTTP/1.1 202 Accepted\nServer: ProveItAPI/2.0 Python/3.12.14\nDate: <timestamp>\nContent-Type: application/json\nContent-Length: 140\nX-Request-Id: ad77c2414835\n\n{\n  \"status\": \"accepted\",\n  \"workspace\": null,\n  \"event\": \"order.created\",\n  \"key_fingerprint\": \"30581cda\",\n  \"request_id\": \"ad77c2414835\"\n}",
       "exit": 0
     }

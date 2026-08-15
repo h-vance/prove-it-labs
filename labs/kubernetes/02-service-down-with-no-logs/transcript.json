@@ -7,12 +7,21 @@
         "kubectl get pods",
         "k get pods"
       ],
+      "match": [
+        "k get pods",
+        "kubectl -n tse-training get pods",
+        "kubectl get pods"
+      ],
       "output": "NAME                        READY   STATUS                       RESTARTS   AGE\norders-api-8744676f-qzkz7   0/1     CreateContainerConfigError   0          25s\norders-api-8744676f-vk5hh   0/1     CreateContainerConfigError   0          25s",
       "exit": 0
     },
     {
       "command": "kubectl -n tse-training logs -l app.kubernetes.io/name=orders-api --tail=5 2>&1 | head -5",
       "aliases": [
+        "kubectl logs"
+      ],
+      "match": [
+        "kubectl -n tse-training logs -l app.kubernetes.io/name=orders-api --tail=5 2>&1 | head -5",
         "kubectl logs"
       ],
       "output": "Error from server (BadRequest): container \"app\" in pod \"orders-api-8744676f-qzkz7\" is waiting to start: CreateContainerConfigError",
@@ -23,18 +32,29 @@
       "aliases": [
         "kubectl describe pod"
       ],
+      "match": [
+        "kubectl -n tse-training describe pod -l app.kubernetes.io/name=orders-api | grep -E 'State|Reason|Warning|couldn|not found' | head -12",
+        "kubectl describe pod"
+      ],
       "output": "    State:          Waiting\n      Reason:       CreateContainerConfigError\n    State:          Waiting\n      Reason:       CreateContainerConfigError",
       "exit": 0
     },
     {
       "command": "kubectl -n tse-training get deployment orders-api \\\n  -o jsonpath='{.spec.template.spec.containers[0].env[*].valueFrom.configMapKeyRef.key}{\"\\n\"}'",
       "aliases": [],
+      "match": [
+        "kubectl -n tse-training get deployment orders-api -o jsonpath='{.spec.template.spec.containers[0].env[*].valueFrom.configMapKeyRef.key}{\"\\n\"}'"
+      ],
       "output": "APP_SECRET_V2",
       "exit": 0
     },
     {
       "command": "kubectl -n tse-training get configmap orders-api-config -o jsonpath='{.data}' | tr ',' '\\n'",
       "aliases": [
+        "kubectl get configmap orders-api-config"
+      ],
+      "match": [
+        "kubectl -n tse-training get configmap orders-api-config -o jsonpath='{.data}' | tr ',' '\\n'",
         "kubectl get configmap orders-api-config"
       ],
       "output": "{\"APP_SECRET\":\"lab-secret\"\n\"LOG_LEVEL\":\"info\"}",

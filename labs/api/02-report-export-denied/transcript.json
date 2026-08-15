@@ -8,6 +8,11 @@
         "./request.sh",
         "bash labs/api/_stack/request.sh"
       ],
+      "match": [
+        "./request.sh",
+        "bash labs/api/_stack/request.sh",
+        "bash request.sh"
+      ],
       "output": "HTTP/1.1 403 Forbidden\n{\n  \"type\": \"https://proveit.invalid/errors/insufficient_scope\",\n  \"title\": \"Token lacks the required scope\",\n  \"status\": 403,\n  \"detail\": \"This token carries 'reports:read'. Exporting incident reports requires 'reports:admin'.\",\n  \"instance\": \"/v2/reports/incidents\",\n  \"code\": \"insufficient_scope\",\n  \"request_id\": \"35111207dbfb\",\n  \"token_fingerprint\": \"74ddce40\",\n  \"required_scope\": \"reports:admin\"\n}",
       "exit": 0
     },
@@ -16,12 +21,19 @@
       "aliases": [
         "curl -i http://127.0.0.1:8101/v2/reports/incidents"
       ],
+      "match": [
+        "curl -i http://127.0.0.1:8101/v2/reports/incidents",
+        "curl -s -i http://127.0.0.1:8101/v2/reports/incidents -H 'Authorization: Bearer tok_viewer_5d10'"
+      ],
       "output": "HTTP/1.1 403 Forbidden\nServer: ProveItAPI/2.0 Python/3.12.14\nDate: <timestamp>\nContent-Type: application/problem+json\nContent-Length: 405\nX-Request-Id: 0025553a64cd\n\n{\n  \"type\": \"https://proveit.invalid/errors/insufficient_scope\",\n  \"title\": \"Token lacks the required scope\",\n  \"status\": 403,\n  \"detail\": \"This token carries 'reports:read'. Exporting incident reports requires 'reports:admin'.\",\n  \"instance\": \"/v2/reports/incidents\",\n  \"code\": \"insufficient_scope\",\n  \"request_id\": \"0025553a64cd\",\n  \"token_fingerprint\": \"74ddce40\",\n  \"required_scope\": \"reports:admin\"\n}",
       "exit": 0
     },
     {
       "command": "curl -s -i http://127.0.0.1:8101/v2/reports/incidents",
       "aliases": [],
+      "match": [
+        "curl -s -i http://127.0.0.1:8101/v2/reports/incidents"
+      ],
       "output": "HTTP/1.1 401 Unauthorized\nServer: ProveItAPI/2.0 Python/3.12.14\nDate: <timestamp>\nContent-Type: application/problem+json\nContent-Length: 278\nX-Request-Id: f43a4127626d\n\n{\n  \"type\": \"https://proveit.invalid/errors/authorization_missing\",\n  \"title\": \"Bearer token required\",\n  \"status\": 401,\n  \"detail\": \"Send Authorization: Bearer <token>.\",\n  \"instance\": \"/v2/reports/incidents\",\n  \"code\": \"authorization_missing\",\n  \"request_id\": \"f43a4127626d\"\n}",
       "exit": 0
     },
@@ -30,12 +42,19 @@
       "aliases": [
         "cat credentials.md"
       ],
+      "match": [
+        "cat credentials.md",
+        "cat labs/api/_stack/credentials.md"
+      ],
       "output": "# Credential reference\n\nWhat the customer's integration team gave us. This is the sort of reference a\nsupport engineer normally has: enough to reproduce, never the production secret\nitself.\n\nAll values are synthetic and work only against this lab.\n\n## Webhook API keys\n\n| Key | State | Notes |\n|---|---|---|\n| `wk_live_active_3c95` | active | Issued 2026-08-12 during the scheduled rotation |\n| `wk_live_revoked_8f21` | revoked | Revoked 2026-08-12, replaced by the key above |\n\n## Report tokens\n\n| Token | Scopes | Notes |\n|---|---|---|\n| `tok_viewer_5d10` | `reports:read` | Default token issued to all workspace members |\n| `tok_admin_9b44` | `reports:read`, `reports:admin` | Required for report export |\n\n## Base URL\n\n`http://127.0.0.1:8101`\n\nThe v1 API was withdrawn on 2026-08-01. Current routes are served under `/v2`.",
       "exit": 0
     },
     {
       "command": "curl -s -i http://127.0.0.1:8101/v2/reports/incidents \\\n     -H 'Authorization: Bearer tok_admin_9b44'",
       "aliases": [],
+      "match": [
+        "curl -s -i http://127.0.0.1:8101/v2/reports/incidents -H 'Authorization: Bearer tok_admin_9b44'"
+      ],
       "output": "HTTP/1.1 200 OK\nServer: ProveItAPI/2.0 Python/3.12.14\nDate: <timestamp>\nContent-Type: application/json\nContent-Length: 166\nX-Request-Id: 739b45930288\n\n{\n  \"status\": \"authorized\",\n  \"report\": {\n    \"open_incidents\": 3,\n    \"services_healthy\": 12\n  },\n  \"token_fingerprint\": \"a0861b46\",\n  \"request_id\": \"739b45930288\"\n}",
       "exit": 0
     }

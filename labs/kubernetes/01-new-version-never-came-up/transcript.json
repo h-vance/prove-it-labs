@@ -7,12 +7,21 @@
         "kubectl get pods",
         "k get pods"
       ],
+      "match": [
+        "k get pods",
+        "kubectl -n tse-training get pods",
+        "kubectl get pods"
+      ],
       "output": "NAME                          READY   STATUS             RESTARTS   AGE\norders-api-77bc985956-75nq4   0/1     ImagePullBackOff   0          26s\norders-api-77bc985956-7sp66   0/1     ImagePullBackOff   0          26s",
       "exit": 0
     },
     {
       "command": "kubectl -n tse-training describe pod -l app.kubernetes.io/name=orders-api \\\n  | grep -E 'State|Reason|Image:|Warning' | head -12",
       "aliases": [
+        "kubectl describe pod"
+      ],
+      "match": [
+        "kubectl -n tse-training describe pod -l app.kubernetes.io/name=orders-api | grep -E 'State|Reason|Image:|Warning' | head -12",
         "kubectl describe pod"
       ],
       "output": "    Image:         python:3.12-alpne\n    State:          Waiting\n      Reason:       ImagePullBackOff\n    Image:         python:3.12-alpne\n    State:          Waiting\n      Reason:       ImagePullBackOff",
@@ -23,6 +32,10 @@
       "aliases": [
         "kubectl get events"
       ],
+      "match": [
+        "kubectl -n tse-training get events -o jsonpath='{range .items[?(@.reason==\"Failed\")]}{.message}{\"\\n\"}{end}' | sort -u | grep -v '^$'",
+        "kubectl get events"
+      ],
       "output": "Error: ErrImagePull\nError: ImagePullBackOff\nFailed to pull image \"python:3.12-alpne\": rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/library/python:3.12-alpne\": failed to resolve reference \"docker.io/library/python:3.12-alpne\": docker.io/library/python:3.12-alpne: not found",
       "exit": 0
     },
@@ -31,12 +44,20 @@
       "aliases": [
         "kubectl get deployment orders-api -o jsonpath image"
       ],
+      "match": [
+        "kubectl -n tse-training get deployment orders-api -o jsonpath='{.spec.template.spec.containers[0].image}{\"\\n\"}'",
+        "kubectl get deployment orders-api -o jsonpath image"
+      ],
       "output": "python:3.12-alpne",
       "exit": 0
     },
     {
       "command": "kubectl -n tse-training logs -l app.kubernetes.io/name=orders-api --tail=5 2>&1 | head -5",
       "aliases": [
+        "kubectl logs"
+      ],
+      "match": [
+        "kubectl -n tse-training logs -l app.kubernetes.io/name=orders-api --tail=5 2>&1 | head -5",
         "kubectl logs"
       ],
       "output": "Error from server (BadRequest): container \"app\" in pod \"orders-api-77bc985956-75nq4\" is waiting to start: trying and failing to pull image",

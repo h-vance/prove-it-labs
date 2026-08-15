@@ -7,6 +7,10 @@
         "bash run.sh",
         "bash labs/sql/_stack/run.sh"
       ],
+      "match": [
+        "bash labs/sql/_stack/run.sh",
+        "bash run.sh"
+      ],
       "output": "requests|avg_ms\n7500|191",
       "exit": 0
     },
@@ -15,12 +19,19 @@
       "aliases": [
         "bash explain.sh"
       ],
+      "match": [
+        "bash explain.sh",
+        "bash labs/sql/_stack/explain.sh \"SELECT count(*), avg(duration_ms)::int FROM api_requests WHERE customer_id = 7 AND requested_at >= TIMESTAMPTZ '2026-07-01' AND requested_at < TIMESTAMPTZ '2026-07-08';\""
+      ],
       "output": "QUERY PLAN\nAggregate  (cost=8017.04..8017.06 rows=1 width=12) (actual time=15.213..15.213 rows=1 loops=1)\n  Buffers: shared hit=2728\n  ->  Seq Scan on api_requests  (cost=0.00..7978.00 rows=7808 width=4) (actual time=0.006..14.926 rows=7500 loops=1)\n        Filter: ((requested_at >= '<timestamp>+00'::timestamp with time zone) AND (requested_at < '<timestamp>+00'::timestamp with time zone) AND (customer_id = 7))\n        Rows Removed by Filter: 292500\n        Buffers: shared hit=2728\nPlanning:\n  Buffers: shared hit=83\nPlanning Time: 0.212 ms\nExecution Time: 15.236 ms",
       "exit": 0
     },
     {
       "command": "docker compose -f labs/sql/_stack/compose.yaml exec -T \\\n  -e PGPASSWORD=demo-password postgres \\\n  psql -U support -d support_lab -A --pset=footer=off \\\n  -c \"SELECT count(*) AS total_rows FROM api_requests;\"",
       "aliases": [],
+      "match": [
+        "docker compose -f labs/sql/_stack/compose.yaml exec -T -e PGPASSWORD=demo-password postgres psql -U support -d support_lab -A --pset=footer=off -c \"SELECT count(*) AS total_rows FROM api_requests;\""
+      ],
       "output": "total_rows\n300000",
       "exit": 0
     },
@@ -29,12 +40,20 @@
       "aliases": [
         "\\d api_requests"
       ],
+      "match": [
+        "\\d api_requests",
+        "docker compose -f labs/sql/_stack/compose.yaml exec -T -e PGPASSWORD=demo-password postgres psql -U support -d support_lab -A --pset=footer=off -c \"SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'api_requests';\""
+      ],
       "output": "indexname|indexdef\napi_requests_pkey|CREATE UNIQUE INDEX api_requests_pkey ON public.api_requests USING btree (id)",
       "exit": 0
     },
     {
       "command": "cat labs/sql/_stack/query.sql",
       "aliases": [
+        "cat query.sql"
+      ],
+      "match": [
+        "cat labs/sql/_stack/query.sql",
         "cat query.sql"
       ],
       "output": "-- Per-account request summary for the first week of July.\n-- Edit this until the database can answer it without reading the whole table,\n-- then run `tse check`.\nSELECT count(*) AS requests, avg(duration_ms)::int AS avg_ms\nFROM api_requests\nWHERE customer_id = 7\n  AND requested_at >= TIMESTAMPTZ '2026-07-01'\n  AND requested_at <  TIMESTAMPTZ '2026-07-08';",

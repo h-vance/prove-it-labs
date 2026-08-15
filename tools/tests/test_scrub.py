@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import importlib.machinery
 import importlib.util
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -30,6 +31,11 @@ _spec = importlib.util.spec_from_loader("tse", _loader)
 tse = importlib.util.module_from_spec(_spec)
 sys.modules["tse"] = tse
 _loader.exec_module(tse)
+
+# Shared with site/scripts/check-terminal.mjs, which asserts the same cases
+# against the built page. Kept in one file so the two normalizers cannot drift
+# apart while both of their test suites stay green.
+FIXTURES = json.loads((ROOT / "tools" / "tests" / "fixtures" / "normalize.json").read_text())
 
 scrub = tse.scrub
 rules_that_fire = tse.rules_that_fire
@@ -288,6 +294,76 @@ class CommandParsing(unittest.TestCase):
 
     def test_normalization_preserves_case(self):
         self.assertEqual(tse.normalize_command("kubectl get PODS"), "kubectl get PODS")
+
+    def test_every_fixture_case_normalizes_as_recorded(self):
+        """The shared contract between this normalizer and the site's.
+
+        The terminal on the exercise page has to collapse a typed command the
+        same way this does, or a learner types something reasonable and gets
+        told it was never recorded. These cases are asserted twice: here, and
+        against the built page by site/scripts/check-terminal.mjs. One file, so
+        the two cannot quietly disagree about what they are implementing.
+        """
+        for case in FIXTURES:
+            with self.subTest(case["why"]):
+                self.assertEqual(tse.normalize_command(case["typed"]), case["normalized"])
+
+    def test_the_fixture_covers_more_than_the_trivial_case(self):
+        """A fixture list of identity cases proves nothing about either side."""
+        changed = [case for case in FIXTURES if case["typed"] != case["normalized"]]
+        self.assertGreaterEqual(len(changed), 5)
+
+
+class MatchKeys(unittest.TestCase):
+    """What the site looks a typed command up against."""
+
+    def test_keys_cover_the_command_and_every_alias(self):
+        keys = tse.match_keys("docker  ps -a", ["docker ps --all", "docker ps -a"])
+        self.assertEqual(keys, ["docker ps --all", "docker ps -a"])
+
+    def test_keys_are_deduplicated(self):
+        """An alias that normalizes onto the command is not a second key."""
+        self.assertEqual(tse.match_keys("docker ps -a", ["docker   ps -a"]), ["docker ps -a"])
+
+    def test_blank_aliases_are_dropped(self):
+        self.assertEqual(tse.match_keys("docker ps", ["", "   "]), ["docker ps"])
+
+    def test_an_alias_added_without_re_recording_is_caught(self):
+        """The one drift nothing else would notice.
+
+        Adding an alias to commands.txt changes no output and no exit code, so
+        every other comparison passes. What it changes is the lookup key, and
+        the symptom is a command that silently does nothing on the page.
+        """
+        entry = {"command": "docker ps -a", "output": "CONTAINER ID", "exit": 0}
+        recorded = {"entries": [{**entry, "aliases": [], "match": ["docker ps -a"]}]}
+        fresh = [{**entry, "aliases": ["docker ps --all"],
+                  "match": ["docker ps --all", "docker ps -a"]}]
+
+        drift = tse.compare_transcript(recorded, fresh)
+        self.assertEqual(len(drift), 1)
+        self.assertIn("spellings in commands.txt changed", drift[0])
+
+    def test_an_unchanged_recording_reports_no_drift(self):
+        entry = {"command": "docker ps -a", "aliases": ["docker ps --all"],
+                 "match": ["docker ps --all", "docker ps -a"],
+                 "output": "CONTAINER ID", "exit": 0}
+        self.assertEqual(tse.compare_transcript({"entries": [entry]}, [dict(entry)]), [])
+
+    def test_every_recorded_entry_carries_derivable_keys(self):
+        """A stored key that does not follow from its own command is stale.
+
+        The keys were backfilled into the existing recordings rather than
+        re-recorded, since they depend only on fields those files already held.
+        This is what makes that safe to have done.
+        """
+        for path in sorted((ROOT / "labs").glob("*/*/transcript.json")):
+            for entry in json.loads(path.read_text())["entries"]:
+                with self.subTest(f"{path.parent.name}:{entry['command'][:40]}"):
+                    self.assertEqual(
+                        entry.get("match"),
+                        tse.match_keys(entry["command"], entry["aliases"]),
+                    )
 
 
 if __name__ == "__main__":

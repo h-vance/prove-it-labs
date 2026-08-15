@@ -7,12 +7,21 @@
         "kubectl get pods",
         "k get pods"
       ],
+      "match": [
+        "k get pods",
+        "kubectl -n tse-training get pods",
+        "kubectl get pods"
+      ],
       "output": "NAME                          READY   STATUS    RESTARTS   AGE\norders-api-5bcc9b9944-2bll5   0/1     Running   0          40s\norders-api-5bcc9b9944-wr9cq   0/1     Running   0          40s",
       "exit": 0
     },
     {
       "command": "kubectl -n tse-training get pods --show-labels",
       "aliases": [
+        "kubectl get pods --show-labels"
+      ],
+      "match": [
+        "kubectl -n tse-training get pods --show-labels",
         "kubectl get pods --show-labels"
       ],
       "output": "NAME                          READY   STATUS    RESTARTS   AGE   LABELS\norders-api-5bcc9b9944-2bll5   0/1     Running   0          40s   app.kubernetes.io/name=orders-api,pod-template-hash=5bcc9b9944\norders-api-5bcc9b9944-wr9cq   0/1     Running   0          40s   app.kubernetes.io/name=orders-api,pod-template-hash=5bcc9b9944",
@@ -23,12 +32,20 @@
       "aliases": [
         "kubectl get service orders-api -o jsonpath selector"
       ],
+      "match": [
+        "kubectl -n tse-training get service orders-api -o jsonpath='{.spec.selector}{\"\\n\"}'",
+        "kubectl get service orders-api -o jsonpath selector"
+      ],
       "output": "{\"app.kubernetes.io/name\":\"orders-api\"}",
       "exit": 0
     },
     {
       "command": "kubectl -n tse-training get endpointslices -l kubernetes.io/service-name=orders-api",
       "aliases": [
+        "kubectl get endpointslices"
+      ],
+      "match": [
+        "kubectl -n tse-training get endpointslices -l kubernetes.io/service-name=orders-api",
         "kubectl get endpointslices"
       ],
       "output": "NAME               ADDRESSTYPE   PORTS   ENDPOINTS                 AGE\norders-api-6bz2z   IPv4          8080    <ip>,<ip>   40s",
@@ -39,12 +56,19 @@
       "aliases": [
         "kubectl describe pod"
       ],
+      "match": [
+        "kubectl -n tse-training describe pod -l app.kubernetes.io/name=orders-api | grep -E 'Readiness|Warning|refused' | head -8",
+        "kubectl describe pod"
+      ],
       "output": "    Readiness:  http-get http://:8081/ready delay=3s timeout=1s period=3s #success=1 #failure=3\n    Readiness:  http-get http://:8081/ready delay=3s timeout=1s period=3s #success=1 #failure=3",
       "exit": 0
     },
     {
       "command": "kubectl -n tse-training get deployment orders-api \\\n  -o jsonpath='{.spec.template.spec.containers[0].ports}{\"\\n\"}'",
       "aliases": [],
+      "match": [
+        "kubectl -n tse-training get deployment orders-api -o jsonpath='{.spec.template.spec.containers[0].ports}{\"\\n\"}'"
+      ],
       "output": "[{\"containerPort\":8080,\"name\":\"http\",\"protocol\":\"TCP\"}]",
       "exit": 0
     }

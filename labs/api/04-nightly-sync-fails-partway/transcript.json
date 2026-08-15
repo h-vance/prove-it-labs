@@ -8,6 +8,11 @@
         "./request.sh",
         "bash labs/api/_stack/request.sh"
       ],
+      "match": [
+        "./request.sh",
+        "bash labs/api/_stack/request.sh",
+        "bash request.sh"
+      ],
       "output": "page=1 HTTP 200\npage=2 HTTP 200\npage=3 HTTP 200\npage=4 HTTP 200\npage=5 HTTP 200\npage=6 HTTP 429\npage=7 HTTP 429\npage=8 HTTP 429",
       "exit": 0
     },
@@ -16,24 +21,38 @@
       "aliases": [
         "for i in $(seq 1 8); do curl ... done"
       ],
+      "match": [
+        "for i in $(seq 1 8); do curl ... done",
+        "for i in $(seq 1 8); do printf 'page %s -> ' \"$i\" curl -s -o /dev/null -w '%{http_code}\\n' -H 'X-API-Key: wk_live_sync_7a02' \"http://127.0.0.1:8101/v2/usage?page=$i\" done"
+      ],
       "output": "page 1 -> 200\npage 2 -> 200\npage 3 -> 200\npage 4 -> 200\npage 5 -> 200\npage 6 -> 429\npage 7 -> 429\npage 8 -> 429",
       "exit": 0
     },
     {
       "command": "for i in $(seq 1 8); do\n  curl -s -o /dev/null -D - -H 'X-API-Key: wk_live_headers_11b3' \\\n    \"http://127.0.0.1:8101/v2/usage?page=$i\"\ndone | grep -E 'HTTP/|RateLimit-|Retry-After' | tail -10",
       "aliases": [],
+      "match": [
+        "for i in $(seq 1 8); do curl -s -o /dev/null -D - -H 'X-API-Key: wk_live_headers_11b3' \"http://127.0.0.1:8101/v2/usage?page=$i\" done | grep -E 'HTTP/|RateLimit-|Retry-After' | tail -10"
+      ],
       "output": "HTTP/1.1 429 Too Many Requests\nRetry-After: 10\nRateLimit-Limit: 5\nRateLimit-Remaining: 0\nRateLimit-Reset: 10\nHTTP/1.1 429 Too Many Requests\nRetry-After: 10\nRateLimit-Limit: 5\nRateLimit-Remaining: 0\nRateLimit-Reset: 10",
       "exit": 0
     },
     {
       "command": "curl -s -o /dev/null -w 'page 6 after waiting -> %{http_code}\\n' \\\n  -H 'X-API-Key: wk_live_waited_44c1' \"http://127.0.0.1:8101/v2/usage?page=6\"",
       "aliases": [],
+      "match": [
+        "curl -s -o /dev/null -w 'page 6 after waiting -> %{http_code}\\n' -H 'X-API-Key: wk_live_waited_44c1' \"http://127.0.0.1:8101/v2/usage?page=6\""
+      ],
       "output": "page 6 after waiting -> 200",
       "exit": 0
     },
     {
       "command": "curl -s http://127.0.0.1:8101/health",
       "aliases": [
+        "curl http://127.0.0.1:8101/health"
+      ],
+      "match": [
+        "curl -s http://127.0.0.1:8101/health",
         "curl http://127.0.0.1:8101/health"
       ],
       "output": "{\n  \"status\": \"healthy\",\n  \"request_id\": \"393bf994a810\"\n}",

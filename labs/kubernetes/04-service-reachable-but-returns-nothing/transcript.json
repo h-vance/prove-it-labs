@@ -7,12 +7,21 @@
         "kubectl get pods",
         "k get pods"
       ],
+      "match": [
+        "k get pods",
+        "kubectl -n tse-training get pods",
+        "kubectl get pods"
+      ],
       "output": "NAME                          READY   STATUS    RESTARTS   AGE\norders-api-56cb47dd7f-4sq59   1/1     Running   0          30s\norders-api-56cb47dd7f-cfnxt   1/1     Running   0          30s",
       "exit": 0
     },
     {
       "command": "kubectl -n tse-training get endpointslices -l kubernetes.io/service-name=orders-api",
       "aliases": [
+        "kubectl get endpointslices"
+      ],
+      "match": [
+        "kubectl -n tse-training get endpointslices -l kubernetes.io/service-name=orders-api",
         "kubectl get endpointslices"
       ],
       "output": "NAME               ADDRESSTYPE   PORTS     ENDPOINTS   AGE\norders-api-fndrk   IPv4          <unset>   <unset>     30s",
@@ -23,6 +32,10 @@
       "aliases": [
         "kubectl get service orders-api -o jsonpath selector"
       ],
+      "match": [
+        "kubectl -n tse-training get service orders-api -o jsonpath='{.spec.selector}{\"\\n\"}'",
+        "kubectl get service orders-api -o jsonpath selector"
+      ],
       "output": "{\"app.kubernetes.io/name\":\"orders\"}",
       "exit": 0
     },
@@ -31,12 +44,20 @@
       "aliases": [
         "kubectl get pods --show-labels"
       ],
+      "match": [
+        "kubectl -n tse-training get pods --show-labels",
+        "kubectl get pods --show-labels"
+      ],
       "output": "NAME                          READY   STATUS    RESTARTS   AGE   LABELS\norders-api-56cb47dd7f-4sq59   1/1     Running   0          30s   app.kubernetes.io/name=orders-api,pod-template-hash=56cb47dd7f\norders-api-56cb47dd7f-cfnxt   1/1     Running   0          30s   app.kubernetes.io/name=orders-api,pod-template-hash=56cb47dd7f",
       "exit": 0
     },
     {
       "command": "kubectl -n tse-training get service orders-api",
       "aliases": [
+        "kubectl get service orders-api"
+      ],
+      "match": [
+        "kubectl -n tse-training get service orders-api",
         "kubectl get service orders-api"
       ],
       "output": "NAME         TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)    AGE\norders-api   ClusterIP   <ip>   <none>        8080/TCP   30s",
