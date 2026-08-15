@@ -1,0 +1,57 @@
+name: Something is broken
+description: A lab, the CLI, or the site behaving wrongly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If an exercise is failing when you believe you have fixed it, that is
+        worth reporting: a grader that rejects a correct answer is a bug, and
+        so is one that accepts a wrong one.
+
+  - type: input
+    id: exercise
+    attributes:
+      label: Which exercise
+      description: Leave blank if this is the CLI or the site rather than a lab.
+      placeholder: networking/01
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected to happen
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+      description: Paste the output. `tse check` prints the command it ran and what it read.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `tse doctor`
+      description: >
+        This is usually enough to tell a lab problem from an environment one.
+        Most of what it prints is version numbers.
+      render: shell
+    validations:
+      required: true
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where are you running it
+      options:
+        - GitHub Codespaces
+        - Linux
+        - macOS
+        - Windows with WSL
+        - Something else
+    validations:
+      required: true

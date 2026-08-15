@@ -1,0 +1,9 @@
+# Everything, for now.
+*                       @h-vance
+
+# Called out separately because a change here is a change to what the course
+# will accept, not just to how it works. The editorial rules, the privacy
+# patterns, and the scrubber all decide what ships.
+/tools/tse              @h-vance
+/tools/tests/           @h-vance
+/.github/workflows/     @h-vance

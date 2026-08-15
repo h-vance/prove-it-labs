@@ -1,0 +1,81 @@
+name: Propose an exercise
+description: Suggest a failure worth building an exercise around
+labels: [exercise]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The order of these questions is deliberate and matches the editorial
+        rule the build enforces: **the symptom comes before the cause.** If you
+        cannot describe the symptom without naming the cause, that is usually a
+        sign the exercise would give itself away.
+
+  - type: textarea
+    id: ticket
+    attributes:
+      label: The symptom, in the customer's words
+      description: >
+        What would the customer write in? No technology, no layer, no
+        diagnosis. Just what they see and what they have already ruled out.
+      placeholder: >
+        Our nightly export has not gone through for two nights. Nothing was
+        deployed on our side and your status page is green.
+    validations:
+      required: true
+
+  - type: textarea
+    id: cause
+    attributes:
+      label: The actual cause
+      description: What is really wrong, and why the symptom points away from it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: What proves it
+      description: >
+        The commands a support engineer would run, in order, and what each one
+        rules in or out. This is the part that becomes the exercise.
+    validations:
+      required: true
+
+  - type: textarea
+    id: wrong-fix
+    attributes:
+      label: The fix that works and should not be accepted
+      description: >
+        Most good exercises have one: the shortcut that makes the symptom go
+        away while making something worse. The grader gets written to reject it.
+        Leave this blank if there genuinely is not one.
+
+  - type: dropdown
+    id: track
+    attributes:
+      label: Track
+      options:
+        - Linux and CLI
+        - Docker
+        - Networking, DNS, TLS
+        - Kubernetes
+        - APIs
+        - SQL and PostgreSQL
+        - Observability
+        - Customer communication
+        - Mixed incidents
+        - Not sure
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: determinism
+    attributes:
+      label: Before you submit
+      options:
+        - label: >
+            The failure is deterministic. It does not depend on timing, on how
+            fast the machine is, or on anything outside the lab.
+        - label: >
+            It can be built from the images the course already uses, or the new
+            one is small and pinned.

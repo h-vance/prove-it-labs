@@ -9,6 +9,17 @@ on:
 permissions:
   contents: read
 
+# One exercise is one job, so a push starts more than twenty of them. Without
+# this, pushing twice in a minute leaves the first set running to completion
+# against a tree nobody is waiting on. site.yml has had this from the start;
+# this workflow is the expensive one and did not.
+#
+# Not cancelled on main. A run there is the record of whether a commit was good,
+# and cancelling it leaves a commit with no answer either way.
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   tests:
     name: tests

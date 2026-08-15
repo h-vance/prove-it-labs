@@ -1,0 +1,38 @@
+version: 2
+
+# The CLI and the labs have no dependencies at all, deliberately, so there is
+# nothing here for them. Everything below covers the two places this repository
+# does depend on somebody else: the site's build, and the actions CI runs.
+updates:
+  # Every action is pinned to a commit SHA rather than a tag, which is the right
+  # way to do it and has one failure mode: pins go stale and nobody notices,
+  # because a pinned action never breaks. This is what stops that.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci
+    labels:
+      - dependencies
+
+  - package-ecosystem: npm
+    directory: /site
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: site
+    labels:
+      - dependencies
+    groups:
+      # Astro, Starlight and the Preact integration move together, and taking
+      # them one at a time produces pull requests that cannot pass on their own.
+      astro:
+        patterns:
+          - astro
+          - "@astrojs/*"
+      # Playwright's library and its browser build have to match.
+      playwright:
+        patterns:
+          - "@playwright/*"
+          - playwright
