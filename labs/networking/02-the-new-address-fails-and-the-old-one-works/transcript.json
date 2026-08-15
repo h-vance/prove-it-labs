@@ -1,0 +1,75 @@
+{
+  "recorded": "2026-08-15",
+  "entries": [
+    {
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client /app/upload.sh",
+      "aliases": [
+        "/app/upload.sh",
+        "docker compose exec client /app/upload.sh"
+      ],
+      "match": [
+        "/app/upload.sh",
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T client /app/upload.sh",
+        "docker compose exec client /app/upload.sh"
+      ],
+      "output": "uploading to https://reports:8443/v1/exports\n\nupload failed (curl exit 60)\ncurl: (60) SSL: no alternative certificate subject name matches target hostname 'reports'\nMore details here: https://curl.se/docs/sslcerts.html\n\ncurl failed to verify the legitimacy of the server and therefore could not\nestablish a secure connection to it. To learn more about this situation and\nhow to fix it, please visit the webpage mentioned above.",
+      "exit": 60
+    },
+    {
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client sh -c 'GATEWAY_URL=https://gateway:8443 /app/upload.sh'",
+      "aliases": [
+        "GATEWAY_URL=https://gateway:8443 /app/upload.sh",
+        "upload.sh against gateway"
+      ],
+      "match": [
+        "GATEWAY_URL=https://gateway:8443 /app/upload.sh",
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T client sh -c 'GATEWAY_URL=https://gateway:8443 /app/upload.sh'",
+        "upload.sh against gateway"
+      ],
+      "output": "uploading to https://gateway:8443/v1/exports\n{\"status\": \"accepted\", \"bytes_received\": 32}\nupload finished",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client sh -c 'getent hosts reports; getent hosts gateway'",
+      "aliases": [
+        "getent hosts reports gateway",
+        "getent hosts reports"
+      ],
+      "match": [
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T client sh -c 'getent hosts reports; getent hosts gateway'",
+        "getent hosts reports",
+        "getent hosts reports gateway"
+      ],
+      "output": "<ip>        reports  reports\n<ip>        gateway  gateway",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client sh -c 'echo | openssl s_client -connect reports:8443 -servername reports 2>/dev/null | openssl x509 -noout -subject -dates -ext subjectAltName'",
+      "aliases": [
+        "openssl x509 -ext subjectAltName",
+        "openssl s_client -connect reports:8443"
+      ],
+      "match": [
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T client sh -c 'echo | openssl s_client -connect reports:8443 -servername reports 2>/dev/null | openssl x509 -noout -subject -dates -ext subjectAltName'",
+        "openssl s_client -connect reports:8443",
+        "openssl x509 -ext subjectAltName"
+      ],
+      "output": "subject=C=US, O=Prove It Lab, CN=gateway\nnotBefore=Apr  1 00:00:00 2025 GMT\nnotAfter=Dec 31 23:59:59 2035 GMT\nX509v3 Subject Alternative Name: \n    DNS:gateway",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T gateway sh -c 'for c in /certs/v*.pem; do echo \"$c\"; openssl x509 -in \"$c\" -noout -dates -ext subjectAltName; done'",
+      "aliases": [
+        "ls /certs",
+        "openssl x509 -in /certs/v1.pem -noout -ext subjectAltName"
+      ],
+      "match": [
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T gateway sh -c 'for c in /certs/v*.pem; do echo \"$c\"; openssl x509 -in \"$c\" -noout -dates -ext subjectAltName; done'",
+        "ls /certs",
+        "openssl x509 -in /certs/v1.pem -noout -ext subjectAltName"
+      ],
+      "output": "/certs/v1.pem\nnotBefore=Jan  1 00:00:00 2025 GMT\nnotAfter=Apr  1 00:00:00 2025 GMT\nX509v3 Subject Alternative Name: \n    DNS:gateway, DNS:reports\n/certs/v2.pem\nnotBefore=Apr  1 00:00:00 2025 GMT\nnotAfter=Dec 31 23:59:59 2035 GMT\nX509v3 Subject Alternative Name: \n    DNS:gateway\n/certs/v3.pem\nnotBefore=Apr  1 00:00:00 2025 GMT\nnotAfter=Dec 31 23:59:59 2035 GMT\nX509v3 Subject Alternative Name: \n    DNS:gateway, DNS:reports",
+      "exit": 0
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+# The gateway's live configuration.
+#
+# GATEWAY_CERT names which of the certificates issued by the internal CA the
+# gateway presents to callers. The versions are in /certs on the gateway.
+#
+# The customer was migrated onto the reports address during last week's work.
+#
+# Rotated to v3, which the internal CA issued to cover both names. v2 covers
+# only gateway, which is what broke the migration.
+services:
+  gateway:
+    environment:
+      GATEWAY_CERT: /certs/v3.pem
+
+  client:
+    environment:
+      GATEWAY_URL: https://reports:8443

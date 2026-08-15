@@ -1,0 +1,14 @@
+# The gateway's live configuration.
+#
+# GATEWAY_CERT names which of the certificates issued by the internal CA the
+# gateway presents to callers. The versions are in /certs on the gateway.
+#
+# Rotated to v2, which the internal CA issued in April 2025 to replace v1.
+services:
+  gateway:
+    environment:
+      GATEWAY_CERT: /certs/v2.pem
+
+  client:
+    environment:
+      GATEWAY_URL: https://gateway:8443

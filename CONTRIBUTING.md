@@ -43,6 +43,38 @@ python3 -m venv /tmp/yamlvenv && /tmp/yamlvenv/bin/pip install -q pyyaml
 `test_content.py` enforces most of the rules on this page, so a violation is a
 failing build rather than a review comment.
 
+## Adding a track
+
+Most exercises belong to a track that already exists. If yours needs a new one,
+there are three worked examples to copy from: `mixed` borrows another track's
+stack, `communication` has no system at all, and `networking` brought up a new
+one. In order:
+
+1. **Add the track to `TRACK_ORDER` in `tools/tse`** and to `TRACK_LABELS` in
+   `site/src/lib/labs.ts`. Nothing else on the site needs touching. Pages are
+   generated from `labs/`, so the track appears once an exercise exists in it.
+2. **Decide whether it needs a stack at all.** `stack: none` is a real option
+   and the communication track uses it. If your exercises fit an existing
+   stack, set `stack_source` and write no new one, as `mixed` does.
+3. **If it does need one**, create `labs/<track>/_stack/` with a `compose.yaml`.
+   Copy the resource limits and hardening from an existing stack rather than
+   writing them fresh: `read_only`, `cap_drop`, `no-new-privileges`, and the
+   memory, CPU and pid caps are there so a lab cannot run away with a laptop.
+4. **Publish a port only if the learner should reach it from the host.** Two
+   tracks deliberately publish nothing. If the interesting client behavior is
+   version dependent, as it is for anything doing TLS, run the client inside a
+   container so every machine sees the same output. A host `curl` printed two
+   different exit codes for one fault and cost a scrub rule to fix.
+5. **Every filename an exercise writes into a shared `_stack` must be in
+   `.gitignore`.** `test_content.py` fails the build if one is missing, because
+   committing it would freeze one exercise's broken state into the repository.
+6. **Add the track to the table in `README.md`,** and say honestly what it does
+   and does not yet cover.
+
+Then record as you go rather than in a pass at the end, and expect the first CI
+run to find a difference between your machine and the runner. Every track so far
+has produced at least one.
+
 ## Rules that are not negotiable
 
 **The ticket never names the technology.** Write what the customer would

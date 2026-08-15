@@ -1,0 +1,34 @@
+id: networking/01-nightly-upload-stopped-and-nothing-changed
+track: networking
+title: The nightly upload stopped and nothing changed
+proof_question: Can I prove what the server is presenting, rather than that it is up?
+stack: compose
+tier: core
+difficulty: 2
+minutes: 25
+
+commands_introduced:
+  - getent hosts
+  - nc -z
+  - openssl s_client
+  - openssl x509
+
+evidence_layers:
+  - the error the client returned
+  - whether the name resolves and the port accepts
+  - what the server presents to a caller
+  - the dates on it
+
+interview_relevance: >
+  Everybody can say a certificate expired. The question that separates answers
+  is what you did before you knew that, because at the start this looks like a
+  network problem, a firewall change, or an outage. Being able to say that the
+  name resolved, the port accepted, the service logged nothing, and the failure
+  was therefore on the client side of the connection is the part worth hearing.
+
+teaches: >
+  A service can be entirely healthy and still be unusable, because whether a
+  caller accepts what a server presents is decided by the caller. A failure at
+  that stage never reaches the application, so the server logs nothing and its
+  own health checks stay green. Silence in the server log is evidence about
+  where the failure happened, not evidence that there was not one.

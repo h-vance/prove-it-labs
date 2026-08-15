@@ -1,0 +1,70 @@
+# The customer's nightly upload, run on demand. It never sends the export.
+# alias: /app/upload.sh
+# alias: docker compose exec client /app/upload.sh
+# wait: 10
+# keep: certificate has expired, upload failed
+docker compose -f labs/networking/_stack/compose.yaml \
+               -f labs/networking/_stack/compose.override.yaml \
+               exec -T client /app/upload.sh
+---
+# The boring things first. The name resolves.
+# alias: getent hosts gateway
+# alias: docker compose exec client getent hosts gateway
+# keep: gateway
+docker compose -f labs/networking/_stack/compose.yaml \
+               -f labs/networking/_stack/compose.override.yaml \
+               exec -T client getent hosts gateway
+---
+# And the port accepts connections, so nothing in between is dropping them.
+# alias: nc -z gateway 8443
+# alias: nc -z -w 3 gateway 8443
+# keep: gateway:8443 open
+docker compose -f labs/networking/_stack/compose.yaml \
+               -f labs/networking/_stack/compose.override.yaml \
+               exec -T client sh -c 'nc -z -w 3 gateway 8443 && echo "gateway:8443 open"'
+---
+# What the gateway logged while two uploads were failing.
+#
+# One line, from startup. This reads like a dead end and is the opposite: a
+# request that had arrived would be here, so no request was ever sent. The
+# caller hung up before asking for anything.
+# alias: docker compose logs gateway
+# alias: logs gateway
+# keep: server_started
+docker compose -f labs/networking/_stack/compose.yaml \
+               -f labs/networking/_stack/compose.override.yaml \
+               logs gateway
+---
+# So ask the port what it presents, before any request is sent.
+# alias: openssl s_client | openssl x509
+# alias: openssl x509 -noout -dates
+# keep: notBefore=Jan, notAfter=Apr, CN=gateway
+docker compose -f labs/networking/_stack/compose.yaml \
+               -f labs/networking/_stack/compose.override.yaml \
+               exec -T client sh -c 'echo | openssl s_client -connect gateway:8443 -servername gateway 2>/dev/null | openssl x509 -noout -subject -dates -ext subjectAltName'
+---
+# The same connection unfiltered, which is the command most people reach for
+# first. The verification failure is stated twice, once as the chain is walked
+# and once in the summary at the end.
+#
+# The body of the certificate is folded away when this is compared. It is the
+# only thing in this output that differs between two builds of the image, and
+# it is the only part that is not evidence.
+# alias: openssl s_client -connect gateway:8443
+# alias: openssl s_client
+# keep: verify error:num=10, Verify return code: 10, NotAfter: Apr
+docker compose -f labs/networking/_stack/compose.yaml \
+               -f labs/networking/_stack/compose.override.yaml \
+               exec -T client sh -c 'echo | openssl s_client -connect gateway:8443 -servername gateway'
+---
+# Every version the internal CA has issued, with the dates on each.
+#
+# Worth doing rather than reaching for the highest number. Reading the dates is
+# the habit; assuming the newest file is the right one is how the next exercise
+# starts.
+# alias: ls /certs
+# alias: openssl x509 -in /certs/v2.pem -noout -dates
+# keep: v1.pem, v2.pem, v3.pem
+docker compose -f labs/networking/_stack/compose.yaml \
+               -f labs/networking/_stack/compose.override.yaml \
+               exec -T gateway sh -c 'for c in /certs/v*.pem; do echo "$c"; openssl x509 -in "$c" -noout -dates -ext subjectAltName; done'

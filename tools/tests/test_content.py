@@ -88,12 +88,18 @@ SPOILER_TERMS = re.compile(
     r"rate.?limit\w*|throttl\w*|scopes?|revok\w*|deprecat\w*|"
     r"dns|hostname|localhost|"
     # SQL, networking, Linux, and observability vocabulary. Deliberately not
-    # banned: "report", "slow", "disk", "space", "log", and "certificate
-    # warning" as a user would phrase it, because those are what a customer
-    # genuinely says and a lint that fights good writing gets switched off.
+    # banned: "report", "slow", "disk", "space", and "log", because those are
+    # what a customer genuinely says and a lint that fights good writing gets
+    # switched off.
+    #
+    # "certificate" is banned, and this comment used to claim the opposite. On
+    # a track where the whole question is which of several trust failures it
+    # is, a customer who says the word has handed over the layer. A customer
+    # describing the browser asking whether to continue has not, and that is
+    # also closer to how somebody without the vocabulary actually reports it.
     r"certificates?|tls|ssl|x509|cipher|handshake|"
     r"index|indexes|indices|joins?|seq scan|query plan|"
-    r"inode|file descriptor|chmod|chown|umask|chmod|"
+    r"inode|file descriptor|chmod|chown|umask|"
     r"metrics?|percentile|p9[59]|histogram|cardinality|"
     r"40[0-9]|41[0-9]|42[0-9]|50[0-9]"
     r")\b",

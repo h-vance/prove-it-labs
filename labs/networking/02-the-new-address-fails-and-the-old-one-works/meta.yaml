@@ -1,0 +1,34 @@
+id: networking/02-the-new-address-fails-and-the-old-one-works
+track: networking
+title: The new address fails and the old one works
+proof_question: Can I prove the server is refusing the name rather than the caller?
+stack: compose
+tier: core
+difficulty: 3
+minutes: 30
+prerequisites:
+  - networking/01-nightly-upload-stopped-and-nothing-changed
+
+commands_introduced:
+  - openssl x509 -ext subjectAltName
+  - openssl s_client -servername
+
+evidence_layers:
+  - the error the client returned, and how it differs from last time
+  - both addresses tried against the same server
+  - the names the server's certificate actually covers
+
+interview_relevance: >
+  This is the follow-up question after somebody answers the expiry one. Two
+  failures that print the same code and the same paragraph, with one line
+  between them, and being able to say what that line means is the difference
+  between having read an error and having recognized one. It also tests
+  whether you notice that a service answering to two names is not the same as
+  a server that can prove it owns both.
+
+teaches: >
+  A certificate proves a server owns particular names, not that it is the
+  right server. Adding a name to a service is a change to the service, and
+  unless the certificate is reissued to cover it, the new name is unverifiable
+  even though it reaches exactly the same process. The most common way this
+  arrives is a reissue that quietly drops a name nobody was tracking.

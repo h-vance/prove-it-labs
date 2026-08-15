@@ -124,14 +124,19 @@ prose, which includes a lot of very good engineers.
 | Mixed incidents | 2 | Available |
 | Customer communication | 2 | Available |
 | Linux and CLI foundations | 2 | Available |
-| Networking, DNS, TLS | | Next |
-| Observability | | Planned |
+| Networking, DNS, TLS | 2 | Available, both on TLS so far |
+| Observability | | Next |
 
 Some exercises are built as pairs on purpose. `docker/02` and `docker/03`
 present the customer with the same symptom and resolve to different causes, as
 do `kubernetes/04` and `kubernetes/05`. In each pair the second ticket has the
 customer confidently rule out the previous cause, and be right to. Learning a
 fix rather than a method is the failure mode this course is trying to prevent.
+
+The networking pair goes one step further: `networking/02` is caused by the fix
+for `networking/01`. Both failures print the same exit code and the same closing
+paragraph, one line apart, and the second ticket arrives a week after the first
+looking like an unrelated migration problem.
 
 **Mixed incidents work differently.** In every other track the folder tells you
 where to look before you have read a word. There, it does not: the ticket names

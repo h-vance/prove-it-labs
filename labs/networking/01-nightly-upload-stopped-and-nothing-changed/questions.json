@@ -1,0 +1,77 @@
+[
+  {
+    "question": "Two uploads failed and the gateway's log had one line in it, from startup. What did that establish?",
+    "options": [
+      {
+        "text": "That no request ever reached the application, so the connection was abandoned before one was sent",
+        "correct": true,
+        "explanation": "Exactly, and it is the most useful thing you learn all exercise. A request that arrived would have been logged. None was, so the caller decided against the server before asking it for anything, which puts the failure on the client side of a connection to a perfectly healthy service."
+      },
+      {
+        "text": "That the gateway's logging was misconfigured and needs fixing before the incident can be diagnosed",
+        "correct": false,
+        "explanation": "The log worked: it recorded startup, and it recorded every successful upload once the fix landed. Chasing the logging would have been an afternoon spent proving that a component was fine."
+      },
+      {
+        "text": "That the uploads never left the customer's network",
+        "correct": false,
+        "explanation": "They left it. The connection was established and the server sent its certificate, which is precisely how the client got something to object to. Nothing about an empty application log distinguishes a connection that was never made from one that was made and then dropped."
+      },
+      {
+        "text": "That the gateway was down during both attempts and recovered before anyone looked",
+        "correct": false,
+        "explanation": "It was up throughout, and you can show it: the port accepted connections and the healthcheck never failed. An intermittent outage is a reasonable early theory and this is the evidence that rules it out."
+      }
+    ]
+  },
+  {
+    "question": "Their engineer opened the address in a browser and the page loaded, after clicking through a prompt. What did that prove?",
+    "options": [
+      {
+        "text": "That the problem is in the customer's job rather than in anything on your side",
+        "correct": false,
+        "explanation": "Their job behaved correctly throughout. It refused something it could not verify, which is the entire reason to check, and the thing it refused was being served by your gateway."
+      },
+      {
+        "text": "That the service was running, which was never in question, and nothing about whether an unattended caller would accept it",
+        "correct": true,
+        "explanation": "Right on both halves. The browser refused as well, then offered a human the option to continue and he took it. A nightly job has nobody to ask, so the same refusal ends differently. Two clients disagreeing about the same server is a fact about the clients."
+      },
+      {
+        "text": "That the failure was intermittent, since one client succeeded and another did not",
+        "correct": false,
+        "explanation": "Both attempts failed identically every time. What differed was that one client could ask a person for permission to proceed and the other could not, and that is a difference in kind rather than in timing."
+      },
+      {
+        "text": "That the browser and the job were reaching different servers",
+        "correct": false,
+        "explanation": "Same address, same server, same file being presented. Worth ruling out rather than assuming, but the prompt he clicked through is the tell that the browser saw exactly what the job saw."
+      }
+    ]
+  },
+  {
+    "question": "Turning off the client's verification would have fixed tonight's upload and every upload after it. Why is that not the fix?",
+    "options": [
+      {
+        "text": "It would be slower to roll out than rotating the certificate",
+        "correct": false,
+        "explanation": "It is a one-line change either way, and the client-side one would arguably land faster. Effort is not what separates these two."
+      },
+      {
+        "text": "It would break the customer's other integrations",
+        "correct": false,
+        "explanation": "It would not have to touch anything else. The reason to refuse it survives even when it is perfectly well scoped, which is what makes it worth being clear about."
+      },
+      {
+        "text": "It removes the check that detected the problem, so the next time something wrong answers on that address the data is uploaded to it without complaint",
+        "correct": true,
+        "explanation": "That is it. The check was not a bug in the customer's job, it was the only component in the whole incident that noticed anything. Switching it off converts a loud, correct, once-a-year failure into a silent one with much worse consequences."
+      },
+      {
+        "text": "It would not actually have worked",
+        "correct": false,
+        "explanation": "It would have worked immediately and kept working, and that is what makes it tempting. A wrong fix that fails is easy to reject. This one is dangerous precisely because it succeeds."
+      }
+    ]
+  }
+]

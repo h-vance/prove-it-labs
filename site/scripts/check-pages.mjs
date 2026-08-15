@@ -31,8 +31,20 @@ const DIST = join(SITE, "dist");
  * Raw bytes, not compressed. The wire cost is smaller (that same page is 16KB
  * gzipped) but compression ratios move with content, and a budget that shifts
  * underneath you is a budget nobody trusts.
+ *
+ * Raised from 90,000 when the networking track landed at 85,679. That original
+ * number was an estimate: it was set before any verbose track existed, from a
+ * guess that a transcript costs about 5KB. Some do. `openssl s_client` prints
+ * forty lines, which is what a support engineer actually runs first and so is
+ * worth recording, and that page carries seven commands rather than five.
+ *
+ * Raising a budget because you hit it is how budgets stop meaning anything, so
+ * the reasoning matters more than the number. The content was checked first and
+ * is legitimate rather than bloat, the certificate body it used to carry is now
+ * folded away at write time, and 100,000 still fails on anything that doubles a
+ * page, which is the class of regression this exists to catch.
  */
-const MAX_PAGE_BYTES = 90_000;
+const MAX_PAGE_BYTES = 100_000;
 
 /**
  * Total JavaScript, which in a repository whose defining constraint is having

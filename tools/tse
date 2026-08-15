@@ -319,6 +319,29 @@ TRUNCATION_NOTE = "... output truncated. Run it for real to see the rest."
 # "7500|191" is the answer to sql/03, not noise, and a tidy \d+ms rule would
 # quietly delete the thing the exercise is about.
 SCRUB_RULES: list[tuple[str, "re.Pattern[str]", str]] = [
+    # The body of a certificate, and it has to come first.
+    #
+    # The networking stack issues its certificates when the image is built, so
+    # every field a learner reads is fixed but the key behind them is new each
+    # time. Two builds of the same image therefore differ in exactly these
+    # lines and nowhere else, which was measured rather than assumed: 28 lines
+    # moved between two independent builds and 27 of them were this block.
+    #
+    # A privacy rule, and the reasoning is the same one the addresses below
+    # get. Every field a learner reads here is fixed by the lab; this block is
+    # the public half of a keypair minted from whatever entropy the machine
+    # running the build happened to have. It describes the host rather than the
+    # exercise, so it never needs to reach disk, and folding it at write time
+    # keeps 27 lines of base64 out of both the recording and the page that
+    # embeds it. The dates, the subject, the issuer and the alternative names
+    # sit outside the block and are the evidence, so they are left alone.
+    #
+    # First in the list because `digest` below would otherwise be free to fire
+    # on a base64 line that happened to be all hex and leave a placeholder in
+    # the middle of the block, which this pattern could then no longer span.
+    ("certificate-body", re.compile(
+        r"(-----BEGIN CERTIFICATE-----\n)[A-Za-z0-9+/=\s]+?(-----END CERTIFICATE-----)"),
+        r"\1<certificate>\n\2"),
     ("sha256", re.compile(r"\bsha256:[0-9a-f]{12,64}\b"), "sha256:<digest>"),
     ("digest", re.compile(r"\b[0-9a-f]{64}\b"), "<digest>"),
     # The first column of `docker ps`. Anchored to the line start so a short
@@ -440,9 +463,16 @@ SCRUB_RULES: list[tuple[str, "re.Pattern[str]", str]] = [
     # every time the image is rebuilt. Month names are listed out rather than
     # matched as "three capitalized letters", so this cannot swallow an
     # arbitrary word that happens to sit before two numbers.
+    #
+    # The lookahead on the clock form is what keeps this off a certificate.
+    # `openssl x509 -dates` prints `notAfter=Apr  1 00:00:00 2025 GMT`, which
+    # begins with exactly the month, day and HH:MM that `ls -l` produces, so
+    # without it this rule folded away the expiry date that the whole
+    # networking track turns on. `ls` prints HH:MM and stops; a certificate
+    # carries seconds, and that is the difference the rule reads.
     ("ls-date", re.compile(
         r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) +\d{1,2} +"
-        r"(?:\d{2}:\d{2}|\d{4})\b"), "<date>"),
+        r"(?:\d{2}:\d{2}(?!:)|\d{4})\b"), "<date>"),
     # One fault, two curl messages, decided by the host rather than by the lab.
     # A published port whose target has nothing behind it is closed cleanly by
     # the userland proxy on Docker Desktop and reset by the kernel on Linux, so
@@ -498,7 +528,7 @@ SCRUB_RULES: list[tuple[str, "re.Pattern[str]", str]] = [
 # id and an uptime say nothing about whose laptop this was, and replacing them
 # in storage would turn every table into ragged columns of placeholders for no
 # privacy gain at all.
-PRIVACY_RULES = {"iso-timestamp", "rfc1123-timestamp", "private-ip"}
+PRIVACY_RULES = {"iso-timestamp", "rfc1123-timestamp", "private-ip", "certificate-body"}
 
 
 def scrub(text: str, *, privacy_only: bool = False) -> str:

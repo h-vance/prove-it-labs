@@ -1,0 +1,12 @@
+# The gateway's live configuration.
+#
+# GATEWAY_CERT names which of the certificates issued by the internal CA the
+# gateway presents to callers. The versions are in /certs on the gateway.
+services:
+  gateway:
+    environment:
+      GATEWAY_CERT: /certs/v1.pem
+
+  client:
+    environment:
+      GATEWAY_URL: https://gateway:8443

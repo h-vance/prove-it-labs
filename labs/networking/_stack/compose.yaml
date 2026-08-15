@@ -1,0 +1,58 @@
+name: proveit-networking
+
+services:
+  gateway:
+    build:
+      context: .
+      target: gateway
+    # The second name the gateway answers to. The customer was moved onto it
+    # during a migration, and one of the exercises turns on the fact that a
+    # service answering to two names is not the same as a certificate covering
+    # both of them.
+    networks:
+      default:
+        aliases:
+          - reports
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    cpus: 0.50
+    pids_limit: 100
+    healthcheck:
+      # Deliberately not a TLS check. A healthcheck that verified the
+      # certificate would mark the container unhealthy in the exercise where
+      # the certificate is the problem, and Compose would then sit waiting on a
+      # service that is running perfectly. The gateway's health is whether it
+      # is listening; whether a caller will accept what it presents is a
+      # different question and is the one being taught.
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8443), timeout=2)"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  client:
+    build:
+      context: .
+      target: client
+    depends_on:
+      gateway:
+        condition: service_healthy
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    cpus: 0.50
+    pids_limit: 100
+
+# No published port, the same as the Linux track and for a related reason.
+#
+# From the host, curl would fail on two things at once: the lab CA is not in
+# the host's trust store, and the certificate names the gateway rather than
+# 127.0.0.1. A learner would be looking at a real error that is not the error
+# the exercise is about. Everything here runs in the client container, where
+# the trust store is the customer's and the failure is the customer's.

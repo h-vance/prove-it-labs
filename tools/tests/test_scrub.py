@@ -91,6 +91,17 @@ SAMPLES: dict[str, str] = {
         "app.kubernetes.io/name=orders-api,pod-template-hash=56cb47dd7f"
     ),
     "ls-date": "-rw-r-----    1 root     reporting       78 Aug 15 14:16 credentials.conf",
+    # Two builds of the networking image issue the same certificate fields over
+    # a fresh key, so this block is the only thing in `openssl s_client` output
+    # that moves. Measured: 28 lines differed between two independent builds
+    # and 27 of them were this.
+    "certificate-body": (
+        "-----BEGIN CERTIFICATE-----\n"
+        "MIIDBjCCAe6gAwIBAgIBCzANBgkqhkiG9w0BAQsFADAaMRgwFgYDVQQDDA9Qcm92\n"
+        "ZSBJdCBMYWIgQ0EwHhcNMjUwMTAxMDAwMDAwWhcNMjUwNDAxMDAwMDAwWjASMRAw\n"
+        "nRbKoPpc2pBPBw==\n"
+        "-----END CERTIFICATE-----"
+    ),
     # Recorded on Docker Desktop. A Linux runner produced curl: (56) for the
     # identical fault.
     "curl-accepted-then-nothing": "curl: (52) Empty reply from server",
@@ -255,6 +266,49 @@ class RulesDoNotOverReach(unittest.TestCase):
         strict = "-rw-r-----    1 root     reporting       78 Aug 15 14:16 credentials.conf"
         loose = "-rw-r--r--    1 root     reporting       78 Aug 15 14:16 credentials.conf"
         self.assertNotEqual(scrub(strict), scrub(loose))
+
+    def test_a_certificate_date_is_not_mistaken_for_a_listing_date(self):
+        """Caught while recording networking/01, before it reached CI.
+
+        `openssl x509 -dates` opens with the same month, day and clock that
+        `ls -l` prints, so the listing rule swallowed the expiry that the whole
+        exercise turns on. The rule now reads the seconds, which `ls` never
+        prints, and this is what stops it regressing.
+        """
+        dates = "notBefore=Jan  1 00:00:00 2025 GMT\nnotAfter=Apr  1 00:00:00 2025 GMT"
+        self.assertNotIn("<date>", scrub(dates))
+        for evidence in ("2025", "notAfter", "Apr"):
+            self.assertIn(evidence, scrub(dates))
+
+    def test_a_certificate_that_expires_on_a_different_day_still_differs(self):
+        """The rule above must not be so generous that a rotation looks identical."""
+        expired = "notAfter=Apr  1 00:00:00 2025 GMT"
+        current = "notAfter=Dec 31 23:59:59 2035 GMT"
+        self.assertNotEqual(scrub(expired), scrub(current))
+
+    def test_a_certificate_body_folds_but_everything_around_it_survives(self):
+        """Two builds issue identical fields over a fresh key, and only this moves."""
+        def block(body: str) -> str:
+            return (
+                "subject=C=US, O=Prove It Lab, CN=gateway\n"
+                "-----BEGIN CERTIFICATE-----\n"
+                f"{body}\n"
+                "-----END CERTIFICATE-----\n"
+                "notAfter=Apr  1 00:00:00 2025 GMT"
+            )
+
+        first = block("MIIDBjCCAe6gAwIBAgIBCzANBgkqhkiG9w0BAQsFADAaMRgwFgYDVQQDDA9Qcm92")
+        second = block("aCMutIgKC1CyBgQwIBAgIBCzANBgkqhkiG9w0BAQsFADAaMRgwFgYDVQQDDA9Qcm")
+        self.assertEqual(scrub(first), scrub(second))
+        for evidence in ("CN=gateway", "notAfter=Apr", "2025"):
+            self.assertIn(evidence, scrub(first))
+
+    def test_folding_the_body_does_not_hide_a_different_certificate(self):
+        """The fields are what identify it, so a changed name must still differ."""
+        body = "-----BEGIN CERTIFICATE-----\nMIIDBjCCAe6gAwIBAgIBCzAN\n-----END CERTIFICATE-----"
+        one_name = f"X509v3 Subject Alternative Name:\n    DNS:gateway\n{body}"
+        two_names = f"X509v3 Subject Alternative Name:\n    DNS:gateway, DNS:reports\n{body}"
+        self.assertNotEqual(scrub(one_name), scrub(two_names))
 
     def test_the_age_column_folds_even_when_labels_follow_it(self):
         """Found the hard way: a rule anchored to end of line, and a column after it.

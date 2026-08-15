@@ -1,0 +1,103 @@
+{
+  "recorded": "2026-08-15",
+  "entries": [
+    {
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client /app/upload.sh",
+      "aliases": [
+        "/app/upload.sh",
+        "docker compose exec client /app/upload.sh"
+      ],
+      "match": [
+        "/app/upload.sh",
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T client /app/upload.sh",
+        "docker compose exec client /app/upload.sh"
+      ],
+      "output": "uploading to https://gateway:8443/v1/exports\n\nupload failed (curl exit 60)\ncurl: (60) SSL certificate OpenSSL verify result: certificate has expired (10)\nMore details here: https://curl.se/docs/sslcerts.html\n\ncurl failed to verify the legitimacy of the server and therefore could not\nestablish a secure connection to it. To learn more about this situation and\nhow to fix it, please visit the webpage mentioned above.",
+      "exit": 60
+    },
+    {
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client getent hosts gateway",
+      "aliases": [
+        "getent hosts gateway",
+        "docker compose exec client getent hosts gateway"
+      ],
+      "match": [
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T client getent hosts gateway",
+        "docker compose exec client getent hosts gateway",
+        "getent hosts gateway"
+      ],
+      "output": "<ip>        gateway  gateway",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client sh -c 'nc -z -w 3 gateway 8443 && echo \"gateway:8443 open\"'",
+      "aliases": [
+        "nc -z gateway 8443",
+        "nc -z -w 3 gateway 8443"
+      ],
+      "match": [
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T client sh -c 'nc -z -w 3 gateway 8443 && echo \"gateway:8443 open\"'",
+        "nc -z -w 3 gateway 8443",
+        "nc -z gateway 8443"
+      ],
+      "output": "gateway:8443 open",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               logs gateway",
+      "aliases": [
+        "docker compose logs gateway",
+        "logs gateway"
+      ],
+      "match": [
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml logs gateway",
+        "docker compose logs gateway",
+        "logs gateway"
+      ],
+      "output": "gateway-1  | level=info event=server_started port=8443",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client sh -c 'echo | openssl s_client -connect gateway:8443 -servername gateway 2>/dev/null | openssl x509 -noout -subject -dates -ext subjectAltName'",
+      "aliases": [
+        "openssl s_client | openssl x509",
+        "openssl x509 -noout -dates"
+      ],
+      "match": [
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T client sh -c 'echo | openssl s_client -connect gateway:8443 -servername gateway 2>/dev/null | openssl x509 -noout -subject -dates -ext subjectAltName'",
+        "openssl s_client | openssl x509",
+        "openssl x509 -noout -dates"
+      ],
+      "output": "subject=C=US, O=Prove It Lab, CN=gateway\nnotBefore=Jan  1 00:00:00 2025 GMT\nnotAfter=Apr  1 00:00:00 2025 GMT\nX509v3 Subject Alternative Name: \n    DNS:gateway, DNS:reports",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client sh -c 'echo | openssl s_client -connect gateway:8443 -servername gateway'",
+      "aliases": [
+        "openssl s_client -connect gateway:8443",
+        "openssl s_client"
+      ],
+      "match": [
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T client sh -c 'echo | openssl s_client -connect gateway:8443 -servername gateway'",
+        "openssl s_client",
+        "openssl s_client -connect gateway:8443"
+      ],
+      "output": "CONNECTED(00000003)\n---\nCertificate chain\n 0 s:C=US, O=Prove It Lab, CN=gateway\n   i:C=US, O=Prove It Lab, CN=Prove It Lab Internal CA\n   a:PKEY: RSA, 2048 (bit); sigalg: sha256WithRSAEncryption\n   v:NotBefore: Jan  1 00:00:00 2025 GMT; NotAfter: Apr  1 00:00:00 2025 GMT\n---\nServer certificate\n-----BEGIN CERTIFICATE-----\n<certificate>\n-----END CERTIFICATE-----\nsubject=C=US, O=Prove It Lab, CN=gateway\nissuer=C=US, O=Prove It Lab, CN=Prove It Lab Internal CA\n---\nNo client certificate CA names sent\nPeer signing digest: SHA256\nPeer signature type: rsa_pss_rsae_sha256\nNegotiated TLS1.3 group: X25519MLKEM768\n---\nSSL handshake has read 2556 bytes and written 1620 bytes\nVerification error: certificate has expired\n---\nNew, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384\nProtocol: TLSv1.3\nServer public key is 2048 bit\nThis TLS version forbids renegotiation.\nNo ALPN negotiated\nEarly data was not sent\nVerify return code: 10 (certificate has expired)\n---\nConnecting to <ip>\ndepth=1 C=US, O=Prove It Lab, CN=Prove It Lab Internal CA\nverify return:1\ndepth=0 C=US, O=Prove It Lab, CN=gateway\nverify error:num=10:certificate has expired\nnotAfter=Apr  1 00:00:00 2025 GMT\nverify return:1\ndepth=0 C=US, O=Prove It Lab, CN=gateway\nnotAfter=Apr  1 00:00:00 2025 GMT\nverify return:1\nDONE",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T gateway sh -c 'for c in /certs/v*.pem; do echo \"$c\"; openssl x509 -in \"$c\" -noout -dates -ext subjectAltName; done'",
+      "aliases": [
+        "ls /certs",
+        "openssl x509 -in /certs/v2.pem -noout -dates"
+      ],
+      "match": [
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T gateway sh -c 'for c in /certs/v*.pem; do echo \"$c\"; openssl x509 -in \"$c\" -noout -dates -ext subjectAltName; done'",
+        "ls /certs",
+        "openssl x509 -in /certs/v2.pem -noout -dates"
+      ],
+      "output": "/certs/v1.pem\nnotBefore=Jan  1 00:00:00 2025 GMT\nnotAfter=Apr  1 00:00:00 2025 GMT\nX509v3 Subject Alternative Name: \n    DNS:gateway, DNS:reports\n/certs/v2.pem\nnotBefore=Apr  1 00:00:00 2025 GMT\nnotAfter=Dec 31 23:59:59 2035 GMT\nX509v3 Subject Alternative Name: \n    DNS:gateway\n/certs/v3.pem\nnotBefore=Apr  1 00:00:00 2025 GMT\nnotAfter=Dec 31 23:59:59 2035 GMT\nX509v3 Subject Alternative Name: \n    DNS:gateway, DNS:reports",
+      "exit": 0
+    }
+  ]
+}

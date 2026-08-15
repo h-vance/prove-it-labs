@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The same upload failed on one address and succeeded on the other, with one gateway behind both. What did that establish?",
+    "options": [
+      {
+        "text": "That the new address was routed to a different server that had not been configured yet",
+        "correct": false,
+        "explanation": "Both names reach the same process, and you can show it: the server logs the successful upload and there is nothing else running. A second server is the natural first theory and this is the evidence that closes it."
+      },
+      {
+        "text": "That whatever differs has to depend on the name that was asked for, since nothing else about the two attempts differed",
+        "correct": true,
+        "explanation": "Exactly, and it narrows the search enormously. Same client, same credentials, same payload, same server, different name, different outcome. Very few things in a connection are decided by the name, which turns a vague migration problem into a short list."
+      },
+      {
+        "text": "That the customer's client was caching a connection to the old address",
+        "correct": false,
+        "explanation": "Each run is a fresh process making a fresh connection, and the failure reproduces on the first attempt every time. Worth ruling out rather than assuming, but it is not what the evidence shows."
+      },
+      {
+        "text": "That the new address was not yet resolvable",
+        "correct": false,
+        "explanation": "It resolves, and it accepts connections. The failure happens after a connection is established, which is why the error is about what was presented rather than about reaching anything."
+      }
+    ]
+  },
+  {
+    "question": "Both this failure and April's printed `curl: (60)` and the same four-line paragraph. What follows from that?",
+    "options": [
+      {
+        "text": "That the exit code identifies the class of problem, and the line above the paragraph is what identifies the problem",
+        "correct": true,
+        "explanation": "Right, and it is the practical lesson of the pair. One code covers every reason a caller can decline what a server presented. Reading the code and stopping is how the customer's own theory gets adopted without ever being tested."
+      },
+      {
+        "text": "That it is the same underlying problem recurring, since the same failure produces the same output",
+        "correct": false,
+        "explanation": "This is the trap, and the customer avoided it while the code invites it. The dates were years away and demonstrably fine. One line differed, and that line was the entire diagnosis."
+      },
+      {
+        "text": "That the client should be configured to report more detail",
+        "correct": false,
+        "explanation": "It already reported enough. The naming line was present in both failures and said something different each time. More output would not have helped somebody who stopped at the code."
+      },
+      {
+        "text": "That exit codes are unreliable and should be ignored in favor of the message",
+        "correct": false,
+        "explanation": "The code was accurate both times: a caller refused what it was shown. It is doing its job at the resolution it has. Treating a category as an identification is the mistake, not the code."
+      }
+    ]
+  },
+  {
+    "question": "The certificate that expired in April covered both names. Its replacement covered one. Why does that matter beyond this incident?",
+    "options": [
+      {
+        "text": "Because it means the April incident was diagnosed incorrectly",
+        "correct": false,
+        "explanation": "April was diagnosed correctly and fixed correctly. The expiry was real and rotating was the right response. What went wrong is in the replacement itself, not in the reasoning that called for one."
+      },
+      {
+        "text": "Because a fix narrowed something adjacent that nothing was watching, and the failure surfaced a week later looking like an unrelated problem",
+        "correct": true,
+        "explanation": "That is the durable lesson. The gap opened at the rotation and stayed invisible until somebody used the second name, so the symptom arrived attached to the migration and pointed away from the cause. Nothing compared the new certificate against the one it replaced."
+      },
+      {
+        "text": "Because certificates should never be rotated while a migration is planned",
+        "correct": false,
+        "explanation": "Rotating on time is not optional, and the rotation preceded the migration by a week. Sequencing was not the problem; issuing a narrower replacement without noticing was."
+      },
+      {
+        "text": "Because the customer should have been told to stay on the old address",
+        "correct": false,
+        "explanation": "They asked to move off it and were right to. Leaving a customer on an address you are retiring converts a ticket you can close today into one that reopens later with less goodwill."
+      }
+    ]
+  }
+]
