@@ -53,7 +53,10 @@ SAMPLES: dict[str, str] = {
     "uptime": "a070a8d795f8   postgres:16-alpine   13 seconds ago   Up 12 seconds (healthy)",
     "iso-timestamp": "requested_at >= '2026-07-01 00:00:00+00'::timestamp with time zone",
     "rfc1123-timestamp": "      Started:      Fri, 14 Aug 2026 14:42:00 -0400",
-    "request-id": 'X-Request-Id: 3fdd64a1f2ad\n  "request_id": "6c9286061d44",',
+    "request-id": (
+        'X-Request-Id: 3fdd64a1f2ad\n  "request_id": "6c9286061d44",\n'
+        "api-1  | level=info request_id=bcac353dce6c method=GET path=/health"
+    ),
     "private-ip": (
         "app-1  | level=error event=database_connection_failed "
         "detail='psql: error: connection to server at \"postgres\" (172.22.0.2), "
@@ -232,6 +235,26 @@ class RulesDoNotOverReach(unittest.TestCase):
         )
         one = "orders-api-8c8575974-6n2ts   0/1   CrashLoopBackOff   3 (41s ago)   75s\n"
         self.assertNotEqual(scrub(two), scrub(one))
+
+    def test_a_request_id_folds_in_all_three_forms_it_is_printed_in(self):
+        """One value, three renderings, and only one of them was covered.
+
+        The header and JSON forms were there from the start. The key=value form
+        in the service's own logs was not, and it went unnoticed until a new
+        exercise recorded a command that printed those logs.
+        """
+        for form in ('"request_id": "{}"', "X-Request-Id: {}", "request_id={}"):
+            with self.subTest(form):
+                self.assertEqual(
+                    scrub(form.format("bcac353dce6c")),
+                    scrub(form.format("4bb8567e8c77")),
+                )
+
+    def test_the_request_id_rule_leaves_neighboring_fields_alone(self):
+        line = "level=info request_id=bcac353dce6c method=GET path=/health status=200"
+        scrubbed = scrub(line)
+        for survives in ("method=GET", "path=/health", "status=200"):
+            self.assertIn(survives, scrubbed)
 
     def test_both_wordings_of_a_failing_pull_fold_together(self):
         """kubelet's two messages for one stuck pull, from `kubectl logs`.

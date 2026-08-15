@@ -1,0 +1,64 @@
+{
+  "recorded": "2026-08-15",
+  "entries": [
+    {
+      "command": "bash labs/api/_stack/request.sh",
+      "aliases": [
+        "bash request.sh",
+        "./request.sh"
+      ],
+      "match": [
+        "./request.sh",
+        "bash labs/api/_stack/request.sh",
+        "bash request.sh"
+      ],
+      "output": "HTTP/1.1 202 Accepted\n{\n  \"status\": \"accepted\",\n  \"workspace\": null,\n  \"event\": null,\n  \"key_fingerprint\": \"30581cda\",\n  \"request_id\": \"6b74f0bbcfce\"\n}",
+      "exit": 0
+    },
+    {
+      "command": "cat labs/api/_stack/request.sh",
+      "aliases": [
+        "cat request.sh"
+      ],
+      "match": [
+        "cat labs/api/_stack/request.sh",
+        "cat request.sh"
+      ],
+      "output": "#!/usr/bin/env bash\n# The customer's integration call, exactly as their system makes it.\n# Edit this until it succeeds, then run `tse check`.\nset -uo pipefail\n\nAPI=http://127.0.0.1:8101\nAPI_KEY=\"wk_live_active_3c95\"\n\ncurl -s -D - -o /tmp/tse-body.json \\\n    -X POST \"$API/v2/webhooks/events\" \\\n    -H \"X-API-Key: $API_KEY\" \\\n    -H 'Content-Type: application/json' \\\n    -d '{\"workspace_id\":\"ws_4471\",\"event_type\":\"order.created\",\"id\":\"evt_9013\"}' \\\n    | head -1\ncat /tmp/tse-body.json",
+      "exit": 0
+    },
+    {
+      "command": "curl -s -X POST http://127.0.0.1:8101/v2/webhooks/events \\\n     -H 'X-API-Key: wk_live_active_3c95' \\\n     -H 'Content-Type: application/json' \\\n     -d 'not json'",
+      "aliases": [],
+      "match": [
+        "curl -s -X POST http://127.0.0.1:8101/v2/webhooks/events -H 'X-API-Key: wk_live_active_3c95' -H 'Content-Type: application/json' -d 'not json'"
+      ],
+      "output": "{\n  \"type\": \"https://proveit.invalid/errors/invalid_payload\",\n  \"title\": \"Request body is not valid JSON\",\n  \"status\": 400,\n  \"detail\": \"Send a JSON object with 'workspace' and 'event'.\",\n  \"instance\": \"/v2/webhooks/events\",\n  \"code\": \"invalid_payload\",\n  \"request_id\": \"8b5bb6967fa4\"\n}",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/api/_stack/compose.yaml logs --tail 3 api",
+      "aliases": [
+        "docker compose logs api"
+      ],
+      "match": [
+        "docker compose -f labs/api/_stack/compose.yaml logs --tail 3 api",
+        "docker compose logs api"
+      ],
+      "output": "api-1  | level=info request_id=bcac353dce6c method=GET path=/health status=200 outcome=healthy credential=none\napi-1  | level=info request_id=6b74f0bbcfce method=POST path=/v2/webhooks/events status=202 outcome=accepted credential=30581cda\napi-1  | level=info request_id=8b5bb6967fa4 method=POST path=/v2/webhooks/events status=400 outcome=invalid_payload credential=30581cda",
+      "exit": 0
+    },
+    {
+      "command": "curl -s http://127.0.0.1:8101/health",
+      "aliases": [
+        "curl http://127.0.0.1:8101/health"
+      ],
+      "match": [
+        "curl -s http://127.0.0.1:8101/health",
+        "curl http://127.0.0.1:8101/health"
+      ],
+      "output": "{\n  \"status\": \"healthy\",\n  \"request_id\": \"69fdd45eebb4\"\n}",
+      "exit": 0
+    }
+  ]
+}

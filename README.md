@@ -121,17 +121,24 @@ prose, which includes a lot of very good engineers.
 | APIs | 4 | Available |
 | Kubernetes | 5 | Available |
 | SQL and PostgreSQL | 3 | Available |
+| Mixed incidents | 2 | Available |
 | Linux and CLI foundations | | Next |
 | Networking, DNS, TLS | | Planned |
 | Observability | | Planned |
 | Customer communication | | Planned |
-| Mixed incidents | | Planned |
 
 Some exercises are built as pairs on purpose. `docker/02` and `docker/03`
 present the customer with the same symptom and resolve to different causes, as
 do `kubernetes/04` and `kubernetes/05`. In each pair the second ticket has the
 customer confidently rule out the previous cause, and be right to. Learning a
 fix rather than a method is the failure mode this course is trying to prevent.
+
+**Mixed incidents work differently.** In every other track the folder tells you
+where to look before you have read a word. There, it does not: the ticket names
+no technology and no layer, and working out which system is even involved is
+the first real step. Both of the current pair share a theme, which is the one
+worth carrying into a real rotation: a signal that is green, accurate, and
+answering a narrower question than the customer asked.
 
 The Kubernetes track needs a cluster. `tse` creates and reuses one for you:
 

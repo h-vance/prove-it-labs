@@ -1,0 +1,37 @@
+# What the customer gets. Not an error page and not a refusal: the connection
+# is accepted and then closed with nothing behind it.
+#
+# `docker compose ls` is deliberately not recorded here, though the hints do
+# send you to it. It lists every Compose project on the machine, which on a
+# real laptop means somebody's unrelated work, and the recorder refuses output
+# naming anything outside the lab.
+# alias: curl http://127.0.0.1:8100/customers
+# alias: curl -sS http://127.0.0.1:8100/customers
+# wait: 20
+# keep: Empty reply
+curl -sS --max-time 5 http://127.0.0.1:8100/customers
+---
+# State and published address together, which is the pair that resolves this.
+# The container is healthy and the address it publishes points somewhere the
+# application is not.
+# alias: docker ps
+# alias: docker ps -a
+# keep: healthy, 8100, 8081
+docker ps --filter 'label=com.docker.compose.project=proveit-docker' \
+          --format '{{.Names}}  {{.Status}}  {{.Ports}}'
+---
+# What the application says about itself on the way up. It announces the port
+# it bound, and that number is the other half of the comparison.
+# alias: docker compose logs app
+# keep: server_started, 8080
+docker compose -f labs/docker/_stack/compose.yaml \
+               -f labs/docker/_stack/compose.override.yaml \
+               logs app | head -3
+---
+# The health check's own verdict, which stayed exactly this green throughout.
+# keep: healthy
+docker inspect --format '{{.State.Health.Status}}' proveit-docker-app-1
+---
+# Where the published address actually delivers, stated by itself.
+# keep: 8081
+docker port proveit-docker-app-1

@@ -1,0 +1,34 @@
+# The customer's own call, exactly as their nightly job makes it. The first
+# line is what they logged and reported. The body is what nobody read.
+# alias: bash request.sh
+# alias: ./request.sh
+# wait: 15
+# keep: 202 Accepted, accepted, null
+bash labs/api/_stack/request.sh
+---
+# What the customer is actually sending. The values are right. Look at what
+# they are labeled.
+# alias: cat request.sh
+# keep: workspace_id, event_type
+cat labs/api/_stack/request.sh
+---
+# Make the service reject something outright, and it names the two fields it
+# reads. This is the only way it ever says so: a payload it cannot parse gets
+# an error, while a payload it can parse but does not recognize gets a success.
+# keep: invalid_payload, workspace, event
+curl -s -X POST http://127.0.0.1:8101/v2/webhooks/events \
+     -H 'X-API-Key: wk_live_active_3c95' \
+     -H 'Content-Type: application/json' \
+     -d 'not json'
+---
+# The service's own record of the customer's request. It logs an accepted
+# outcome, because from where it is sitting the request was fine.
+# alias: docker compose logs api
+# keep: accepted
+docker compose -f labs/api/_stack/compose.yaml logs --tail 3 api
+---
+# Nothing is wrong with the service, which is worth establishing rather than
+# assuming when a customer suspects events are being dropped.
+# alias: curl http://127.0.0.1:8101/health
+# keep: healthy
+curl -s http://127.0.0.1:8101/health

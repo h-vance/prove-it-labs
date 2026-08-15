@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The customer logged an accepted response on all eight nights, and those logs were accurate. What did that response entitle them to conclude?",
+    "options": [
+      {
+        "text": "That their events had been recorded and would appear",
+        "correct": false,
+        "explanation": "This is the inference the whole incident rests on, and it does not follow. Acceptance describes the request, not the outcome of processing it."
+      },
+      {
+        "text": "That the request was well formed and authorized enough to be taken, and nothing beyond that",
+        "correct": true,
+        "explanation": "Exactly the size of the claim. It covers the credentials, the route and the syntax. It says nothing about whether the content carried anything the service could use."
+      },
+      {
+        "text": "That the service had validated every field they sent",
+        "correct": false,
+        "explanation": "The reverse happened. The service read the two fields it knows and ignored the rest, which is why nothing objected to names it had never heard of."
+      },
+      {
+        "text": "That nothing further could be wrong on their side",
+        "correct": false,
+        "explanation": "Their side was where the fault was, in the field names. A success response is not a clean bill of health for the sender."
+      }
+    ]
+  },
+  {
+    "question": "The service answered with two nulls instead of refusing the payload. Why does that behavior make this so expensive to find?",
+    "options": [
+      {
+        "text": "Because null values are always hidden from response bodies",
+        "correct": false,
+        "explanation": "They were in the body the whole time and visible on the first run. Nobody had read that far, which is a different problem from the data being hidden."
+      },
+      {
+        "text": "Because an unrecognized field name produces no error, so the only signal is something absent rather than something reported",
+        "correct": true,
+        "explanation": "That is the cost of it. Every monitoring habit is built to catch a thing that appears, and this produces a thing that does not. Nobody's alerting fires on a field that quietly stayed empty."
+      },
+      {
+        "text": "Because the failure only happened intermittently",
+        "correct": false,
+        "explanation": "It happened on every single request for eight days. Perfect consistency is part of why it was believed to be working."
+      },
+      {
+        "text": "Because the customer had no way to test their integration",
+        "correct": false,
+        "explanation": "They could run it whenever they liked, and did. Repeating a call that reports success does not reveal a fault that reports success."
+      }
+    ]
+  },
+  {
+    "question": "Renaming two fields fixes this customer today. What is worth raising with the API team afterwards?",
+    "options": [
+      {
+        "text": "That the documentation should be clearer about field names",
+        "correct": false,
+        "explanation": "Reasonable, and much weaker than it looks. The customer read the documentation and still shipped the wrong names, and better prose would not have told them they had."
+      },
+      {
+        "text": "That the endpoint should reject a payload carrying neither field it requires, rather than accepting it",
+        "correct": true,
+        "explanation": "This is the finding worth more than the fix. Rejection turns a silent eight-day loss into an error the customer sees on their first run, and it protects everyone who makes the same mistake later."
+      },
+      {
+        "text": "That the customer should be given a dedicated test environment",
+        "correct": false,
+        "explanation": "The call already succeeded against production in the sense the service defined. Somewhere else to send the same accepted-and-empty request changes nothing."
+      },
+      {
+        "text": "That the service should log more detail on every webhook",
+        "correct": false,
+        "explanation": "The provider could have found it sooner with better logs, but the customer still could not. The asymmetry is what the fix has to close."
+      }
+    ]
+  }
+]

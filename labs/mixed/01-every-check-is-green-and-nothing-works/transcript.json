@@ -1,0 +1,63 @@
+{
+  "recorded": "2026-08-15",
+  "entries": [
+    {
+      "command": "curl -sS --max-time 5 http://127.0.0.1:8100/customers",
+      "aliases": [
+        "curl http://127.0.0.1:8100/customers",
+        "curl -sS http://127.0.0.1:8100/customers"
+      ],
+      "match": [
+        "curl -sS --max-time 5 http://127.0.0.1:8100/customers",
+        "curl -sS http://127.0.0.1:8100/customers",
+        "curl http://127.0.0.1:8100/customers"
+      ],
+      "output": "curl: (52) Empty reply from server",
+      "exit": 52
+    },
+    {
+      "command": "docker ps --filter 'label=com.docker.compose.project=proveit-docker' \\\n          --format '{{.Names}}  {{.Status}}  {{.Ports}}'",
+      "aliases": [
+        "docker ps",
+        "docker ps -a"
+      ],
+      "match": [
+        "docker ps",
+        "docker ps --filter 'label=com.docker.compose.project=proveit-docker' --format '{{.Names}} {{.Status}} {{.Ports}}'",
+        "docker ps -a"
+      ],
+      "output": "proveit-docker-app-1  Up 20 seconds (healthy)  127.0.0.1:8100->8081/tcp\nproveit-docker-postgres-1  Up 22 seconds (healthy)  5432/tcp",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/docker/_stack/compose.yaml \\\n               -f labs/docker/_stack/compose.override.yaml \\\n               logs app | head -3",
+      "aliases": [
+        "docker compose logs app"
+      ],
+      "match": [
+        "docker compose -f labs/docker/_stack/compose.yaml -f labs/docker/_stack/compose.override.yaml logs app | head -3",
+        "docker compose logs app"
+      ],
+      "output": "app-1  | level=info event=server_started port=8080\napp-1  | level=info client=127.0.0.1 message=\"GET /health HTTP/1.1\" 200 -\napp-1  | level=info client=127.0.0.1 message=\"GET /health HTTP/1.1\" 200 -",
+      "exit": 0
+    },
+    {
+      "command": "docker inspect --format '{{.State.Health.Status}}' proveit-docker-app-1",
+      "aliases": [],
+      "match": [
+        "docker inspect --format '{{.State.Health.Status}}' proveit-docker-app-1"
+      ],
+      "output": "healthy",
+      "exit": 0
+    },
+    {
+      "command": "docker port proveit-docker-app-1",
+      "aliases": [],
+      "match": [
+        "docker port proveit-docker-app-1"
+      ],
+      "output": "8081/tcp -> 127.0.0.1:8100",
+      "exit": 0
+    }
+  ]
+}

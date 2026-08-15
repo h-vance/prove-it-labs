@@ -210,6 +210,35 @@ else
     else
         pass "stop removes the generated override"
     fi
+
+    # ----------------------------------------------------------------------- #
+    # A borrowed stack. Mixed exercises set stack_source, so their files are
+    # written into another track's _stack rather than their own. Nothing
+    # exercised that path until this track existed, and the failure it guards
+    # against is quiet: files left behind in a directory the exercise does not
+    # own, which the next run of that track would then inherit.
+    section "Borrowed stack (stack_source)"
+
+    BORROWED=mixed/01-every-check-is-green-and-nothing-works
+    "$TSE" start "$BORROWED" >/dev/null 2>&1
+
+    if [[ -f labs/docker/_stack/compose.override.yaml ]]; then
+        pass "a mixed exercise provisions into the stack it borrows"
+    else
+        fail "a mixed exercise provisions into the stack it borrows"
+    fi
+    if [[ -e labs/mixed/_stack ]]; then
+        fail "a borrowed stack creates no directory of its own"
+    else
+        pass "a borrowed stack creates no directory of its own"
+    fi
+
+    "$TSE" stop >/dev/null 2>&1
+    if [[ -f labs/docker/_stack/compose.override.yaml ]]; then
+        fail "stop cleans up the borrowed stack behind it"
+    else
+        pass "stop cleans up the borrowed stack behind it"
+    fi
 fi
 
 # --------------------------------------------------------------------------- #

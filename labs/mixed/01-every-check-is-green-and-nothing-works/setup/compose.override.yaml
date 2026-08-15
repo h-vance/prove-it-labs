@@ -1,0 +1,7 @@
+services:
+  app:
+    # !override replaces the list from compose.yaml instead of adding to it.
+    # Compose concatenates ports by default, which would leave two mappings
+    # fighting over the same published port rather than one wrong mapping.
+    ports: !override
+      - "127.0.0.1:8100:8081"

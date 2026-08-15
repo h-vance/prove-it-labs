@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The container health check reported healthy for the entire outage, and it was telling the truth. What had it actually established?",
+    "options": [
+      {
+        "text": "That the application was serving requests to anything that could already reach it inside its own container",
+        "correct": true,
+        "explanation": "That is the whole claim. The check runs inside the container and connects straight to the process, so it never crosses the published mapping. It was answering a narrower question than the customer was asking, and answering it correctly."
+      },
+      {
+        "text": "That the whole request path from the customer to the application was working",
+        "correct": false,
+        "explanation": "This is the assumption that cost several hours here. The check never leaves the container, so the part of the path that was broken was never on its route."
+      },
+      {
+        "text": "That the application contained no defects",
+        "correct": false,
+        "explanation": "No health check establishes that, and it is not what anyone believed. The trap in this incident was subtler: the check was trusted to cover reachability, which is a different thing from correctness."
+      },
+      {
+        "text": "That the published address had been configured correctly",
+        "correct": false,
+        "explanation": "The published address was wrong throughout and the check stayed green, which is exactly why this incident lasted. A green check is not evidence about configuration it never touches."
+      }
+    ]
+  },
+  {
+    "question": "Requests came back as an empty reply rather than as a refused connection. Why is telling those two apart worth the effort?",
+    "options": [
+      {
+        "text": "A refusal means nothing accepted the connection, so an accepted one that returns nothing proves something is listening and forwarding",
+        "correct": true,
+        "explanation": "Right, and it is the fork in the whole investigation. A refusal would point at a service that is not running or not published at all. Acceptance followed by silence points at a forwarding layer delivering somewhere with nothing behind it."
+      },
+      {
+        "text": "They mean the same thing, and only the wording differs between tools",
+        "correct": false,
+        "explanation": "They are produced at different stages of the connection and by different parties. Treating them as interchangeable throws away the most useful piece of evidence in this ticket."
+      },
+      {
+        "text": "An empty reply always means the application crashed while responding",
+        "correct": false,
+        "explanation": "It can mean that, which is why it has to be checked rather than assumed. Here the logs showed a process that never received the request, so nothing crashed."
+      },
+      {
+        "text": "A refusal indicates a firewall and an empty reply indicates a certificate problem",
+        "correct": false,
+        "explanation": "Neither mapping holds. Both symptoms have several possible causes, and the point of separating them is that they rule out different sets of them, not that each names one."
+      }
+    ]
+  },
+  {
+    "question": "The fix was a single digit. What is the honest thing to raise with engineering afterwards?",
+    "options": [
+      {
+        "text": "That the release changed a value nobody reviewed",
+        "correct": false,
+        "explanation": "Worth mentioning, but it treats this as one careless edit. The reason it ran for hours is not that the edit happened, it is that nothing noticed."
+      },
+      {
+        "text": "That the health check should run more often",
+        "correct": false,
+        "explanation": "It would have passed just as often. Frequency does not help a check that cannot observe the broken layer in the first place."
+      },
+      {
+        "text": "That every monitoring signal was green while the service was completely unavailable, so the monitoring cannot see this class of fault",
+        "correct": true,
+        "explanation": "This is the finding worth more than the fix. A check that connects from outside the published address would have caught it in seconds. Without one, the next occurrence is also found by a customer."
+      },
+      {
+        "text": "That the customer should have reported it sooner",
+        "correct": false,
+        "explanation": "They reported it promptly, from several networks, having already ruled out their own connectivity. The gap was on the provider's side."
+      }
+    ]
+  }
+]

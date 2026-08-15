@@ -1,0 +1,37 @@
+id: mixed/01-every-check-is-green-and-nothing-works
+track: mixed
+title: Every health check is green and the customer still gets nothing
+proof_question: Can I prove the customer's requests are reaching the application at all?
+stack: compose
+stack_source: docker
+tier: core
+difficulty: 3
+minutes: 30
+prerequisites:
+  - docker/03-data-access-lost-after-credential-rotation
+  - kubernetes/05-healthy-pods-still-no-traffic
+  - api/04-nightly-sync-fails-partway
+  - sql/03-report-that-was-instant-got-slow
+
+commands_introduced:
+  - docker compose ls
+  - docker port
+
+evidence_layers:
+  - published address
+  - container state
+  - application logs
+  - what the application says it bound to
+
+interview_relevance: >
+  Almost every candidate has a first move, and this rewards noticing when the
+  first move came back clean. Saying "the process is up, its own health check
+  passes, and the request never reaches it, so the problem is between the
+  customer and the process" is a genuinely different sentence from "it looks
+  fine to me", and it is the one that moves a ticket forward.
+
+teaches: >
+  A health check answers a narrower question than the customer asked. It runs
+  inside the thing it is checking, so it proves the application is serving
+  itself, not that anyone outside can reach it. Reachability is its own layer
+  with its own evidence.
