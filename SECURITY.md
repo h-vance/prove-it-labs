@@ -29,7 +29,7 @@ nothing else can reach them.
 
 If you find a genuine vulnerability, meaning something that could affect a
 person running this course rather than something a lab is teaching, please open
-a [security advisory](https://github.com/h-vance/technical-support-engineering/security/advisories/new)
+a [security advisory](https://github.com/h-vance/prove-it-labs/security/advisories/new)
 rather than a public issue.
 
 Things worth reporting:

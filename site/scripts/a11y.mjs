@@ -15,7 +15,7 @@ import { chromium } from "playwright";
 import AxeBuilder from "@axe-core/playwright";
 
 const DIST = resolve(import.meta.dirname, "..", "dist");
-const BASE = "/technical-support-engineering";
+const BASE = "/prove-it-labs";
 const PORT = Number(process.env.A11Y_PORT ?? 4399);
 
 const MIME = {

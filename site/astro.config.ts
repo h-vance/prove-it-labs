@@ -5,7 +5,7 @@ import { sidebarFromLabs, loadReference } from "./src/lib/labs";
 
 export default defineConfig({
   site: "https://h-vance.github.io",
-  base: "/technical-support-engineering",
+  base: "/prove-it-labs",
   trailingSlash: "ignore",
   integrations: [
     preact(),
@@ -29,7 +29,7 @@ export default defineConfig({
         {
           icon: "github",
           label: "GitHub",
-          href: "https://github.com/h-vance/technical-support-engineering",
+          href: "https://github.com/h-vance/prove-it-labs",
         },
       ],
       sidebar: [

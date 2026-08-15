@@ -23,7 +23,7 @@ import { chromium } from "playwright";
 const SITE = resolve(import.meta.dirname, "..");
 const REPO = resolve(SITE, "..");
 const DIST = join(SITE, "dist");
-const BASE = "/technical-support-engineering";
+const BASE = "/prove-it-labs";
 const PORT = Number(process.env.TERMINAL_PORT ?? 4398);
 
 const MIME = {

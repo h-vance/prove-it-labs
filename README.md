@@ -1,6 +1,6 @@
 # Prove It
 
-[![verify](https://github.com/h-vance/technical-support-engineering/actions/workflows/verify.yml/badge.svg)](https://github.com/h-vance/technical-support-engineering/actions/workflows/verify.yml)
+[![verify](https://github.com/h-vance/prove-it-labs/actions/workflows/verify.yml/badge.svg)](https://github.com/h-vance/prove-it-labs/actions/workflows/verify.yml)
 
 A hands-on Technical Support Engineering course. You get a customer ticket, a
 genuinely broken system, and no hint about which layer failed. You investigate.
@@ -193,7 +193,7 @@ documents and adding an exercise needs no site change at all.
 ```bash
 cd site
 npm install
-npm run dev           # http://localhost:4321/technical-support-engineering
+npm run dev           # http://localhost:4321/prove-it-labs
 npm run build
 npm run check:pages    # every exercise has a complete page, inside its weight budget
 npm run check:terminal # the terminal replays what was actually recorded
