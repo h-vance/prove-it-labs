@@ -425,8 +425,14 @@ SCRUB_RULES: list[tuple[str, "re.Pattern[str]", str]] = [
     # would erase the distinction the exercise exists to teach.
     ("crash-loop-state", re.compile(r"\b(?:CrashLoopBackOff|Error)\b(?=\s)"),
         "<crash-loop>"),
-    # The AGE column, always last on a line: 13s, 5m32s, 2d4h.
-    ("k8s-age", re.compile(r"(?m)(\s)\d+[smhd](?:\d+[smhd])?(?=\s*$)"), r"\1<age>"),
+    # The AGE column: 13s, 5m32s, 2d4h.
+    #
+    # Usually last on the line, but `--show-labels` puts the labels after it.
+    # This was anchored to end of line only, so kubernetes/05 compared a raw age
+    # on every run and passed for as long as two runs happened to land on the
+    # same second. The label form is recognized by the `=` in the column that
+    # follows, which keeps this from matching any old duration mid-line.
+    ("k8s-age", re.compile(r"(?m)(\s)\d+[smhd](?:\d+[smhd])?(?=\s+\S+=|\s*$)"), r"\1<age>"),
     # kind publishes its API server on a random high port.
     ("ephemeral-port", re.compile(r"127\.0\.0\.1:\d{4,5}->6443/tcp"),
         "127.0.0.1:<port>->6443/tcp"),

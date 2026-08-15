@@ -242,6 +242,32 @@ class RulesDoNotOverReach(unittest.TestCase):
         one = "orders-api-8c8575974-6n2ts   0/1   CrashLoopBackOff   3 (41s ago)   75s\n"
         self.assertNotEqual(scrub(two), scrub(one))
 
+    def test_the_age_column_folds_even_when_labels_follow_it(self):
+        """Found the hard way: a rule anchored to end of line, and a column after it.
+
+        kubernetes/05 records `get pods --show-labels`, which puts the labels
+        after the age. The comparison was reading a raw age on every run and
+        passing only while two runs landed on the same second.
+        """
+        labels = "app.kubernetes.io/name=orders-api,pod-template-hash=5bcc9b9944"
+        first = f"orders-api-8c8575974-6n2ts   0/1     Running   0          40s   {labels}"
+        second = f"orders-api-8c8575974-6n2ts   0/1     Running   0          41s   {labels}"
+        self.assertEqual(scrub(first), scrub(second))
+
+    def test_the_widened_age_rule_leaves_query_plans_alone(self):
+        """The lookahead now accepts a following key=value column.
+
+        Query plans are full of key=value, so this is where an age rule would
+        start eating the numbers sql/03 is entirely about.
+        """
+        for evidence in (
+            "cost=0.00..1234.00 rows=7500 width=91",
+            "Rows Removed by Filter: 292500",
+            "Seq Scan on api_requests",
+        ):
+            with self.subTest(evidence):
+                self.assertEqual(scrub(evidence), evidence)
+
     def test_the_two_ways_a_dead_target_is_reported_fold_together(self):
         """Docker Desktop closes the connection, Linux resets it."""
         self.assertEqual(
