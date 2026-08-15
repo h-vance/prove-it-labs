@@ -389,6 +389,32 @@ class RulesDoNotOverReach(unittest.TestCase):
         for survives in ("method=GET", "path=/health", "status=200"):
             self.assertIn(survives, scrubbed)
 
+    def test_a_tagged_request_id_folds_the_same_as_a_bare_one(self):
+        """The observability services tag what they generate, and the rule missed it.
+
+        `req-` at the edge and `gen-` in the renderer both put a leading letter
+        where the rule wanted hex, so it matched nothing and every recorded log
+        line carried an id that moved on the next run.
+        """
+        for prefix in ("req-", "gen-", ""):
+            with self.subTest(prefix or "bare"):
+                self.assertEqual(
+                    scrub(f"request_id={prefix}bcac353dce6c event=x"),
+                    scrub(f"request_id={prefix}4bb8567e8c77 event=x"),
+                )
+
+    def test_a_reference_a_customer_quotes_is_left_alone(self):
+        """observability/02 records a customer quoting theirs, so it must survive.
+
+        Folding the identifier that an exercise is entirely about would leave
+        its page showing a placeholder where the evidence should be. A
+        reference carrying a letter outside hex is not matched, which is what
+        keeps the generated ids foldable and this one readable.
+        """
+        line = "request_id=req-nw7k2p9x4m31 event=report_failed tenant=northwind"
+        self.assertEqual(scrub(line), line)
+        self.assertIn("req-nw7k2p9x4m31", scrub(line))
+
     def test_both_wordings_of_a_failing_pull_fold_together(self):
         """kubelet's two messages for one stuck pull, from `kubectl logs`.
 

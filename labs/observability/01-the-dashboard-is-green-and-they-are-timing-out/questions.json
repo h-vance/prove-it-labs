@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The service reported 95% of requests within the objective and 0% for this account, at the same instant. What follows?",
+    "options": [
+      {
+        "text": "One of the two readings is wrong and the aggregate is the one to trust",
+        "correct": false,
+        "explanation": "Both are correct and they are computed from the same requests. Treating the aggregate as the truer one is precisely what closed the customer's first two tickets."
+      },
+      {
+        "text": "Both are accurate, and an account small enough to be five percent of traffic can be entirely unusable without moving the overall figure enough to notice",
+        "correct": true,
+        "explanation": "Right. The aggregate is not lying, it is answering a question about the population. A customer never asks how the population is doing, so the reading that gets quoted is almost never the one that settles the ticket."
+      },
+      {
+        "text": "The objective is set too loosely and should be tightened",
+        "correct": false,
+        "explanation": "At one second the objective caught every one of this customer's requests. It was the scope of the reading, not its threshold, that hid the problem, and a tighter threshold on the aggregate would still have been green."
+      },
+      {
+        "text": "The service degrades under load, which the aggregate smooths out",
+        "correct": false,
+        "explanation": "Load would affect everybody. Another account was at 100% in the same window, which is the reading that rules this out rather than the one that suggests it."
+      }
+    ]
+  },
+  {
+    "question": "You pulled a reading for a second, unaffected account as well. Why was that worth doing?",
+    "options": [
+      {
+        "text": "To confirm the complaining account was worse than average",
+        "correct": false,
+        "explanation": "That was already established by comparing them to the aggregate, and it was never in doubt. A second reading that only confirms what you know is not worth the keystrokes."
+      },
+      {
+        "text": "To rule out load and capacity, since an account at 100% in the same window means slow is not the normal state of this service",
+        "correct": true,
+        "explanation": "Exactly. It converts an observation into a diagnosis by eliminating everything that would affect all traffic, which leaves only things the service does per account. That is a much shorter list."
+      },
+      {
+        "text": "Because comparing two customers is the only way to compute a percentile",
+        "correct": false,
+        "explanation": "Percentiles come from the distribution and no comparison is needed for one. The reason to pull a second account is about eliminating causes, not about arithmetic."
+      },
+      {
+        "text": "To check whether the second account had also been affected without reporting it",
+        "correct": false,
+        "explanation": "A reasonable thing to want, and a useful side effect, but not the reason. Even if you knew for certain nobody else was affected, you would still pull it, because what it rules out is what makes it worth running."
+      }
+    ]
+  },
+  {
+    "question": "Adding the account with a placeholder configuration would have removed the slowness entirely. Why is that not the fix?",
+    "options": [
+      {
+        "text": "It would have left the directory lookup running in the background",
+        "correct": false,
+        "explanation": "It would not. A local entry stops the fallback completely, whatever values it holds, which is exactly why the latency disappears and why this is tempting."
+      },
+      {
+        "text": "It trades a visible slowness for a silent wrong entitlement, and an enterprise account on somebody else's row limit surfaces weeks later as a truncated report",
+        "correct": true,
+        "explanation": "That is it. The customer stops complaining, which reads like success. A fix that converts a loud problem into a quiet one has usually made things worse, and it is why the grader reads the plan and the limit rather than only the timing."
+      },
+      {
+        "text": "The service would reject a configuration it had not issued itself",
+        "correct": false,
+        "explanation": "It reads the file and trusts it, which is the whole hazard. Nothing validates the local copy against the directory, and that absence is worth raising in the escalation."
+      },
+      {
+        "text": "It would have been rejected in review",
+        "correct": false,
+        "explanation": "Perhaps, and perhaps not, since it looks like a one line configuration addition that fixes a customer's complaint. Relying on somebody else to catch it is not a reason it is correct to write."
+      }
+    ]
+  }
+]

@@ -1,0 +1,53 @@
+name: proveit-observability
+
+# One image, three roles. The services differ by the command they run and by
+# nothing else, which keeps the build to one layer and makes it obvious that
+# whatever is wrong here is configuration rather than a mismatched deploy.
+x-service: &service
+  build: .
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  mem_limit: 192m
+  cpus: 0.50
+  pids_limit: 200
+
+services:
+  api:
+    <<: *service
+    command: ["python", "/app/api.py"]
+    ports:
+      - "127.0.0.1:8102:8080"
+    volumes:
+      # The service's local copy of who its customers are. Materialized from
+      # the exercise, so it is the thing a learner edits.
+      - ./tenants.json:/etc/api/tenants.json:ro
+    depends_on:
+      downstream:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2)"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  downstream:
+    <<: *service
+    command: ["python", "/app/downstream.py"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2)"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  # Runs a known workload once and exits. Seeing it as `Exited (0)` is the
+  # expected state and means the sample finished, not that something crashed.
+  traffic:
+    <<: *service
+    command: ["python", "/app/traffic.py"]
+    restart: "no"
+    depends_on:
+      api:
+        condition: service_healthy

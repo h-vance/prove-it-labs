@@ -91,6 +91,24 @@ answer instead of an incident with a real resolution.
 startup ("the container is running") will pass at the wrong moment. Prefer
 state that is computed over time, such as a healthcheck result.
 
+**If your exercise measures anything, run it several times before you believe
+it.** Every service here is capped at half a core, so work that overlaps
+contends, and an assertion tuned on a quiet laptop fails on a loaded runner
+roughly one push in five. That is worse than a broken exercise, because it
+teaches people to rerun CI instead of reading it.
+
+The observability stack sends its sample workload one request at a time for
+exactly this reason. Running eight at once produced zero, one, two and four
+requests over a one second objective across four runs of the *fixed* state,
+from lookups that normally take five milliseconds. Loosening the objective
+would have buried that. Removing the contention fixed it, and a hundred serial
+requests turned out to prove everything four hundred concurrent ones did.
+
+Prefer numbers that are integers by construction, such as a count out of a
+fixed workload, over numbers that are measured, such as an average. When you
+do need a measured one, make the gap between pass and fail an order of
+magnitude rather than a margin.
+
 **Hints escalate, they do not dump.** Hint 1 reframes the symptom into a
 provable question and names no command. Hint 2 points at the layer and the kind
 of evidence. Hint 3 gives the commands. `solution.md` gives the reasoning.

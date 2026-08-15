@@ -371,8 +371,20 @@ SCRUB_RULES: list[tuple[str, "re.Pattern[str]", str]] = [
     # covering only some of them leaves the check failing every run: as a JSON
     # member, as a response header, and as a key=value pair in the service's own
     # structured logs.
+    # The optional prefix covers the observability stack, whose services tag
+    # what they generate: `req-` at the edge and `gen-` in the renderer when
+    # nothing was passed to it. Without it the rule saw a leading `r` where it
+    # wanted hex, matched nothing, and every recorded log line carried an id
+    # that changed on the next run. The drift check found that on the first
+    # re-run rather than in CI.
+    #
+    # A reference containing a letter outside hex is deliberately left alone,
+    # which is what lets observability/02 record a customer quoting theirs and
+    # still show it. Folding the id an exercise is entirely about would leave
+    # the page proving nothing.
     ("request-id", re.compile(
-        r'("request_id":\s*"|X-Request-Id:\s*|\brequest_id=)[0-9a-f]{8,}', re.IGNORECASE),
+        r'("request_id":\s*"|X-Request-Id:\s*|\brequest_id=)(?:[a-z]{2,4}-)?[0-9a-f]{8,}\b',
+        re.IGNORECASE),
         r"\1<request-id>"),
     # Compose assigns the bridge network a different subnet each time it is
     # created, so an error naming the address it dialed moves between runs.

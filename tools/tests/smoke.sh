@@ -239,7 +239,68 @@ else
     else
         pass "stop cleans up the borrowed stack behind it"
     fi
+
+    # ----------------------------------------------------------------------- #
+    # A stack with no service in it. The communication track is graded on what
+    # the learner writes, so `tse start` materializes files and brings nothing
+    # up. The failure this guards against is provisioning quietly trying to run
+    # compose against a stack that has no compose file and half succeeding.
+    section "Stack with nothing to bring up (stack: none)"
+
+    WRITTEN=communication/01-the-update-you-owe-after-an-outage
+    "$TSE" start "$WRITTEN" >/dev/null 2>&1
+
+    if [[ -f labs/communication/_stack/evidence.md ]]; then
+        pass "a written exercise materializes its evidence"
+    else
+        fail "a written exercise materializes its evidence"
+    fi
+    if [[ -f labs/communication/_stack/compose.yaml ]]; then
+        fail "a stack with no service has no compose file"
+    else
+        pass "a stack with no service has no compose file"
+    fi
+
+    "$TSE" stop >/dev/null 2>&1
+    if [[ -f labs/communication/_stack/evidence.md ]]; then
+        fail "stop clears a written exercise behind it"
+    else
+        pass "stop clears a written exercise behind it"
+    fi
+
+    # ----------------------------------------------------------------------- #
+    # Every track that owns a stack, brought up and torn down once. Three of
+    # these were added after the loop above was written and none of them were
+    # covered by anything: a track can be verified exercise by exercise and
+    # still have a stack that leaves files behind or refuses to start twice.
+    section "Every stack starts and stops"
+
+    for exercise in \
+        linux/01-disk-has-space-and-writes-still-fail \
+        networking/01-nightly-upload-stopped-and-nothing-changed \
+        observability/01-the-dashboard-is-green-and-they-are-timing-out
+    do
+        track=${exercise%%/*}
+        if "$TSE" start "$exercise" >/dev/null 2>&1; then
+            pass "$track starts"
+        else
+            fail "$track starts"
+        fi
+        "$TSE" stop >/dev/null 2>&1
+        if compgen -G "labs/$track/_stack/compose.override.yaml" >/dev/null; then
+            fail "$track leaves nothing behind"
+        else
+            pass "$track leaves nothing behind"
+        fi
+    done
 fi
+
+# --------------------------------------------------------------------------- #
+# The privacy gate. It runs in CI on every push, and running it here too means
+# a scaffolded exercise that pastes in a real path fails before it is committed
+# rather than after.
+section "Privacy gate"
+ok_contains "leak scan runs and reports clean" "clean" "$TSE" leaks
 
 # --------------------------------------------------------------------------- #
 [[ -s $STATE_BACKUP ]] && cp "$STATE_BACKUP" "$STATE"

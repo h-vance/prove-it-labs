@@ -1,0 +1,5 @@
+# Which of the caller's headers the api relays to the renderer.
+services:
+  api:
+    environment:
+      FORWARD_HEADERS: "authorization,x-tenant"

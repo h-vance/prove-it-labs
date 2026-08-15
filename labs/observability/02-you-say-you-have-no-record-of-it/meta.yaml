@@ -1,0 +1,36 @@
+id: observability/02-you-say-you-have-no-record-of-it
+track: observability
+title: They keep sending you the reference and you have no record of it
+proof_question: Can I prove where the identifier the customer holds stops?
+stack: compose
+tier: core
+difficulty: 3
+minutes: 30
+prerequisites:
+  - observability/01-the-dashboard-is-green-and-they-are-timing-out
+
+commands_introduced:
+  - curl -H
+  - grep across two services
+  - docker compose logs <service>
+
+evidence_layers:
+  - what the customer was given
+  - where that identifier appears
+  - where the failure is actually recorded
+  - what the two services put in their logs for the same request
+
+interview_relevance: >
+  Correlating a reference a customer hands you across the services that
+  handled their request is the single most common thing a support engineer
+  does, and it is the first thing that stops working at scale. Being able to
+  say "it stops between these two services, here is the request in one log and
+  here is the same moment in the other under a different reference" is a
+  concrete finding. "We could not find it" is not.
+
+teaches: >
+  A correlation identifier is only worth anything if it survives every hop.
+  One that is generated at the edge and not passed on gives every service its
+  own private view of a request that nobody can join up, and the logs stay
+  full, healthy and useless. An empty search result is a claim about your
+  search, not about whether the event happened.

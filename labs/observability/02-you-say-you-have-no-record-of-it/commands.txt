@@ -1,0 +1,46 @@
+# The customer's failure, reproduced with the reference they were given. The
+# response hands it straight back, so their screenshot was accurate.
+# alias: curl -H 'X-Request-Id: req-nw7k2p9x4m31' /v1/reports
+# alias: curl -s -H 'X-Request-Id: req-nw7k2p9x4m31' 'http://127.0.0.1:8102/v1/reports?tenant=northwind&rows=50000' | jq
+# wait: 20
+# keep: req-nw7k2p9x4m31, render_budget_exceeded, 50000
+curl -s -H 'X-Request-Id: req-nw7k2p9x4m31' \
+  'http://127.0.0.1:8102/v1/reports?tenant=northwind&rows=50000' | jq
+---
+# How many times that reference appears in the service that answered them.
+# alias: docker compose logs api | grep -c req-nw7k2p9x4m31
+# alias: logs api | grep req-nw7k2p9x4m31
+# keep: 1
+docker compose -f labs/observability/_stack/compose.yaml \
+               -f labs/observability/_stack/compose.override.yaml \
+               logs api 2>/dev/null | grep -c 'req-nw7k2p9x4m31'
+---
+# And in the service where the report actually failed.
+#
+# Nought. This is what three colleagues found, and the conclusion they drew
+# from it was that the reference did not exist.
+# alias: docker compose logs downstream | grep -c req-nw7k2p9x4m31
+# alias: logs downstream | grep req-nw7k2p9x4m31
+# keep: 0
+docker compose -f labs/observability/_stack/compose.yaml \
+               -f labs/observability/_stack/compose.override.yaml \
+               logs downstream 2>/dev/null | grep -c 'req-nw7k2p9x4m31'
+---
+# The same moment in that service, without filtering by the reference. The
+# failure is there in full, with a reference on it that was never shown to
+# anybody. The recorder folds generated ids, because which one this run
+# happened to mint is the one thing here that is not evidence.
+# alias: docker compose logs downstream | grep render_failed
+# alias: logs downstream | grep render_failed
+# keep: render_failed, budget=25000, exceeds the render budget
+docker compose -f labs/observability/_stack/compose.yaml \
+               -f labs/observability/_stack/compose.override.yaml \
+               logs downstream 2>/dev/null | grep 'event=render_failed' | tail -1
+---
+# What the first service is configured to pass on when it calls the second.
+# alias: docker compose logs api | grep server_started
+# alias: forward_headers
+# keep: forward_headers=authorization,x-tenant
+docker compose -f labs/observability/_stack/compose.yaml \
+               -f labs/observability/_stack/compose.override.yaml \
+               logs api 2>/dev/null | grep 'event=server_started' | tail -1

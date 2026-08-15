@@ -1,0 +1,34 @@
+id: observability/01-the-dashboard-is-green-and-they-are-timing-out
+track: observability
+title: The dashboard is green and one customer is timing out
+proof_question: Can I prove what this customer is seeing, rather than what everyone is seeing?
+stack: compose
+tier: core
+difficulty: 3
+minutes: 30
+
+commands_introduced:
+  - curl /metrics
+  - jq -c
+  - docker compose logs --tail
+
+evidence_layers:
+  - what the service reports across all traffic
+  - what it reports for this customer alone
+  - where their configuration is being resolved from
+  - what the second service is doing on their behalf
+
+interview_relevance: >
+  Almost everyone can say "look at the tail rather than the average". Far
+  fewer reach for the segment, and the segment is what actually resolves
+  tickets, because a customer never asks how the service is doing. Being able
+  to say "ninety-five percent of requests met the objective and zero percent
+  of yours did, and here is the reading for both" is the answer that ends the
+  argument instead of continuing it.
+
+teaches: >
+  An average over every customer cannot answer a question about one customer,
+  and a dashboard that reports only the aggregate will keep saying everything
+  is fine while a whole account is unusable. Both statements can be true at
+  once. The skill is knowing which reading answers the question in front of
+  you, and noticing when the one you have does not.

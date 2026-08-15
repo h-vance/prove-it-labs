@@ -1,0 +1,41 @@
+# What the dashboard reports, across everybody. This is the reading that
+# closed the customer's first two tickets, and it is accurate.
+# alias: curl -s http://127.0.0.1:8102/metrics | jq
+# alias: curl http://127.0.0.1:8102/metrics
+# wait: 20
+# keep: "requests": 100, "slow_requests": 5, 95
+curl -s http://127.0.0.1:8102/metrics | jq
+---
+# The same service, the same instant, scoped to the account that raised it.
+# alias: curl -s 'http://127.0.0.1:8102/metrics?tenant=northwind' | jq
+# alias: metrics?tenant=northwind
+# keep: "northwind", "slow_requests": 5, 0
+curl -s 'http://127.0.0.1:8102/metrics?tenant=northwind' | jq
+---
+# And somebody else, which is what rules out load rather than confirming it.
+# alias: curl -s 'http://127.0.0.1:8102/metrics?tenant=contoso' | jq
+# alias: metrics?tenant=contoso
+# keep: "contoso", "slow_requests": 0, 100
+curl -s 'http://127.0.0.1:8102/metrics?tenant=contoso' | jq
+---
+# One of their reports, read rather than timed. Same shape as anybody else's,
+# correct data, and one field that differs.
+# alias: curl -s 'http://127.0.0.1:8102/v1/reports?tenant=northwind' | jq
+# alias: /v1/reports?tenant=northwind
+# keep: "config_source": "directory", "plan": "enterprise", 50000
+curl -s 'http://127.0.0.1:8102/v1/reports?tenant=northwind' | jq
+---
+# The same call for the account that is fine.
+# alias: curl -s 'http://127.0.0.1:8102/v1/reports?tenant=contoso' | jq
+# alias: /v1/reports?tenant=contoso
+# keep: "config_source": "local", "plan": "growth"
+curl -s 'http://127.0.0.1:8102/v1/reports?tenant=contoso' | jq
+---
+# Who the second service is doing directory lookups for. One account, over and
+# over, and nobody else at all.
+# alias: docker compose logs downstream | grep directory
+# alias: logs downstream
+# keep: directory_lookup, northwind
+docker compose -f labs/observability/_stack/compose.yaml \
+               -f labs/observability/_stack/compose.override.yaml \
+               logs downstream 2>/dev/null | grep directory_lookup | tail -5

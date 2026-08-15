@@ -7,6 +7,7 @@
 labs/*/_stack/compose.override.yaml
 labs/*/_stack/request.sh
 labs/*/_stack/query.sql
+labs/*/_stack/tenants.json
 
 # Site build output.
 site/node_modules/

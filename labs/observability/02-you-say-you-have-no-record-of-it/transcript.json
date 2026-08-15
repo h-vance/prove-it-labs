@@ -1,0 +1,74 @@
+{
+  "recorded": "2026-08-15",
+  "entries": [
+    {
+      "command": "curl -s -H 'X-Request-Id: req-nw7k2p9x4m31' \\\n  'http://127.0.0.1:8102/v1/reports?tenant=northwind&rows=50000' | jq",
+      "aliases": [
+        "curl -H 'X-Request-Id: req-nw7k2p9x4m31' /v1/reports",
+        "curl -s -H 'X-Request-Id: req-nw7k2p9x4m31' 'http://127.0.0.1:8102/v1/reports?tenant=northwind&rows=50000' | jq"
+      ],
+      "match": [
+        "curl -H 'X-Request-Id: req-nw7k2p9x4m31' /v1/reports",
+        "curl -s -H 'X-Request-Id: req-nw7k2p9x4m31' 'http://127.0.0.1:8102/v1/reports?tenant=northwind&rows=50000' | jq"
+      ],
+      "output": "{\n  \"error\": \"render_budget_exceeded\",\n  \"tenant\": \"northwind\",\n  \"request_id\": \"req-nw7k2p9x4m31\",\n  \"rows\": 50000,\n  \"budget\": 25000\n}",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/observability/_stack/compose.yaml \\\n               -f labs/observability/_stack/compose.override.yaml \\\n               logs api 2>/dev/null | grep -c 'req-nw7k2p9x4m31'",
+      "aliases": [
+        "docker compose logs api | grep -c req-nw7k2p9x4m31",
+        "logs api | grep req-nw7k2p9x4m31"
+      ],
+      "match": [
+        "docker compose -f labs/observability/_stack/compose.yaml -f labs/observability/_stack/compose.override.yaml logs api 2>/dev/null | grep -c 'req-nw7k2p9x4m31'",
+        "docker compose logs api | grep -c req-nw7k2p9x4m31",
+        "logs api | grep req-nw7k2p9x4m31"
+      ],
+      "output": "1",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/observability/_stack/compose.yaml \\\n               -f labs/observability/_stack/compose.override.yaml \\\n               logs downstream 2>/dev/null | grep -c 'req-nw7k2p9x4m31'",
+      "aliases": [
+        "docker compose logs downstream | grep -c req-nw7k2p9x4m31",
+        "logs downstream | grep req-nw7k2p9x4m31"
+      ],
+      "match": [
+        "docker compose -f labs/observability/_stack/compose.yaml -f labs/observability/_stack/compose.override.yaml logs downstream 2>/dev/null | grep -c 'req-nw7k2p9x4m31'",
+        "docker compose logs downstream | grep -c req-nw7k2p9x4m31",
+        "logs downstream | grep req-nw7k2p9x4m31"
+      ],
+      "output": "0",
+      "exit": 1
+    },
+    {
+      "command": "docker compose -f labs/observability/_stack/compose.yaml \\\n               -f labs/observability/_stack/compose.override.yaml \\\n               logs downstream 2>/dev/null | grep 'event=render_failed' | tail -1",
+      "aliases": [
+        "docker compose logs downstream | grep render_failed",
+        "logs downstream | grep render_failed"
+      ],
+      "match": [
+        "docker compose -f labs/observability/_stack/compose.yaml -f labs/observability/_stack/compose.override.yaml logs downstream 2>/dev/null | grep 'event=render_failed' | tail -1",
+        "docker compose logs downstream | grep render_failed",
+        "logs downstream | grep render_failed"
+      ],
+      "output": "downstream-1  | level=error service=downstream request_id=gen-96d925231c3a event=render_failed tenant=northwind rows=50000 budget=25000 detail=report exceeds the render budget",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/observability/_stack/compose.yaml \\\n               -f labs/observability/_stack/compose.override.yaml \\\n               logs api 2>/dev/null | grep 'event=server_started' | tail -1",
+      "aliases": [
+        "docker compose logs api | grep server_started",
+        "forward_headers"
+      ],
+      "match": [
+        "docker compose -f labs/observability/_stack/compose.yaml -f labs/observability/_stack/compose.override.yaml logs api 2>/dev/null | grep 'event=server_started' | tail -1",
+        "docker compose logs api | grep server_started",
+        "forward_headers"
+      ],
+      "output": "api-1  | level=info service=api event=server_started port=8080 forward_headers=authorization,x-tenant",
+      "exit": 0
+    }
+  ]
+}

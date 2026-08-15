@@ -1,0 +1,78 @@
+{
+  "adventure": {
+    "plan": "growth",
+    "row_limit": 10000
+  },
+  "alpine": {
+    "plan": "growth",
+    "row_limit": 10000
+  },
+  "blueyonder": {
+    "plan": "starter",
+    "row_limit": 2000
+  },
+  "coho": {
+    "plan": "starter",
+    "row_limit": 2000
+  },
+  "consolidated": {
+    "plan": "growth",
+    "row_limit": 10000
+  },
+  "contoso": {
+    "plan": "growth",
+    "row_limit": 10000
+  },
+  "fabrikam": {
+    "plan": "growth",
+    "row_limit": 10000
+  },
+  "fourthcoffee": {
+    "plan": "growth",
+    "row_limit": 10000
+  },
+  "graphicdesign": {
+    "plan": "starter",
+    "row_limit": 2000
+  },
+  "humongous": {
+    "plan": "enterprise",
+    "row_limit": 50000
+  },
+  "litware": {
+    "plan": "starter",
+    "row_limit": 2000
+  },
+  "lucerne": {
+    "plan": "growth",
+    "row_limit": 10000
+  },
+  "proseware": {
+    "plan": "growth",
+    "row_limit": 10000
+  },
+  "relecloud": {
+    "plan": "growth",
+    "row_limit": 10000
+  },
+  "tailspin": {
+    "plan": "starter",
+    "row_limit": 2000
+  },
+  "trey": {
+    "plan": "starter",
+    "row_limit": 2000
+  },
+  "vanarsdel": {
+    "plan": "starter",
+    "row_limit": 2000
+  },
+  "wideworld": {
+    "plan": "starter",
+    "row_limit": 2000
+  },
+  "wingtip": {
+    "plan": "starter",
+    "row_limit": 2000
+  }
+}

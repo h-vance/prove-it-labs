@@ -1,0 +1,84 @@
+{
+  "recorded": "2026-08-15",
+  "entries": [
+    {
+      "command": "curl -s http://127.0.0.1:8102/metrics | jq",
+      "aliases": [
+        "curl -s http://127.0.0.1:8102/metrics | jq",
+        "curl http://127.0.0.1:8102/metrics"
+      ],
+      "match": [
+        "curl -s http://127.0.0.1:8102/metrics | jq",
+        "curl http://127.0.0.1:8102/metrics"
+      ],
+      "output": "{\n  \"requests\": 100,\n  \"slow_requests\": 5,\n  \"slow_threshold_ms\": 1000,\n  \"within_objective_pct\": 95.0\n}",
+      "exit": 0
+    },
+    {
+      "command": "curl -s 'http://127.0.0.1:8102/metrics?tenant=northwind' | jq",
+      "aliases": [
+        "curl -s 'http://127.0.0.1:8102/metrics?tenant=northwind' | jq",
+        "metrics?tenant=northwind"
+      ],
+      "match": [
+        "curl -s 'http://127.0.0.1:8102/metrics?tenant=northwind' | jq",
+        "metrics?tenant=northwind"
+      ],
+      "output": "{\n  \"tenant\": \"northwind\",\n  \"requests\": 5,\n  \"slow_requests\": 5,\n  \"slow_threshold_ms\": 1000,\n  \"within_objective_pct\": 0.0\n}",
+      "exit": 0
+    },
+    {
+      "command": "curl -s 'http://127.0.0.1:8102/metrics?tenant=contoso' | jq",
+      "aliases": [
+        "curl -s 'http://127.0.0.1:8102/metrics?tenant=contoso' | jq",
+        "metrics?tenant=contoso"
+      ],
+      "match": [
+        "curl -s 'http://127.0.0.1:8102/metrics?tenant=contoso' | jq",
+        "metrics?tenant=contoso"
+      ],
+      "output": "{\n  \"tenant\": \"contoso\",\n  \"requests\": 5,\n  \"slow_requests\": 0,\n  \"slow_threshold_ms\": 1000,\n  \"within_objective_pct\": 100.0\n}",
+      "exit": 0
+    },
+    {
+      "command": "curl -s 'http://127.0.0.1:8102/v1/reports?tenant=northwind' | jq",
+      "aliases": [
+        "curl -s 'http://127.0.0.1:8102/v1/reports?tenant=northwind' | jq",
+        "/v1/reports?tenant=northwind"
+      ],
+      "match": [
+        "/v1/reports?tenant=northwind",
+        "curl -s 'http://127.0.0.1:8102/v1/reports?tenant=northwind' | jq"
+      ],
+      "output": "{\n  \"tenant\": \"northwind\",\n  \"plan\": \"enterprise\",\n  \"row_limit\": 50000,\n  \"rows\": 1000,\n  \"config_source\": \"directory\"\n}",
+      "exit": 0
+    },
+    {
+      "command": "curl -s 'http://127.0.0.1:8102/v1/reports?tenant=contoso' | jq",
+      "aliases": [
+        "curl -s 'http://127.0.0.1:8102/v1/reports?tenant=contoso' | jq",
+        "/v1/reports?tenant=contoso"
+      ],
+      "match": [
+        "/v1/reports?tenant=contoso",
+        "curl -s 'http://127.0.0.1:8102/v1/reports?tenant=contoso' | jq"
+      ],
+      "output": "{\n  \"tenant\": \"contoso\",\n  \"plan\": \"growth\",\n  \"row_limit\": 10000,\n  \"rows\": 1000,\n  \"config_source\": \"local\"\n}",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/observability/_stack/compose.yaml \\\n               -f labs/observability/_stack/compose.override.yaml \\\n               logs downstream 2>/dev/null | grep directory_lookup | tail -5",
+      "aliases": [
+        "docker compose logs downstream | grep directory",
+        "logs downstream"
+      ],
+      "match": [
+        "docker compose -f labs/observability/_stack/compose.yaml -f labs/observability/_stack/compose.override.yaml logs downstream 2>/dev/null | grep directory_lookup | tail -5",
+        "docker compose logs downstream | grep directory",
+        "logs downstream"
+      ],
+      "output": "downstream-1  | level=info service=downstream request_id=gen-76917423ad26 event=directory_lookup tenant=northwind\ndownstream-1  | level=info service=downstream request_id=gen-0532ecb90d3f event=directory_lookup tenant=northwind\ndownstream-1  | level=info service=downstream request_id=gen-19c5e786f687 event=directory_lookup tenant=northwind\ndownstream-1  | level=info service=downstream request_id=gen-6bc3c53c3e4e event=directory_lookup tenant=northwind\ndownstream-1  | level=info service=downstream request_id=gen-9b148c0e4fdd event=directory_lookup tenant=northwind",
+      "exit": 0
+    }
+  ]
+}

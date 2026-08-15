@@ -125,7 +125,10 @@ prose, which includes a lot of very good engineers.
 | Customer communication | 2 | Available |
 | Linux and CLI foundations | 2 | Available |
 | Networking, DNS, TLS | 2 | Available, both on TLS so far |
-| Observability | | Next |
+| Observability | 2 | Available |
+
+Twenty-five exercises across all nine tracks. Everything from here is depth
+inside tracks that already exist rather than new ground.
 
 Some exercises are built as pairs on purpose. `docker/02` and `docker/03`
 present the customer with the same symptom and resolve to different causes, as
@@ -144,6 +147,14 @@ no technology and no layer, and working out which system is even involved is
 the first real step. Both of the current pair share a theme, which is the one
 worth carrying into a real rotation: a signal that is green, accurate, and
 answering a narrower question than the customer asked.
+
+**Observability is about the reading you did not take.** Neither exercise there
+has anything broken in the usual sense. In the first, the service is healthy,
+the dashboard is accurate, and a customer is completely unable to work, all at
+the same time and all provable from the same endpoint. In the second, every
+service is running, no log is empty, and every line carries a perfectly good
+reference. They just do not join up, so three support engineers in a row
+concluded that a customer's evidence did not exist.
 
 **Customer communication is graded on what you write.** There is no system to
 bring up. You get the evidence from an incident you already solved and a draft

@@ -1,0 +1,77 @@
+[
+  {
+    "question": "Three colleagues searched for the customer's reference, found nothing, and told them it did not exist. What was wrong with that?",
+    "options": [
+      {
+        "text": "Nothing, given the tools they had. The reference genuinely was not there",
+        "correct": false,
+        "explanation": "It was not in the log they searched, which is a different statement, and one of the two logs did contain it. The conclusion went further than the evidence supported, and that is the whole error."
+      },
+      {
+        "text": "An empty result says the string was not where you looked, and there was independent evidence the request happened that should have outweighed it",
+        "correct": true,
+        "explanation": "Exactly. The customer had a failing report and a screenshot, so the request demonstrably occurred. When an absence contradicts positive evidence, the absence is the thing to doubt, and the useful question becomes where the trail stops rather than whether it exists."
+      },
+      {
+        "text": "They should have asked the customer to reproduce it while they watched",
+        "correct": false,
+        "explanation": "It would have produced a fourth reference with the same problem. Anybody could reproduce this themselves at any time, and doing so is what makes the search cheap rather than what makes it succeed."
+      },
+      {
+        "text": "The logs had rotated and the evidence was genuinely gone",
+        "correct": false,
+        "explanation": "Everything was still there, including the failure itself in full detail. Retention is worth ruling out and this is not that: the record existed the entire time under a different reference."
+      }
+    ]
+  },
+  {
+    "question": "Both services behaved correctly in isolation. What produced the failure between them?",
+    "options": [
+      {
+        "text": "The renderer was misconfigured and should not generate a reference of its own",
+        "correct": false,
+        "explanation": "Generating one when none arrives is right. A service that logged failures against nothing at all would be worse, and would fail for any caller that never sends a reference."
+      },
+      {
+        "text": "An allowlist of forwarded headers was missing one entry, so a correct design and a correct default combined into a request nobody can follow",
+        "correct": true,
+        "explanation": "That is it, and it is why nothing looked broken. An allowlist is the right way to relay headers, generating a reference is the right fallback, and the gap between two reasonable decisions is where the request became unjoinable."
+      },
+      {
+        "text": "The two services disagreed about the header's name",
+        "correct": false,
+        "explanation": "They agree on it, which you can show by adding it to the list and watching the same reference appear in both. A name mismatch is a good theory and the fix is what rules it out."
+      },
+      {
+        "text": "The customer's client was not sending a reference at all",
+        "correct": false,
+        "explanation": "The product generates one at the edge when the caller does not send one, and it was shown to them. The reference existed before the request reached either service that mattered."
+      }
+    ]
+  },
+  {
+    "question": "You could have found the failure by matching timestamps across the two logs instead. Why is that not the fix?",
+    "options": [
+      {
+        "text": "The clocks on the two services are not synchronized",
+        "correct": false,
+        "explanation": "They share a host and are close enough for this to work today. It failing later for a subtler reason is not the strongest objection to it."
+      },
+      {
+        "text": "It works on a quiet service, stops working the moment two customers fail in the same second, and gives the customer nothing they can quote",
+        "correct": true,
+        "explanation": "Right on all three counts. It is a manual technique that degrades exactly as load rises, and the ticket was never really about you finding it once. It was about a reference the customer is told to quote being followable at all."
+      },
+      {
+        "text": "Timestamps are not written to these logs",
+        "correct": false,
+        "explanation": "Compose stamps every line and you can ask for them explicitly. The technique is available, which is what makes it a tempting answer rather than an impossible one."
+      },
+      {
+        "text": "It would require access neither service grants",
+        "correct": false,
+        "explanation": "Both logs are readable with the same command you already used. Difficulty is not the objection; what the approach cannot do as traffic grows is."
+      }
+    ]
+  }
+]
