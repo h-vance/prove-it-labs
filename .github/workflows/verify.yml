@@ -33,7 +33,7 @@ jobs:
     name: tests
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # No install step on purpose. If tse ever grows a dependency, this fails.
       - name: CLI runs on a stock interpreter
@@ -72,7 +72,7 @@ jobs:
     outputs:
       exercises: ${{ steps.collect.outputs.exercises }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: collect
         run: echo "exercises=$(tools/tse list --ids)" >> "$GITHUB_OUTPUT"
 
@@ -86,7 +86,7 @@ jobs:
       matrix:
         exercise: ${{ fromJSON(needs.discover.outputs.exercises) }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # tse creates and reuses its own cluster, so only the binary is needed.
       # The Kubernetes exercises are the only ones that touch it.
@@ -120,7 +120,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Full smoke test including the Docker loop
         run: tools/tests/smoke.sh
 
@@ -128,7 +128,7 @@ jobs:
     name: shellcheck
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: |
           shellcheck --severity=warning \
             tools/lib/assert.sh \
