@@ -4,17 +4,25 @@ on:
   push:
     branches: [main]
   pull_request:
-  workflow_dispatch:
-  # The whole course, once a night, whatever changed.
+  # The whole course, on request. There is no schedule here, deliberately.
   #
   # Ordinary pushes verify only the exercises the change can reach, which is
   # what makes them affordable. That is a real trade: a base image moving under
   # a lab, or a Docker release changing an output format, breaks an exercise
   # without anybody committing anything, and a push that touches one file will
-  # not notice. This is the job that notices. It is also the flake detector the
-  # audit asked for, since twenty five exercises re-run daily is a repeat run.
-  schedule:
-    - cron: "0 9 * * *"
+  # not notice.
+  #
+  # A nightly run is the usual answer to that, and it was written here and taken
+  # back out within the hour. The full course is about eighty billable minutes.
+  # Nightly is roughly two thousand four hundred a month against an allowance of
+  # two thousand, so the job meant to catch drift would have spent the entire
+  # budget and left nothing for the pushes that actually change something.
+  #
+  # Run it by hand before a release, and after any month where the labs sat
+  # untouched. On a public repository standard runners are free and unmetered,
+  # so a schedule becomes affordable the day this goes public and is worth
+  # adding back then.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -154,9 +162,31 @@ jobs:
     # without starting anything, so a bad pull request costs one job rather than
     # twenty-five.
     needs: [discover, tests]
-    # An empty matrix is not a valid job, and a docs-only change selects
-    # nothing. Skipping is the correct outcome there.
-    if: needs.discover.outputs.count != '0'
+    #
+    # ---------------------------------------------------------------------
+    # ON REQUEST ONLY, AND ONLY WHILE THIS REPOSITORY IS PRIVATE.
+    #
+    # Measured on a real run: this workflow costs 81 billable minutes and 73 of
+    # them are this job. The rest of it, the tests and shellcheck and the
+    # discovery step, come to 3. A private repository gets 2,000 minutes a
+    # month, so this job alone is the whole allowance in 27 pushes, and it was
+    # spent.
+    #
+    # Nothing is given up. The same verification runs locally against real
+    # containers, free and unmetered, and that is now the gate that matters:
+    #
+    #     tools/tests/preflight.sh
+    #
+    # THE DAY THIS REPOSITORY GOES PUBLIC: delete the `workflow_dispatch` half
+    # of this condition, and put the nightly schedule back at the top of the
+    # file. Standard runners are free and unlimited on public repositories, so
+    # every push should verify every exercise it can reach, which is what this
+    # workflow was built to do.
+    # ---------------------------------------------------------------------
+    #
+    # An empty matrix is also not a valid job, and a docs-only change selects
+    # nothing, so the count guard stays either way.
+    if: github.event_name == 'workflow_dispatch' && needs.discover.outputs.count != '0'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     strategy:
@@ -198,11 +228,10 @@ jobs:
     # Same reasoning as `verify`: the full smoke test runs the learner loop,
     # which provisions a real exercise.
     #
-    # Skipped alongside the matrix when nothing an exercise depends on moved. A
-    # change under tools/ selects every exercise, so this still runs for every
-    # change to the CLI it exercises.
+    # Five more billable minutes of Docker, held to the same rule as the matrix
+    # above and for the same reason. `tools/tests/preflight.sh` runs it locally.
     needs: [tests, discover]
-    if: needs.discover.outputs.count != '0'
+    if: github.event_name == 'workflow_dispatch' && needs.discover.outputs.count != '0'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
