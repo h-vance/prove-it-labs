@@ -32,8 +32,14 @@ make them feel it was a stupid one.
 
 ## Reporting
 
-Contact the maintainer through GitHub. Reports are read by the maintainer only and are
-not shared further without your agreement.
+Contact the maintainer through GitHub, at
+[github.com/h-vance](https://github.com/h-vance). If you would rather not go
+through the maintainer at all, GitHub's own
+[report abuse](https://github.com/contact/report-abuse) form goes to their
+Trust and Safety team instead.
+
+Reports are read by the maintainer only and are not shared further without your
+agreement.
 
 Say what happened and link it if it is public. You do not need to have decided
 whether it was serious enough. That is not your job to work out on your own.
