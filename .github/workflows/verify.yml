@@ -14,10 +14,18 @@ permissions:
 # against a tree nobody is waiting on. site.yml has had this from the start;
 # this workflow is the expensive one and did not.
 #
-# Not cancelled on main. A run there is the record of whether a commit was good,
-# and cancelling it leaves a commit with no answer either way.
+# A run on main is the record of whether that commit was good, so main commits
+# must never supersede each other. `cancel-in-progress: false` is not enough to
+# get that, which this workflow demonstrated on the commit that introduced it:
+# GitHub keeps at most one *pending* run per group and drops the older one
+# before it starts, and cancel-in-progress only governs runs that already
+# began. Two pushes a couple of minutes apart left the first commit with no
+# verdict at all.
+#
+# So main commits get a group each, keyed on the SHA, and can never collide.
+# Everything else groups by ref, where superseding is the whole point.
 concurrency:
-  group: verify-${{ github.ref }}
+  group: verify-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || 'shared' }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
