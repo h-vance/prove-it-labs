@@ -386,6 +386,12 @@ SCRUB_RULES: list[tuple[str, "re.Pattern[str]", str]] = [
     # so an already-replaced pod name cannot match it.
     ("endpointslice-suffix", re.compile(r"(?m)^([a-z0-9-]+?)-[a-z0-9]{5}(?=\s)"),
         r"\1-<slice>"),
+    # Kubernetes derives this from the pod template, and the lab image is tagged
+    # per architecture, so an arm64 laptop and an amd64 CI runner produce
+    # genuinely different hashes for the same deployment. It appears in
+    # --show-labels output; inside a pod name the rule above already covers it.
+    ("pod-template-hash", re.compile(r"pod-template-hash=[0-9a-f]{6,10}"),
+        "pod-template-hash=<hash>"),
     # The RESTARTS column carries how long ago the last one was, and both halves
     # move. That it is restarting at all is the evidence, and that survives.
     ("k8s-restarts", re.compile(r"\b\d+ \(\d+[smhd](?:\d+[smhd])? ago\)"),
@@ -395,8 +401,17 @@ SCRUB_RULES: list[tuple[str, "re.Pattern[str]", str]] = [
     # which one a command catches is purely when it ran. They report the same
     # fact, so a recording showing one must not fail against a run showing the
     # other. Comparison only: whichever was captured is what the learner sees.
-    ("image-pull-state", re.compile(r"\b(?:ErrImagePull|ImagePullBackOff)\b"),
-        "<image-pull-failure>"),
+    #
+    # The two prose forms are the same alternation as seen from `kubectl logs`
+    # rather than the STATUS column. kubelet says "trying and failing to pull
+    # image" while it is still retrying and "image can't be pulled" once it has
+    # backed off, and CI caught the opposite one to the laptop that recorded it.
+    # "Failed to pull image", which the keep markers depend on, is a different
+    # string and is deliberately not matched here.
+    ("image-pull-state", re.compile(
+        r"\b(?:ErrImagePull|ImagePullBackOff)\b"
+        r"|trying and failing to pull image"
+        r"|image can't be pulled"), "<image-pull-failure>"),
     # A crash loop cycles through Error and CrashLoopBackOff, and which one a
     # command catches depends only on where in the backoff it ran. Both say the
     # container is failing and being restarted.
@@ -411,6 +426,18 @@ SCRUB_RULES: list[tuple[str, "re.Pattern[str]", str]] = [
     # kind publishes its API server on a random high port.
     ("ephemeral-port", re.compile(r"127\.0\.0\.1:\d{4,5}->6443/tcp"),
         "127.0.0.1:<port>->6443/tcp"),
+    # A crash-looping container writes the same line once per attempt, so how
+    # many times it appears is a measure of how fast the machine is rather than
+    # anything about the failure. A laptop got through seven attempts in the
+    # same window a CI runner managed six, and the comparison failed on a line
+    # that simply had not happened yet.
+    #
+    # Scoped to the compose log prefix (`app-1  | ...`) deliberately, not to
+    # repeated lines in general. After pod suffixes and restart counts are
+    # replaced, two different pods in `kubectl get pods` can scrub to identical
+    # lines, and a general rule would fold them together and hide a deployment
+    # dropping from two replicas to one.
+    ("repeated-log-line", re.compile(r"(?m)^(\S+\s+\| .*)(?:\n\1)+$"), r"\1"),
     # Column padding, and it has to come last.
     #
     # Tools like `docker ps` and `kubectl get` pad every column to its widest

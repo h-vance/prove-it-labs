@@ -81,6 +81,18 @@ SAMPLES: dict[str, str] = {
         "0c02ee579b5d   kindest/node:v1.36.1   Up 4 days   "
         "127.0.0.1:57702->6443/tcp   proveit-control-plane"
     ),
+    # Captured on an arm64 laptop. A CI runner on amd64 produced
+    # pod-template-hash=6cfff686f for the same deployment.
+    "pod-template-hash": (
+        "orders-api-56cb47dd7f-x9wpk   1/1   Running   0   30s   "
+        "app.kubernetes.io/name=orders-api,pod-template-hash=56cb47dd7f"
+    ),
+    # Seven attempts locally, six on a CI runner, in the same wait.
+    "repeated-log-line": (
+        "app-1  | ERROR: required environment variable APP_SECRET is not set\n"
+        "app-1  | ERROR: required environment variable APP_SECRET is not set\n"
+        "app-1  | ERROR: required environment variable APP_SECRET is not set"
+    ),
     "column-padding": "CONTAINER ID   IMAGE                COMMAND                  CREATED",
 }
 
@@ -198,6 +210,54 @@ class RulesDoNotOverReach(unittest.TestCase):
         for first, second in distinct:
             with self.subTest(first):
                 self.assertNotEqual(scrub(first), scrub(second))
+
+    def test_a_crash_loop_log_folds_on_count_but_not_on_content(self):
+        """How many attempts happened is machine speed. What they said is not."""
+        line = "app-1  | ERROR: required environment variable APP_SECRET is not set\n"
+        self.assertEqual(scrub(line * 7), scrub(line * 6))
+        other = "app-1  | ERROR: required environment variable DB_PASSWORD is not set\n"
+        self.assertNotEqual(scrub(line * 7), scrub(other * 7))
+
+    def test_repeated_lines_never_fold_two_pods_into_one(self):
+        """The over-reach this rule was deliberately scoped to avoid.
+
+        Once pod suffixes, restart counts and ages are replaced, two replicas
+        scrub to byte-identical lines. A general "collapse repeated lines" rule
+        would fold them together, and a deployment quietly dropping from two
+        replicas to one would then compare equal.
+        """
+        two = (
+            "orders-api-8c8575974-6n2ts   0/1   CrashLoopBackOff   3 (41s ago)   75s\n"
+            "orders-api-8c8575974-krbtq   0/1   CrashLoopBackOff   3 (35s ago)   75s\n"
+        )
+        one = "orders-api-8c8575974-6n2ts   0/1   CrashLoopBackOff   3 (41s ago)   75s\n"
+        self.assertNotEqual(scrub(two), scrub(one))
+
+    def test_both_wordings_of_a_failing_pull_fold_together(self):
+        """kubelet's two messages for one stuck pull, from `kubectl logs`.
+
+        Which one a command catches depends only on where in the backoff it
+        ran. CI caught the opposite one to the laptop that recorded it.
+        """
+        stem = 'Error from server (BadRequest): container "app" is waiting to start: '
+        self.assertEqual(
+            scrub(f"{stem}trying and failing to pull image"),
+            scrub(f"{stem}image can't be pulled"),
+        )
+
+    def test_the_pull_failure_rule_leaves_the_event_message_alone(self):
+        """"Failed to pull image" is a keep marker for kubernetes/01."""
+        message = 'Failed to pull image "orders-api:3.12-alpne": not found'
+        self.assertIn("Failed to pull image", scrub(message))
+        self.assertIn("not found", scrub(message))
+
+    def test_a_template_hash_folds_but_the_rest_of_the_labels_do_not(self):
+        labels = "app.kubernetes.io/name=orders-api,pod-template-hash="
+        self.assertEqual(scrub(f"{labels}56cb47dd7f"), scrub(f"{labels}6cfff686f"))
+        self.assertNotEqual(
+            scrub("app.kubernetes.io/name=orders-api,pod-template-hash=56cb47dd7f"),
+            scrub("app.kubernetes.io/name=payments-api,pod-template-hash=56cb47dd7f"),
+        )
 
     def test_evidence_survives_in_context(self):
         """The same strings, inside output that does trigger rules."""
