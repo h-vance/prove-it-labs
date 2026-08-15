@@ -1,0 +1,33 @@
+id: linux/02-the-file-is-right-there-and-unreadable
+track: linux
+title: The file is right there and the service cannot read it
+proof_question: Can I prove which account the process is actually running as?
+stack: compose
+tier: core
+difficulty: 3
+minutes: 30
+prerequisites:
+  - linux/01-disk-has-space-and-writes-still-fail
+
+commands_introduced:
+  - id
+  - ls -l
+  - stat
+
+evidence_layers:
+  - the error the process returned
+  - the file's owner, group and mode
+  - the identity the process actually has
+
+interview_relevance: >
+  Permission problems are where people reach for root fastest, and reaching
+  for root is the answer that ends the conversation. Being able to say which
+  account the process runs as, which account the file belongs to, and which
+  single group is missing between them is a different level of answer, and it
+  is the one that keeps the hardening in place.
+
+teaches: >
+  "The file exists" and "this process can read it" are two separate claims,
+  and only the second one matters. Identity is not just a user: supplementary
+  group membership is part of it, and it can be dropped by a change that
+  appears to set the identity to exactly what it already was.

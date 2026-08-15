@@ -1,0 +1,33 @@
+name: proveit-linux
+
+services:
+  worker:
+    build: .
+    environment:
+      EXPORT_ROWS: "5000"
+      EXPORT_ROWS_PER_FILE: "1000"
+
+    # A spool directory with a fixed inode budget.
+    #
+    # This is what makes linux/01 deterministic rather than a matter of how
+    # full somebody's disk happens to be. A real spool directory has an inode
+    # budget too. It is usually just large enough that nobody thinks about it
+    # until the night they have to.
+    tmpfs:
+      - /var/spool/exports:size=64m,nr_inodes=512,mode=1777
+
+    # No published port. This track is about a machine and its filesystem, not
+    # about a service anybody connects to.
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    cpus: 0.50
+    pids_limit: 100
+    healthcheck:
+      test: ["CMD", "test", "-d", "/var/spool/exports"]
+      interval: 3s
+      timeout: 3s
+      retries: 10

@@ -1,0 +1,73 @@
+{
+  "recorded": "2026-08-15",
+  "entries": [
+    {
+      "command": "docker compose -f labs/linux/_stack/compose.yaml \\\n               -f labs/linux/_stack/compose.override.yaml \\\n               exec -T worker python3 /app/exporter.py",
+      "aliases": [
+        "python3 /app/exporter.py",
+        "docker compose exec worker python3 /app/exporter.py"
+      ],
+      "match": [
+        "docker compose -f labs/linux/_stack/compose.yaml -f labs/linux/_stack/compose.override.yaml exec -T worker python3 /app/exporter.py",
+        "docker compose exec worker python3 /app/exporter.py",
+        "python3 /app/exporter.py"
+      ],
+      "output": "{\"status\": \"error\", \"event\": \"export_failed\", \"detail\": \"[Errno 28] No space left on device: '/var/spool/exports/chunk-00511.csv'\", \"errno\": 28, \"files_written\": 511, \"files_expected\": 5000}",
+      "exit": 1
+    },
+    {
+      "command": "docker compose -f labs/linux/_stack/compose.yaml \\\n               -f labs/linux/_stack/compose.override.yaml \\\n               exec -T worker df -h /var/spool/exports",
+      "aliases": [
+        "df -h",
+        "df -h /var/spool/exports"
+      ],
+      "match": [
+        "df -h",
+        "df -h /var/spool/exports",
+        "docker compose -f labs/linux/_stack/compose.yaml -f labs/linux/_stack/compose.override.yaml exec -T worker df -h /var/spool/exports"
+      ],
+      "output": "Filesystem                Size      Used Available Use% Mounted on\ntmpfs                    64.0M      2.0M     62.0M   3% /var/spool/exports",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/linux/_stack/compose.yaml \\\n               -f labs/linux/_stack/compose.override.yaml \\\n               exec -T worker df -i /var/spool/exports",
+      "aliases": [
+        "df -i",
+        "df -i /var/spool/exports"
+      ],
+      "match": [
+        "df -i",
+        "df -i /var/spool/exports",
+        "docker compose -f labs/linux/_stack/compose.yaml -f labs/linux/_stack/compose.override.yaml exec -T worker df -i /var/spool/exports"
+      ],
+      "output": "Filesystem              Inodes      Used Available Use% Mounted on\ntmpfs                      512       512         0 100% /var/spool/exports",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/linux/_stack/compose.yaml \\\n               -f labs/linux/_stack/compose.override.yaml \\\n               exec -T worker sh -c 'ls /var/spool/exports | wc -l'",
+      "aliases": [
+        "ls /var/spool/exports | wc -l"
+      ],
+      "match": [
+        "docker compose -f labs/linux/_stack/compose.yaml -f labs/linux/_stack/compose.override.yaml exec -T worker sh -c 'ls /var/spool/exports | wc -l'",
+        "ls /var/spool/exports | wc -l"
+      ],
+      "output": "511",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/linux/_stack/compose.yaml \\\n               -f labs/linux/_stack/compose.override.yaml \\\n               exec -T worker sh -c 'env | grep ^EXPORT_ | sort'",
+      "aliases": [
+        "printenv EXPORT_ROWS_PER_FILE",
+        "env | grep EXPORT"
+      ],
+      "match": [
+        "docker compose -f labs/linux/_stack/compose.yaml -f labs/linux/_stack/compose.override.yaml exec -T worker sh -c 'env | grep ^EXPORT_ | sort'",
+        "env | grep EXPORT",
+        "printenv EXPORT_ROWS_PER_FILE"
+      ],
+      "output": "EXPORT_ROWS=5000\nEXPORT_ROWS_PER_FILE=1",
+      "exit": 0
+    }
+  ]
+}

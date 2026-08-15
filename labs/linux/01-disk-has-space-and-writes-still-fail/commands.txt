@@ -1,0 +1,45 @@
+# The job, run on demand. The error names the failure and not the cause: the
+# kernel returns the same code for running out of space and running out of
+# files, and this is its wording for both.
+# alias: python3 /app/exporter.py
+# alias: docker compose exec worker python3 /app/exporter.py
+# wait: 15
+# keep: No space left on device, files_written
+docker compose -f labs/linux/_stack/compose.yaml \
+               -f labs/linux/_stack/compose.override.yaml \
+               exec -T worker python3 /app/exporter.py
+---
+# What the customer checked, and they were right.
+# alias: df -h
+# alias: df -h /var/spool/exports
+# keep: /var/spool/exports
+docker compose -f labs/linux/_stack/compose.yaml \
+               -f labs/linux/_stack/compose.override.yaml \
+               exec -T worker df -h /var/spool/exports
+---
+# What nobody checked. Same directory, same instant, different resource.
+# alias: df -i
+# alias: df -i /var/spool/exports
+# keep: 100%, 512
+docker compose -f labs/linux/_stack/compose.yaml \
+               -f labs/linux/_stack/compose.override.yaml \
+               exec -T worker df -i /var/spool/exports
+---
+# How many files are actually in there.
+# alias: ls /var/spool/exports | wc -l
+# keep: 511
+docker compose -f labs/linux/_stack/compose.yaml \
+               -f labs/linux/_stack/compose.override.yaml \
+               exec -T worker sh -c 'ls /var/spool/exports | wc -l'
+---
+# And what the job was told to write, which is the number that explains it.
+#
+# `env | grep` rather than `printenv NAME`, because printenv prints values
+# without their names. The keep marker below caught that: the variable name
+# never appeared in the output at all.
+# alias: printenv EXPORT_ROWS_PER_FILE
+# alias: env | grep EXPORT
+# keep: EXPORT_ROWS_PER_FILE=1, EXPORT_ROWS=5000
+docker compose -f labs/linux/_stack/compose.yaml \
+               -f labs/linux/_stack/compose.override.yaml \
+               exec -T worker sh -c 'env | grep ^EXPORT_ | sort'

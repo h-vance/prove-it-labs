@@ -1,0 +1,9 @@
+services:
+  worker:
+    # The hardening pass stays. Naming the account explicitly is worth doing.
+    user: "1000:1000"
+    # What it silently dropped, restored. Specifying user:group replaces the
+    # whole group membership, including the supplementary groups the image set
+    # up, and reading the credentials needs the group that owns the file.
+    group_add:
+      - "2000"

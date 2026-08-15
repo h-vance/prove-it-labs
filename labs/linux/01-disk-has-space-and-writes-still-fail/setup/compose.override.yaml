@@ -1,0 +1,5 @@
+services:
+  worker:
+    environment:
+      # Changed during last week's tuning work.
+      EXPORT_ROWS_PER_FILE: "1"

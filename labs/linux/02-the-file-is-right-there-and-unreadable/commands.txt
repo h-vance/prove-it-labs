@@ -1,0 +1,35 @@
+# The job, run on demand. It reports the identity it is running under alongside
+# the failure, which is most of what you need.
+# alias: python3 /app/reporter.py
+# alias: docker compose exec worker python3 /app/reporter.py
+# wait: 15
+# keep: Permission denied, running_as_uid, supplementary_groups
+docker compose -f labs/linux/_stack/compose.yaml \
+               -f labs/linux/_stack/compose.override.yaml \
+               exec -T worker python3 /app/reporter.py
+---
+# The file the customer says is untouched, and they are right.
+# alias: ls -l /etc/reporting/credentials.conf
+# keep: root, reporting
+docker compose -f labs/linux/_stack/compose.yaml \
+               -f labs/linux/_stack/compose.override.yaml \
+               exec -T worker ls -l /etc/reporting/credentials.conf
+---
+# Owner, group and mode without the noise, since those three are the question.
+# alias: stat /etc/reporting/credentials.conf
+# keep: owner=root, group=reporting, mode=640
+docker compose -f labs/linux/_stack/compose.yaml \
+               -f labs/linux/_stack/compose.override.yaml \
+               exec -T worker stat -c '%n owner=%U group=%G mode=%a' /etc/reporting/credentials.conf
+---
+# And who is actually asking. This is the half nobody checks.
+# alias: id
+# keep: uid=1000, gid=1000
+docker compose -f labs/linux/_stack/compose.yaml \
+               -f labs/linux/_stack/compose.override.yaml \
+               exec -T worker id
+---
+# What the hardening pass wrote down. Two of the three parts of an identity.
+# alias: cat compose.override.yaml
+# keep: user
+cat labs/linux/_stack/compose.override.yaml

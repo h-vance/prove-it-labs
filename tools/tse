@@ -436,6 +436,13 @@ SCRUB_RULES: list[tuple[str, "re.Pattern[str]", str]] = [
     # kind publishes its API server on a random high port.
     ("ephemeral-port", re.compile(r"127\.0\.0\.1:\d{4,5}->6443/tcp"),
         "127.0.0.1:<port>->6443/tcp"),
+    # The date column in `ls -l`, which is a file's modification time and moves
+    # every time the image is rebuilt. Month names are listed out rather than
+    # matched as "three capitalized letters", so this cannot swallow an
+    # arbitrary word that happens to sit before two numbers.
+    ("ls-date", re.compile(
+        r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) +\d{1,2} +"
+        r"(?:\d{2}:\d{2}|\d{4})\b"), "<date>"),
     # One fault, two curl messages, decided by the host rather than by the lab.
     # A published port whose target has nothing behind it is closed cleanly by
     # the userland proxy on Docker Desktop and reset by the kernel on Linux, so

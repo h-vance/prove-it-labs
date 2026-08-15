@@ -1,0 +1,33 @@
+id: linux/01-disk-has-space-and-writes-still-fail
+track: linux
+title: The disk has plenty of space and the writes still fail
+proof_question: Can I prove which resource actually ran out?
+stack: compose
+tier: core
+difficulty: 2
+minutes: 30
+
+commands_introduced:
+  - df -h
+  - df -i
+  - ls | wc -l
+  - docker compose exec
+
+evidence_layers:
+  - the error the kernel returned
+  - free space
+  - free inodes
+  - what the job was configured to write
+
+interview_relevance: >
+  "No space left on device" with an empty disk is a classic, and the reason it
+  is asked is that it splits candidates cleanly. Reaching for `df -h`, seeing
+  space, and concluding the error is wrong is the common answer. Knowing that
+  a filesystem can exhaust two separate resources and that the message names
+  neither is the one that gets a follow-up question.
+
+teaches: >
+  A filesystem runs out of two things independently: space for content and
+  inodes for the files themselves. The kernel reports both as ENOSPC, so the
+  error tells you what failed and not what ran out. `df -h` and `df -i` answer
+  different questions and only one of them matches this symptom.

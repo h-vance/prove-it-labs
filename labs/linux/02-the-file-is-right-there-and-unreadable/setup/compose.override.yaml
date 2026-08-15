@@ -1,0 +1,5 @@
+services:
+  worker:
+    # Added by last week's hardening pass, to pin the account the service runs
+    # as rather than relying on whatever the image happened to set.
+    user: "1000:1000"

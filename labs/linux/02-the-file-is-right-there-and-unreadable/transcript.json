@@ -1,0 +1,67 @@
+{
+  "recorded": "2026-08-15",
+  "entries": [
+    {
+      "command": "docker compose -f labs/linux/_stack/compose.yaml \\\n               -f labs/linux/_stack/compose.override.yaml \\\n               exec -T worker python3 /app/reporter.py",
+      "aliases": [
+        "python3 /app/reporter.py",
+        "docker compose exec worker python3 /app/reporter.py"
+      ],
+      "match": [
+        "docker compose -f labs/linux/_stack/compose.yaml -f labs/linux/_stack/compose.override.yaml exec -T worker python3 /app/reporter.py",
+        "docker compose exec worker python3 /app/reporter.py",
+        "python3 /app/reporter.py"
+      ],
+      "output": "{\"status\": \"error\", \"event\": \"credentials_unreadable\", \"detail\": \"[Errno 13] Permission denied: '/etc/reporting/credentials.conf'\", \"running_as_uid\": 1000, \"running_as_gid\": 1000, \"supplementary_groups\": [1000]}",
+      "exit": 1
+    },
+    {
+      "command": "docker compose -f labs/linux/_stack/compose.yaml \\\n               -f labs/linux/_stack/compose.override.yaml \\\n               exec -T worker ls -l /etc/reporting/credentials.conf",
+      "aliases": [
+        "ls -l /etc/reporting/credentials.conf"
+      ],
+      "match": [
+        "docker compose -f labs/linux/_stack/compose.yaml -f labs/linux/_stack/compose.override.yaml exec -T worker ls -l /etc/reporting/credentials.conf",
+        "ls -l /etc/reporting/credentials.conf"
+      ],
+      "output": "-rw-r-----    1 root     reporting        80 Aug 15 14:20 /etc/reporting/credentials.conf",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/linux/_stack/compose.yaml \\\n               -f labs/linux/_stack/compose.override.yaml \\\n               exec -T worker stat -c '%n owner=%U group=%G mode=%a' /etc/reporting/credentials.conf",
+      "aliases": [
+        "stat /etc/reporting/credentials.conf"
+      ],
+      "match": [
+        "docker compose -f labs/linux/_stack/compose.yaml -f labs/linux/_stack/compose.override.yaml exec -T worker stat -c '%n owner=%U group=%G mode=%a' /etc/reporting/credentials.conf",
+        "stat /etc/reporting/credentials.conf"
+      ],
+      "output": "/etc/reporting/credentials.conf owner=root group=reporting mode=640",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/linux/_stack/compose.yaml \\\n               -f labs/linux/_stack/compose.override.yaml \\\n               exec -T worker id",
+      "aliases": [
+        "id"
+      ],
+      "match": [
+        "docker compose -f labs/linux/_stack/compose.yaml -f labs/linux/_stack/compose.override.yaml exec -T worker id",
+        "id"
+      ],
+      "output": "uid=1000(app) gid=1000(app) groups=1000(app)",
+      "exit": 0
+    },
+    {
+      "command": "cat labs/linux/_stack/compose.override.yaml",
+      "aliases": [
+        "cat compose.override.yaml"
+      ],
+      "match": [
+        "cat compose.override.yaml",
+        "cat labs/linux/_stack/compose.override.yaml"
+      ],
+      "output": "services:\n  worker:\n    # Added by last week's hardening pass, to pin the account the service runs\n    # as rather than relying on whatever the image happened to set.\n    user: \"1000:1000\"",
+      "exit": 0
+    }
+  ]
+}

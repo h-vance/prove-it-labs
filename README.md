@@ -123,8 +123,8 @@ prose, which includes a lot of very good engineers.
 | SQL and PostgreSQL | 3 | Available |
 | Mixed incidents | 2 | Available |
 | Customer communication | 2 | Available |
-| Linux and CLI foundations | | Next |
-| Networking, DNS, TLS | | Planned |
+| Linux and CLI foundations | 2 | Available |
+| Networking, DNS, TLS | | Next |
 | Observability | | Planned |
 
 Some exercises are built as pairs on purpose. `docker/02` and `docker/03`

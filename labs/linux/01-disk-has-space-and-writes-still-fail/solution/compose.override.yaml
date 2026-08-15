@@ -1,0 +1,4 @@
+services:
+  worker:
+    environment:
+      EXPORT_ROWS_PER_FILE: "1000"

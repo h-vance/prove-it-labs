@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The volume was at one percent used and the write failed for lack of room. Why is the error message not simply wrong?",
+    "options": [
+      {
+        "text": "Because the reading was stale and the volume filled up momentarily",
+        "correct": false,
+        "explanation": "Nothing filled and emptied. Both readings were accurate at the same instant, which is why treating one as a mistake sends the investigation nowhere."
+      },
+      {
+        "text": "Because a filesystem allocates space and file slots separately, and the kernel reports exhausting either one the same way",
+        "correct": true,
+        "explanation": "Exactly. ENOSPC covers running out of blocks and running out of inodes, so the message names the failure and never names the cause. Two commands are needed because there are two resources."
+      },
+      {
+        "text": "Because the reported percentage excludes reserved space",
+        "correct": false,
+        "explanation": "Reserved blocks are a real thing and would move the number by single digits. This gap was zero percent against one hundred, which no reservation explains."
+      },
+      {
+        "text": "Because the write was to a different filesystem than the one they checked",
+        "correct": false,
+        "explanation": "Worth ruling out, and here both commands were pointed at the same directory. When they are not, that is a genuinely different bug and it is found the same way: by naming the path explicitly."
+      }
+    ]
+  },
+  {
+    "question": "The customer offered to buy more storage. Why would that have been the wrong sale to accept?",
+    "options": [
+      {
+        "text": "Because their existing volume was still under warranty",
+        "correct": false,
+        "explanation": "Nothing to do with it. The purchase would have been wrong even if storage were free, which is the part worth understanding."
+      },
+      {
+        "text": "Because more space would not have created more file slots, and the job would keep failing at the same count",
+        "correct": true,
+        "explanation": "Right, and it is the reason to identify the resource before spending anything. The number of files the directory allows is fixed independently of how large it is."
+      },
+      {
+        "text": "Because the export could have been rescheduled to a quieter time",
+        "correct": false,
+        "explanation": "Timing was never a factor. The job failed at exactly the same point on every attempt, which is itself a signal that nothing about load or contention is involved."
+      },
+      {
+        "text": "Because support cannot approve customer purchases",
+        "correct": false,
+        "explanation": "A process answer to a technical question. The reason to say no here is that it would not have worked, and being able to explain why is what makes the refusal credible."
+      }
+    ]
+  },
+  {
+    "question": "Raising the file-slot budget would also have made tonight's export succeed. Why does the grader refuse it?",
+    "options": [
+      {
+        "text": "Because changing that budget requires a maintenance window",
+        "correct": false,
+        "explanation": "Cost of the change is not the objection. Even free and instant, it would leave the actual defect running."
+      },
+      {
+        "text": "Because the job writing one file per row is the defect, and a larger budget only moves the failure to a bigger export",
+        "correct": true,
+        "explanation": "That is the distinction between a fix and a reprieve. The grader also asserts the directory is not left full afterwards, so an export that succeeds by exactly consuming the budget still fails."
+      },
+      {
+        "text": "Because the budget cannot be changed after the filesystem is created",
+        "correct": false,
+        "explanation": "Often true in practice for a real filesystem, and not the reasoning here. The objection stands even where the budget is trivially adjustable."
+      },
+      {
+        "text": "Because the customer had already refused to pay for it",
+        "correct": false,
+        "explanation": "They offered to pay, and you talked them out of it. The technical argument came first and the money followed from it."
+      }
+    ]
+  }
+]

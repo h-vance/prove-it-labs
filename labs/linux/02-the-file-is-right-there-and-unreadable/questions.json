@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The customer said the file was unchanged and that they could open it themselves. What did that establish?",
+    "options": [
+      {
+        "text": "That the problem had to be in the application rather than in permissions",
+        "correct": false,
+        "explanation": "It was a permission problem throughout. Their being able to open it says something about their own account and nothing at all about the service's."
+      },
+      {
+        "text": "That the file exists and their account can read it, neither of which is a claim about the process that failed",
+        "correct": true,
+        "explanation": "Exactly, and separating those is the whole exercise. Access is a relationship between a file and a reader, so evidence about a different reader settles nothing."
+      },
+      {
+        "text": "That the ownership and mode must have been correct",
+        "correct": false,
+        "explanation": "They were correct, and that is precisely why it is not what their test showed. The file was configured exactly as intended; the reader changed."
+      },
+      {
+        "text": "That someone had modified the file after the hardening pass",
+        "correct": false,
+        "explanation": "Nobody touched it, and the customer said so accurately. Chasing a file change here would have burned the afternoon."
+      }
+    ]
+  },
+  {
+    "question": "The engineer said the change was a no-op, and the numbers in it really were the ones already in use. What did it change?",
+    "options": [
+      {
+        "text": "The order in which the service starts relative to its dependencies",
+        "correct": false,
+        "explanation": "Startup order was untouched, and the service came up normally every time. It ran perfectly and could not read one file."
+      },
+      {
+        "text": "Nothing, and the real cause is elsewhere",
+        "correct": false,
+        "explanation": "The timing was exact and the mechanism is demonstrable: the group list before and after the change differs. It is a no-op only for the two values it names."
+      },
+      {
+        "text": "The supplementary group memberships, which naming a user and group explicitly replaces entirely",
+        "correct": true,
+        "explanation": "That is the trap. An identity is a user, a primary group, and every other group you belong to. Restating the first two discards the third, so a change that preserves everything it mentions still removes something it does not."
+      },
+      {
+        "text": "The file's mode, by applying a stricter default",
+        "correct": false,
+        "explanation": "The mode was `0640` before and after. Checking it was the right instinct, and it is what rules this out rather than what confirms it."
+      }
+    ]
+  },
+  {
+    "question": "Running the service as root would have made the report submit immediately. What is wrong with shipping that?",
+    "options": [
+      {
+        "text": "It would have solved a group membership problem by discarding the security change that exposed it",
+        "correct": true,
+        "explanation": "Right, and it is why the grader checks the account afterwards. The smallest correct change restores one group. Running as root grants everything in order to grant one thing, and quietly reverts work somebody did deliberately."
+      },
+      {
+        "text": "It would have been slower to apply than the group fix",
+        "correct": false,
+        "explanation": "It is a one-line change either way. Effort is not what separates them."
+      },
+      {
+        "text": "It would not actually have worked",
+        "correct": false,
+        "explanation": "It would have worked, and that is exactly the danger. A fix that passes the obvious check while undoing something important is harder to catch than one that fails."
+      },
+      {
+        "text": "Loosening the file to be world readable would have been the better shortcut",
+        "correct": false,
+        "explanation": "That is the same mistake wearing different clothes. It grants every account on the machine access to a credential so that one account can have the access it was already meant to have."
+      }
+    ]
+  }
+]

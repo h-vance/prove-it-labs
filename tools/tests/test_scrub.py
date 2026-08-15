@@ -90,6 +90,7 @@ SAMPLES: dict[str, str] = {
         "orders-api-56cb47dd7f-x9wpk   1/1   Running   0   30s   "
         "app.kubernetes.io/name=orders-api,pod-template-hash=56cb47dd7f"
     ),
+    "ls-date": "-rw-r-----    1 root     reporting       78 Aug 15 14:16 credentials.conf",
     # Recorded on Docker Desktop. A Linux runner produced curl: (56) for the
     # identical fault.
     "curl-accepted-then-nothing": "curl: (52) Empty reply from server",
@@ -241,6 +242,19 @@ class RulesDoNotOverReach(unittest.TestCase):
         )
         one = "orders-api-8c8575974-6n2ts   0/1   CrashLoopBackOff   3 (41s ago)   75s\n"
         self.assertNotEqual(scrub(two), scrub(one))
+
+    def test_a_listing_date_folds_but_the_permissions_beside_it_do_not(self):
+        """The mode and ownership are the evidence; the mtime is build noise."""
+        first = "-rw-r-----    1 root     reporting       78 Aug 15 14:16 credentials.conf"
+        second = "-rw-r-----    1 root     reporting       78 Sep  2 09:04 credentials.conf"
+        self.assertEqual(scrub(first), scrub(second))
+        for evidence in ("-rw-r-----", "root", "reporting"):
+            self.assertIn(evidence, scrub(first))
+
+    def test_a_changed_mode_still_compares_unequal(self):
+        strict = "-rw-r-----    1 root     reporting       78 Aug 15 14:16 credentials.conf"
+        loose = "-rw-r--r--    1 root     reporting       78 Aug 15 14:16 credentials.conf"
+        self.assertNotEqual(scrub(strict), scrub(loose))
 
     def test_the_age_column_folds_even_when_labels_follow_it(self):
         """Found the hard way: a rule anchored to end of line, and a column after it.
