@@ -689,8 +689,16 @@ class LeakGate(unittest.TestCase):
         # AWS's own published example key id.
         ("AKIAIOSFODNN7EXAMPLE", "an AWS access key id"),
         ("ghp_" + "0" * 36, "a GitHub token"),
+        # The format GitHub now issues by default. An outside audit found the
+        # rule above did not cover it while every check here was passing.
+        ("github_pat_" + "0" * 32, "a GitHub fine-grained token"),
         ("-----BEGIN RSA PRIVATE KEY-----", "a private key"),
         ("xoxb-000000000000-000000000000-abcdefghijklmnop", "a Slack token"),
+        # A webhook URL carries no token prefix and is a credential by itself.
+        ("https://hooks.slack.com/services/T00000000/B00000000/" + "X" * 24,
+         "a Slack webhook URL"),
+        ("fd12:3456:789a:1::1", "a private IPv6 address"),
+        ("fe80::1ff:fe23:4567:890a", "a private IPv6 address"),
         ("someone@notreserved.test", "an email address"),
     ]
 
@@ -704,6 +712,15 @@ class LeakGate(unittest.TestCase):
         ("user1_1@example.invalid", "the seeded addresses in the SQL lab"),
         ("support@example.com", "a documentation address"),
         ("/home/runner/work/repo", "GitHub Actions' own working directory"),
+        # Every commit in this repository authors as one of these. They exist
+        # so a commit can be attributed without publishing a mailbox, so
+        # finding one is the system working rather than a leak. The identity
+        # scan would otherwise report all thirty odd commits.
+        ("103166826+h-vance@users.noreply.github.com", "a GitHub noreply address"),
+        ("noreply@github.com", "the address Dependabot commits as"),
+        # A version string, not an address. The IPv6 rule needs at least two
+        # colon separated groups after a unique local or link local prefix.
+        ("fd00 build 1", "a word that starts like a private IPv6 prefix"),
     ]
 
     def test_the_repository_is_clean(self):
