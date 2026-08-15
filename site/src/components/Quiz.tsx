@@ -96,7 +96,17 @@ export default function Quiz({ exerciseId, questions }: Props) {
                       class={`quiz__option${state}`}
                       onClick={() => choose(questionIndex, optionIndex)}
                       aria-pressed={isAnswered ? isPick : undefined}
-                      disabled={isAnswered}
+                      // aria-disabled, not disabled. A browser cannot keep
+                      // focus on a disabled element, so marking the button the
+                      // learner just pressed as disabled dropped focus to the
+                      // body, and the next Tab restarted from the top of the
+                      // page. That happened on every question of every
+                      // exercise, and only to people using a keyboard, which
+                      // is why looking at the screen never showed it.
+                      //
+                      // Nothing is reopened by this. `choose` already refuses a
+                      // second answer to the same question, and did before.
+                      aria-disabled={isAnswered}
                     >
                       <span class="quiz__marker" aria-hidden="true">
                         {isPick && isCorrect ? "✓" : isPick ? "✗" : isAnswerRow ? "✓" : ""}

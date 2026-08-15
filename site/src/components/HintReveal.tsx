@@ -1,3 +1,4 @@
+import { useRef } from "preact/hooks";
 import { useStored } from "./storage";
 
 interface Props {
@@ -11,12 +12,20 @@ interface Props {
  * Revealing them all at once would turn the page into a walkthrough. Revealing
  * them one at a time keeps the decision to look at the learner, which is the
  * point: knowing you are stuck is a skill too.
+ *
+ * The reveal button stays mounted for every state, including the one where
+ * there is nothing left to reveal. It used to be replaced by a paragraph on the
+ * last click, which meant the button being pressed vanished mid-render and
+ * focus fell back to the document body. "Hide hints" had the same shape and
+ * hands focus back explicitly instead, since it genuinely has nowhere to stay.
  */
 export default function HintReveal({ exerciseId, hints }: Props) {
   const [shown, setShown] = useStored(`proveit:hints:${exerciseId}`, 0);
+  const revealRef = useRef<HTMLButtonElement>(null);
 
   if (hints.length === 0) return null;
   const remaining = hints.length - shown;
+  const exhausted = remaining === 0;
 
   return (
     <section class="reveal" aria-labelledby={`hints-${exerciseId}`}>
@@ -37,23 +46,51 @@ export default function HintReveal({ exerciseId, hints }: Props) {
       ))}
 
       <div class="reveal__actions">
-        {remaining > 0 ? (
-          <button type="button" class="reveal__button" onClick={() => setShown((n) => n + 1)}>
-            {shown === 0 ? "Show the first hint" : `Show hint ${shown + 1}`}
-            <span class="reveal__count"> ({remaining} left)</span>
-          </button>
-        ) : (
-          <p class="reveal__done" role="status">
-            All {hints.length} hints shown.
-          </p>
-        )}
+        <button
+          type="button"
+          class="reveal__button"
+          ref={revealRef}
+          aria-disabled={exhausted}
+          onClick={() => {
+            if (exhausted) return;
+            setShown((n) => n + 1);
+          }}
+        >
+          {exhausted
+            ? `All ${hints.length} hints shown`
+            : shown === 0
+              ? "Show the first hint"
+              : `Show hint ${shown + 1}`}
+          {!exhausted && <span class="reveal__count"> ({remaining} left)</span>}
+        </button>
 
         {shown > 0 && (
-          <button type="button" class="reveal__button reveal__button--quiet" onClick={() => setShown(0)}>
+          <button
+            type="button"
+            class="reveal__button reveal__button--quiet"
+            onClick={() => {
+              setShown(0);
+              // This button is about to be removed from the page. Handing focus
+              // to the one beside it keeps the learner's place instead of
+              // dropping them at the top of the document.
+              revealRef.current?.focus();
+            }}
+          >
             Hide hints
           </button>
         )}
       </div>
+
+      {/* Rendered whether or not anything has been shown, so its text changing
+          is what a screen reader announces. A region that appears at the same
+          moment its message does is announced unreliably. */}
+      <p class="reveal__done" role="status">
+        {shown === 0
+          ? ""
+          : exhausted
+            ? `All ${hints.length} hints shown.`
+            : `Hint ${shown} of ${hints.length} shown.`}
+      </p>
     </section>
   );
 }

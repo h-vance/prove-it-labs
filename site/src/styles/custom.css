@@ -576,15 +576,22 @@ html[data-stretch="hidden"] [data-tier="stretch"] {
   cursor: pointer;
 }
 
-.quiz__option:hover:not(:disabled) {
+.quiz__option:hover:not([aria-disabled="true"]) {
   background: var(--proveit-panel);
   border-color: var(--sl-color-gray-2);
 }
 
-/* The browser's default disabled styling fades text toward the background.
- * These stay on screen to be read after answering, so the full contrast has
- * to be restored explicitly. */
-.quiz__option:disabled {
+/* Matched on aria-disabled rather than :disabled. The attribute changed
+ * because the real one takes focus away from the button being pressed, and
+ * these selectors have to follow it or an answered option keeps offering a
+ * hover state and a pointer cursor for a press that does nothing.
+ *
+ * opacity and color are still set explicitly. The browser fades genuinely
+ * disabled text toward the background, and while aria-disabled does not
+ * trigger that, these options stay on screen to be read after answering, so
+ * stating the full contrast here keeps that true whichever way the attribute
+ * goes in future. */
+.quiz__option[aria-disabled="true"] {
   cursor: default;
   opacity: 1;
   color: var(--sl-color-text);

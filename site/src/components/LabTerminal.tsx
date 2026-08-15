@@ -306,34 +306,48 @@ export default function LabTerminal({ exerciseId, entries }: Props) {
         back through what you have typed.
       </p>
 
+      {/*
+        One button that stays put, matching the hints and the solution.
+
+        This was a button in one branch and a `<details>` in the other, so the
+        element being clicked was gone by the time the click finished and focus
+        fell back to the document body. With a mouse that is invisible. With a
+        keyboard it means the next Tab starts again from the top of the page,
+        every time anybody opened this.
+      */}
       <div class="reveal__actions">
-        {revealed ? (
-          <details class="terminal__list" open>
-            <summary>The {entries.length} commands with recorded output</summary>
-            <ul>
-              {/*
-                Normalized rather than as written. commands.txt wraps long
-                commands with backslashes, and HTML collapses those newlines
-                into one run-on line with a stray backslash in the middle. The
-                single-line form is also the one worth showing, because it is
-                the one somebody can type straight back in.
-              */}
-              {entries.map((entry) => (
-                <li key={entry.command}>
-                  <code>{normalize(entry.command)}</code>
-                </li>
-              ))}
-            </ul>
-          </details>
-        ) : (
-          <button
-            type="button"
-            class="reveal__button reveal__button--quiet"
-            onClick={() => setRevealed(1)}
-          >
-            Show which commands are recorded
+        <button
+          type="button"
+          class="reveal__button reveal__button--quiet"
+          aria-expanded={revealed > 0}
+          aria-controls={`terminal-recorded-${exerciseId}`}
+          onClick={() => setRevealed(revealed > 0 ? 0 : 1)}
+        >
+          {revealed > 0
+            ? `The ${entries.length} commands with recorded output`
+            : "Show which commands are recorded"}
+          {revealed === 0 && (
             <span class="reveal__count"> (this is close to a hint)</span>
-          </button>
+          )}
+        </button>
+      </div>
+
+      <div id={`terminal-recorded-${exerciseId}`} class="terminal__list">
+        {revealed > 0 && (
+          <ul>
+            {/*
+              Normalized rather than as written. commands.txt wraps long
+              commands with backslashes, and HTML collapses those newlines
+              into one run-on line with a stray backslash in the middle. The
+              single-line form is also the one worth showing, because it is
+              the one somebody can type straight back in.
+            */}
+            {entries.map((entry) => (
+              <li key={entry.command}>
+                <code>{normalize(entry.command)}</code>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </section>

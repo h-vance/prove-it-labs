@@ -128,6 +128,40 @@ export interface Exercise {
 
 marked.setOptions({ gfm: true, breaks: false });
 
+/**
+ * Shift a fragment's headings so its highest one lands at `topLevel`.
+ *
+ * Authored markdown opens at whatever level reads best on disk, which is h1 for
+ * a solution and h2 for a ticket. Injected into a page it stops being a
+ * document and becomes a fragment sitting under a heading that is already
+ * there, and one that opens at the wrong level either repeats a level or skips
+ * one. Both break the outline screen reader users navigate a long page by, and
+ * a solution opening at h1 puts a second top-level heading halfway down.
+ *
+ * Every one of the twenty five solutions did exactly that, and the template
+ * bakes it in for every future one. Nobody had noticed because the
+ * accessibility scan had never opened a solution: the island renders nothing
+ * until it is clicked, and the scan clicked the terminal and the quiz and not
+ * this.
+ *
+ * Measured rather than assumed. A fixed "shift down by two" was the first fix
+ * here and it was wrong for tickets, which already start at h2, so it produced
+ * an h2 followed by an h4. Reading the fragment's own top level means an author
+ * can open a file at any level and the page stays correct, which is one less
+ * rule for somebody writing an exercise to know.
+ */
+function shiftHeadingsTo(html: string, topLevel: number): string {
+  const levels = [...html.matchAll(/<h([1-6])[\s>]/g)].map((match) => Number(match[1]));
+  if (levels.length === 0) return html;
+  const shift = topLevel - Math.min(...levels);
+  if (shift === 0) return html;
+  return html.replace(
+    /<(\/?)h([1-6])([\s>])/g,
+    (_match, slash: string, level: string, after: string) =>
+      `<${slash}h${Math.min(6, Math.max(1, Number(level) + shift))}${after}`,
+  );
+}
+
 function md(source: string): string {
   const html = marked.parse(source, { async: false }) as string;
   // A block that scrolls has to be reachable from a keyboard, which is WCAG
@@ -237,9 +271,15 @@ export function loadExercises(): Exercise[] {
         evidenceLayers: asStringArray(meta.evidence_layers),
         interviewRelevance: meta.interview_relevance ?? "",
         teaches: meta.teaches ?? "",
-        ticketHtml: md(readIfPresent(join(dir, "ticket.md")) ?? ""),
-        hintsHtml: hintFiles.map((name) => md(readFileSync(join(hintsDir, name), "utf8"))),
-        solutionHtml: md(readIfPresent(join(dir, "solution.md")) ?? ""),
+        // Each target is one level below the heading the fragment is injected
+        // under. The page renders `<h2>The ticket</h2>` and the solution island
+        // renders its own h2, so both of those become h3. Each hint sits under
+        // an h3 the component renders, so a hint starts at h4.
+        ticketHtml: shiftHeadingsTo(md(readIfPresent(join(dir, "ticket.md")) ?? ""), 3),
+        hintsHtml: hintFiles.map(
+          (name) => shiftHeadingsTo(md(readFileSync(join(hintsDir, name), "utf8")), 4),
+        ),
+        solutionHtml: shiftHeadingsTo(md(readIfPresent(join(dir, "solution.md")) ?? ""), 3),
         questions: readQuestions(dir),
         transcript: readTranscript(dir),
       });

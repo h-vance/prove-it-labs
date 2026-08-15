@@ -249,8 +249,18 @@ check("the down arrow returns to an empty line", (await field.inputValue()) === 
 // --------------------------------------------------------------- the reveal
 
 await open(withRecording.path);
-const listedBefore = await page.locator(".terminal__list").count();
+// Counts the list items, not the container. The container is now always in the
+// page and empty until asked, because the button carries `aria-controls`
+// pointing at it and an attribute that points at nothing is worse than useless.
+// What the learner must not see before asking is the commands themselves.
+const listedBefore = await page.locator(".terminal__list li").count();
 check("the recorded list is not shown until it is asked for", listedBefore === 0);
+check(
+  "the reveal button says whether it is open",
+  (await page
+    .getByRole("button", { name: /Show which commands are recorded/ })
+    .getAttribute("aria-expanded")) === "false",
+);
 await page.getByRole("button", { name: /Show which commands are recorded/ }).click();
 const listed = await page.locator(".terminal__list li").count();
 check(
