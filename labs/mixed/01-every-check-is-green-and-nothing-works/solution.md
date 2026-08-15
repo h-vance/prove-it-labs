@@ -7,6 +7,7 @@
 | `docker compose ls` | What is running, and which files configure it | Nothing about the fault. This was orientation |
 | `docker ps` | The container is up and its health check reports healthy | Nothing about whether anyone outside can reach it |
 | `curl http://127.0.0.1:8100/customers` | The connection is accepted and closed with no reply | Nothing about which side closed it |
+| | Reported as an empty reply or as a connection reset depending on the host, and neither is a refusal | |
 | `docker compose logs app` | The application started cleanly and is serving requests on `8080` | Nothing about which address those requests arrive on |
 | `docker ps --format '{{.Ports}}'` | Traffic to `8100` is forwarded to `8081` inside the container | |
 

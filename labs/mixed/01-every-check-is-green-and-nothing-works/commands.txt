@@ -5,10 +5,14 @@
 # send you to it. It lists every Compose project on the machine, which on a
 # real laptop means somebody's unrelated work, and the recorder refuses output
 # naming anything outside the lab.
+#
+# The keep marker is just `curl:` on purpose. The exact message depends on the
+# host: Docker Desktop closes the connection cleanly and reports an empty
+# reply, Linux resets it. Both are recorded as they happened and compare equal.
 # alias: curl http://127.0.0.1:8100/customers
 # alias: curl -sS http://127.0.0.1:8100/customers
 # wait: 20
-# keep: Empty reply
+# keep: curl:
 curl -sS --max-time 5 http://127.0.0.1:8100/customers
 ---
 # State and published address together, which is the pair that resolves this.

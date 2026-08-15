@@ -430,6 +430,24 @@ SCRUB_RULES: list[tuple[str, "re.Pattern[str]", str]] = [
     # kind publishes its API server on a random high port.
     ("ephemeral-port", re.compile(r"127\.0\.0\.1:\d{4,5}->6443/tcp"),
         "127.0.0.1:<port>->6443/tcp"),
+    # One fault, two curl messages, decided by the host rather than by the lab.
+    # A published port whose target has nothing behind it is closed cleanly by
+    # the userland proxy on Docker Desktop and reset by the kernel on Linux, so
+    # a recording made on a laptop met the other one in CI.
+    #
+    # "Connection refused" is pointedly not in here. That is a different stage
+    # of the connection and it is the fork mixed/01 turns on: refused means
+    # nothing accepted it, these two mean something did and then gave nothing
+    # back. Folding all three together would erase the distinction the exercise
+    # is built to teach.
+    ("curl-accepted-then-nothing", re.compile(
+        r"curl: \((?:52|56)\) (?:Empty reply from server"
+        r"|Recv failure: Connection reset by peer)"), "curl: <accepted-then-closed>"),
+    # `docker ps` lists a container's exposed-but-unpublished ports alongside
+    # its published ones on Linux and omits them on Docker Desktop. Only dropped
+    # when a published mapping follows, so a service that publishes nothing at
+    # all still shows the ports it exposes.
+    ("unpublished-port", re.compile(r"\b\d+/tcp, (?=\d{1,3}(?:\.\d{1,3}){3}:\d+->)"), ""),
     # A crash-looping container writes the same line once per attempt, so how
     # many times it appears is a measure of how fast the machine is rather than
     # anything about the failure. A laptop got through seven attempts in the

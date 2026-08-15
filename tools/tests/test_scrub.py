@@ -90,6 +90,12 @@ SAMPLES: dict[str, str] = {
         "orders-api-56cb47dd7f-x9wpk   1/1   Running   0   30s   "
         "app.kubernetes.io/name=orders-api,pod-template-hash=56cb47dd7f"
     ),
+    # Recorded on Docker Desktop. A Linux runner produced curl: (56) for the
+    # identical fault.
+    "curl-accepted-then-nothing": "curl: (52) Empty reply from server",
+    "unpublished-port": (
+        "proveit-docker-app-1  Up 20 seconds (healthy)  8080/tcp, 127.0.0.1:8100->8081/tcp"
+    ),
     # Seven attempts locally, six on a CI runner, in the same wait.
     "repeated-log-line": (
         "app-1  | ERROR: required environment variable APP_SECRET is not set\n"
@@ -235,6 +241,39 @@ class RulesDoNotOverReach(unittest.TestCase):
         )
         one = "orders-api-8c8575974-6n2ts   0/1   CrashLoopBackOff   3 (41s ago)   75s\n"
         self.assertNotEqual(scrub(two), scrub(one))
+
+    def test_the_two_ways_a_dead_target_is_reported_fold_together(self):
+        """Docker Desktop closes the connection, Linux resets it."""
+        self.assertEqual(
+            scrub("curl: (52) Empty reply from server"),
+            scrub("curl: (56) Recv failure: Connection reset by peer"),
+        )
+
+    def test_a_refused_connection_stays_distinct_from_an_accepted_one(self):
+        """The fork mixed/01 turns on, and the one thing this must never fold.
+
+        Refused means nothing accepted the connection. The other two mean
+        something accepted it and gave nothing back, which points at an entirely
+        different layer.
+        """
+        refused = "curl: (7) Failed to connect to 127.0.0.1 port 8100: Connection refused"
+        for accepted in (
+            "curl: (52) Empty reply from server",
+            "curl: (56) Recv failure: Connection reset by peer",
+        ):
+            with self.subTest(accepted):
+                self.assertNotEqual(scrub(refused), scrub(accepted))
+
+    def test_an_unpublished_port_folds_only_when_a_published_one_follows(self):
+        desktop = "proveit-docker-app-1  Up 20 seconds (healthy)  127.0.0.1:8100->8081/tcp"
+        linux = (
+            "proveit-docker-app-1  Up 20 seconds (healthy)  8080/tcp, 127.0.0.1:8100->8081/tcp"
+        )
+        self.assertEqual(scrub(desktop), scrub(linux))
+        # A service that publishes nothing still shows what it exposes, because
+        # that absence is sometimes the evidence.
+        exposed_only = "proveit-docker-postgres-1  Up 22 seconds (healthy)  5432/tcp"
+        self.assertIn("5432/tcp", scrub(exposed_only))
 
     def test_a_request_id_folds_in_all_three_forms_it_is_printed_in(self):
         """One value, three renderings, and only one of them was covered.
