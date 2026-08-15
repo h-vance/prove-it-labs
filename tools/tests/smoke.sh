@@ -339,67 +339,80 @@ else
     pass "a grader whose checks fail still fails"
 fi
 
-# A stand-in for GNU timeout, so both branches of assert's command runner are
-# exercised on every machine. This one is absent on a stock Mac and present on
-# the CI runners, and the two branches used to disagree about pipefail, so a
-# test that only ran whichever the machine happened to have was testing half of
-# it and calling that a pass.
-FAKE_TIMEOUT_DIR=$(mktemp -d)
-printf '#!/usr/bin/env bash\nshift\nexec "$@"\n' > "$FAKE_TIMEOUT_DIR/timeout"
-chmod +x "$FAKE_TIMEOUT_DIR/timeout"
-
-# Run a grader snippet through a named branch of the runner, and say whether it
-# passed. `eval` forces the no-timeout branch, `wrapper` forces the other.
+# Run a grader snippet and say whether it passed.
 graded() {
-    local branch=$1 snippet=$2
-    local pin="_TSE_TIMEOUT_BIN=''"
-    [[ $branch == wrapper ]] && pin="_TSE_TIMEOUT_BIN='$FAKE_TIMEOUT_DIR/timeout'"
     bash -c "source '$ROOT/tools/lib/assert.sh'
-             $pin
-             $snippet
+             $1
              finish" >/dev/null 2>&1
 }
 
-for branch in eval wrapper; do
-    # The whole point of the negative matcher. A command that never ran did not
-    # print the forbidden string either, and reading that as success is how
-    # sql/03 graded a stopped database as a fixed query plan.
-    if graded "$branch" "assert 'nothing forbidden in the output' \
-                            --run 'echo boom >&2; exit 1' --not-contains forbidden"; then
-        fail "[$branch] a failed command cannot satisfy --not-contains" \
-             "it passed on an error message"
-    else
-        pass "[$branch] a failed command cannot satisfy --not-contains"
-    fi
+# The contract every check.sh is written against: the command is evaluated in
+# the grader's own shell, so a variable it set and a function it defined are
+# both usable. Bounding the command by handing it to `timeout` moved it into a
+# fresh shell that had neither, and two graders went dark in CI without saying
+# anything: sql/03 read a syntax error as proof of a healthy query plan, and
+# observability/02 called a helper that was not there. Neither had a test.
+if graded "REPORT='SELECT 1'
+           assert 'a plain variable reaches the command' \
+               --run 'echo \"[\$REPORT]\"' --equals '[SELECT 1]'"; then
+    pass "a variable the grader set reaches its command"
+else
+    fail "a variable the grader set reaches its command" \
+         "the command is not being evaluated in the grader's shell"
+fi
 
-    if graded "$branch" "assert 'nothing forbidden in the output' \
-                            --run 'echo fine' --not-contains forbidden"; then
-        pass "[$branch] a real absence still satisfies --not-contains"
-    else
-        fail "[$branch] a real absence still satisfies --not-contains" \
-             "the guard above is too broad"
-    fi
+if graded "probe() { echo 'api=1 renderer=1'; }
+           assert 'a helper function reaches the command' \
+               --run 'probe' --equals 'api=1 renderer=1'"; then
+    pass "a function the grader defined reaches its command"
+else
+    fail "a function the grader defined reaches its command" \
+         "the command is not being evaluated in the grader's shell"
+fi
 
-    if graded "$branch" "assert 'an expected failure' \
-                            --run 'echo boom >&2; exit 1' --not-contains forbidden \
-                            --even-if-it-fails"; then
-        pass "[$branch] an assertion can opt out of that when it means to"
-    else
-        fail "[$branch] an assertion can opt out of that when it means to"
-    fi
+# The whole point of the negative matcher. A command that never ran did not
+# print the forbidden string either, and reading that as success is how sql/03
+# graded a stopped database as a fixed query plan.
+if graded "assert 'nothing forbidden in the output' \
+               --run 'echo boom >&2; exit 1' --not-contains forbidden"; then
+    fail "a failed command cannot satisfy --not-contains" "it passed on an error message"
+else
+    pass "a failed command cannot satisfy --not-contains"
+fi
 
-    # Both branches have to agree about a pipeline whose first stage died,
-    # since that is the shape of every `docker compose ... | grep` in the labs.
-    if graded "$branch" "assert 'a broken pipeline is a failure' \
-                            --run 'false | cat' --not-contains forbidden"; then
-        fail "[$branch] a pipeline that failed early is not a clean run" \
-             "pipefail is not in effect on this branch"
-    else
-        pass "[$branch] a pipeline that failed early is not a clean run"
-    fi
-done
+if graded "assert 'nothing forbidden in the output' \
+               --run 'echo fine' --not-contains forbidden"; then
+    pass "a real absence still satisfies --not-contains"
+else
+    fail "a real absence still satisfies --not-contains" "the guard above is too broad"
+fi
 
-rm -rf "$FAKE_TIMEOUT_DIR"
+if graded "assert 'an expected failure' --run 'echo boom >&2; exit 1' \
+               --not-contains forbidden --even-if-it-fails"; then
+    pass "an assertion can opt out of that when it means to"
+else
+    fail "an assertion can opt out of that when it means to"
+fi
+
+# The shape of every `docker compose ... | grep` in the labs.
+if graded "assert 'a broken pipeline is a failure' \
+               --run 'false | cat' --not-contains forbidden"; then
+    fail "a pipeline that failed early is not a clean run" "pipefail is not in effect"
+else
+    pass "a pipeline that failed early is not a clean run"
+fi
+
+# The bound itself, which no test could reach while it depended on a binary
+# that is missing from the machine most of this was written on.
+_started=$(date +%s)
+graded "TSE_ASSERT_TIMEOUT=2
+        assert 'a command that never returns' --run 'sleep 60' --contains anything"
+_elapsed=$(( $(date +%s) - _started ))
+if (( _elapsed < 20 )); then
+    pass "a command that hangs is stopped rather than waited out"
+else
+    fail "a command that hangs is stopped rather than waited out" "took ${_elapsed}s"
+fi
 
 # --------------------------------------------------------------------------- #
 # The privacy gate. It runs in CI on every push, and running it here too means

@@ -23,12 +23,49 @@ _TSE_PASSED=0
 _TSE_FAILED=0
 _TSE_MAX_OUTPUT_LINES=${TSE_MAX_OUTPUT_LINES:-12}
 
-# GNU coreutils calls it `timeout`; Homebrew's coreutils installs it as
-# `gtimeout` unless the user asked for unprefixed names. Looked up once here
-# rather than per assertion. If neither exists the assertion runs unbounded,
-# which is what it did before this, so nothing is worse off for the lookup
-# failing.
-_TSE_TIMEOUT_BIN=$(command -v timeout || command -v gtimeout || true)
+_tse_run_bounded() {
+    # Run the command in this shell, and do not let it run forever.
+    #
+    # `eval` is the contract every grader is written against. A check.sh sets a
+    # plain variable or defines a helper function and the assertion below uses
+    # it; observability/02 says so in a comment beside the function it defines.
+    #
+    # Bounding the command by handing it to `timeout` broke that contract, and
+    # broke it quietly. `timeout` needs a process, so the command moved into a
+    # fresh `bash -c`, which inherits exported variables and nothing else. Two
+    # graders went dark in CI. sql/03 asked the database for the plan of an
+    # empty statement, got a syntax error, found no sequential scan in it and
+    # reported the broken exercise as fixed. observability/02 called a function
+    # that was not there. The first of those is the exact failure this file had
+    # just been changed to prevent.
+    #
+    # A subshell inherits everything a fork inherits: functions, unexported
+    # variables, and the shell options set at the top of this file, so pipefail
+    # means the same thing on every machine. A watchdog beside it supplies the
+    # bound, and needs no GNU coreutils, which is what sent the first attempt
+    # down this road.
+    local command=$1
+    local limit=${TSE_ASSERT_TIMEOUT:-60}
+    local capture status worker watchdog
+    capture=$(mktemp)
+
+    ( eval "$command" >"$capture" 2>&1 ) &
+    worker=$!
+    # Output redirected away from this function's own stdout. A background job
+    # holding that pipe open would make the caller's command substitution wait
+    # out the full sleep on every single assertion.
+    ( sleep "$limit"; kill -TERM "$worker" ) >/dev/null 2>&1 &
+    watchdog=$!
+
+    wait "$worker"; status=$?
+
+    kill "$watchdog" >/dev/null 2>&1
+    wait "$watchdog" >/dev/null 2>&1
+
+    cat "$capture"
+    rm -f "$capture"
+    return $status
+}
 
 if [[ -t 1 && -z ${NO_COLOR:-} && ${TERM:-dumb} != dumb ]]; then
     _C_PASS=$'\033[32m'
@@ -109,21 +146,7 @@ assert() {
         # service to be broken, hangs the grader with nothing printed. The
         # learner sees `tse check` stop, and CI sees a job time out half an hour
         # later naming nothing.
-        #
-        # `timeout` is not on every machine. Where it is missing the command
-        # runs unbounded, which is what happened before, so this can only help.
-        #
-        # `-uo pipefail` matches what the sourced-in options give the `eval`
-        # branch. Without it the same assertion reports a different exit status
-        # depending on whether the machine has `timeout`, which is Linux and CI
-        # against a stock Mac: a broken first stage of a pipeline is invisible
-        # in one and fatal in the other.
-        if [[ -n ${_TSE_TIMEOUT_BIN:-} ]]; then
-            output=$("$_TSE_TIMEOUT_BIN" "${TSE_ASSERT_TIMEOUT:-60}" \
-                     bash -uo pipefail -c "$command" 2>&1)
-        else
-            output=$(eval "$command" 2>&1)
-        fi
+        output=$(_tse_run_bounded "$command")
         status=$?
 
         # Absence is only evidence when the command ran.
