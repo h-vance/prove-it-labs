@@ -1044,6 +1044,69 @@ class LeakGate(unittest.TestCase):
         self.assertEqual(unreadable, [], "tracked files the leak scan cannot read")
 
 
+class AffectedExercises(unittest.TestCase):
+    """Which exercises a change can break, and what it must never miss.
+
+    This decides what CI spends its minutes on, so the expensive mistake is not
+    a slow run, it is an exercise nobody verified reporting green. Every test
+    here is about the narrow direction.
+    """
+
+    def setUp(self):
+        self.all = [exercise.id for exercise in tse.load_exercises()]
+
+    def test_a_change_to_the_tools_verifies_everything(self):
+        """The case that made this necessary.
+
+        Bounding an assertion moved every grader's command into a fresh shell
+        and broke the two exercises that used a variable or a function. That
+        commit touched nothing under labs/, so anything keyed on exercise
+        directories alone would have verified none of them.
+        """
+        for path in ("tools/lib/assert.sh", "tools/tse", "tools/lib/rubric.py"):
+            with self.subTest(path):
+                self.assertEqual(tse.affected_exercises([path]), self.all)
+
+    def test_a_change_to_this_workflow_verifies_everything(self):
+        self.assertEqual(
+            tse.affected_exercises([".github/workflows/verify.yml"]), self.all)
+
+    def test_a_shared_stack_verifies_its_whole_track(self):
+        for track in {exercise.split("/")[0] for exercise in self.all}:
+            with self.subTest(track):
+                chosen = tse.affected_exercises([f"labs/{track}/_stack/compose.yaml"])
+                self.assertEqual(chosen, [i for i in self.all if i.startswith(f"{track}/")])
+                self.assertTrue(chosen, f"{track} selected nothing")
+
+    def test_a_change_inside_one_exercise_verifies_that_one(self):
+        for exercise in self.all:
+            with self.subTest(exercise):
+                for name in ("check.sh", "setup/compose.override.yaml", "meta.yaml"):
+                    self.assertEqual(
+                        tse.affected_exercises([f"labs/{exercise}/{name}"]), [exercise])
+
+    def test_every_exercise_is_reachable(self):
+        """A slug this cannot select is one that would never be verified again."""
+        reachable = set()
+        for exercise in self.all:
+            reachable.update(tse.affected_exercises([f"labs/{exercise}/check.sh"]))
+        self.assertEqual(sorted(reachable), sorted(self.all))
+
+    def test_changes_are_combined_rather_than_replaced(self):
+        chosen = tse.affected_exercises([
+            f"labs/{self.all[0]}/check.sh",
+            f"labs/{self.all[-1]}/check.sh",
+        ])
+        self.assertEqual(chosen, [self.all[0], self.all[-1]])
+
+    def test_a_change_that_touches_no_exercise_selects_none(self):
+        self.assertEqual(tse.affected_exercises(["README.md", "site/src/lib/labs.ts"]), [])
+
+    def test_the_order_matches_tse_list(self):
+        """CI reads this as a matrix, and a matrix that reshuffles is unreadable."""
+        self.assertEqual(tse.affected_exercises(["tools/tse"]), self.all)
+
+
 class DetectorsActuallyFire(unittest.TestCase):
     """A linter that cannot fail is not a linter.
 

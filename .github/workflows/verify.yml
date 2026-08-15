@@ -5,6 +5,16 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  # The whole course, once a night, whatever changed.
+  #
+  # Ordinary pushes verify only the exercises the change can reach, which is
+  # what makes them affordable. That is a real trade: a base image moving under
+  # a lab, or a Docker release changing an output format, breaks an exercise
+  # without anybody committing anything, and a push that touches one file will
+  # not notice. This is the job that notices. It is also the flake detector the
+  # audit asked for, since twenty five exercises re-run daily is a repeat run.
+  schedule:
+    - cron: "0 9 * * *"
 
 permissions:
   contents: read
@@ -66,15 +76,71 @@ jobs:
       - name: CLI smoke test
         run: tools/tests/smoke.sh --fast
 
+  # Which exercises this change can actually break.
+  #
+  # Verifying all twenty five costs about eighty billable minutes. On a private
+  # repository's monthly allowance that is roughly twenty two pushes, and the
+  # allowance was reached during an audit. Most commits cannot affect most
+  # exercises.
+  #
+  # The rules live in `tools/tse affected` rather than here, because logic in a
+  # workflow file cannot be run or tested anywhere except by pushing, and the
+  # expensive mistake is selecting too few and reporting green on an exercise
+  # nobody checked. test_content.py holds it to that: a change under `tools/`
+  # selects everything, a shared stack selects its whole track, and every
+  # exercise has to be reachable.
+  #
+  # A scheduled or hand-started run ignores all of it and does the lot.
   discover:
     name: discover exercises
     runs-on: ubuntu-24.04
     outputs:
       exercises: ${{ steps.collect.outputs.exercises }}
+      count: ${{ steps.collect.outputs.count }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Deep enough to diff against what came before. A shallow clone has
+          # no base commit to compare with, and the fallback below is the whole
+          # course, so getting this wrong is slow rather than unsafe.
+          fetch-depth: 0
+
       - id: collect
-        run: echo "exercises=$(tools/tse list --ids)" >> "$GITHUB_OUTPUT"
+        # Read through the environment rather than interpolated into the script,
+        # so a branch or ref name can never be read as shell.
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "schedule" ] || [ "$EVENT" = "workflow_dispatch" ]; then
+            reason="every exercise, because this run was scheduled or started by hand"
+            exercises=$(tools/tse list --ids)
+          else
+            if [ "$EVENT" = "pull_request" ]; then
+              base="$BASE"
+            else
+              base="$BEFORE"
+            fi
+            # A new branch reports an all-zero base, and a force push can name a
+            # commit this clone does not have. Neither can be diffed, so both
+            # fall back to verifying everything.
+            if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+              reason="every exercise, because there is no base commit to compare against"
+              exercises=$(tools/tse list --ids)
+            else
+              changed=$(git diff --name-only "$base" "$HEAD_SHA")
+              printf '%s\n' "$changed" | sed 's/^/  /'
+              exercises=$(printf '%s\n' "$changed" | tools/tse affected)
+              reason="the exercises those files can reach"
+            fi
+          fi
+          count=$(printf '%s' "$exercises" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')
+          echo "Verifying $count exercise(s): $reason"
+          echo "exercises=$exercises" >> "$GITHUB_OUTPUT"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
 
   verify:
     name: ${{ matrix.exercise }}
@@ -88,6 +154,9 @@ jobs:
     # without starting anything, so a bad pull request costs one job rather than
     # twenty-five.
     needs: [discover, tests]
+    # An empty matrix is not a valid job, and a docs-only change selects
+    # nothing. Skipping is the correct outcome there.
+    if: needs.discover.outputs.count != '0'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     strategy:
@@ -128,7 +197,12 @@ jobs:
     name: learner loop
     # Same reasoning as `verify`: the full smoke test runs the learner loop,
     # which provisions a real exercise.
-    needs: tests
+    #
+    # Skipped alongside the matrix when nothing an exercise depends on moved. A
+    # change under tools/ selects every exercise, so this still runs for every
+    # change to the CLI it exercises.
+    needs: [tests, discover]
+    if: needs.discover.outputs.count != '0'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
