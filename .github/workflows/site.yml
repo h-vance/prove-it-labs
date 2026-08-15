@@ -21,6 +21,18 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # The site builds its pages straight out of labs/, and the rules about
+      # what may be in labs/ live in a Python suite that runs in the other
+      # workflow. Two workflows on the same trigger cannot gate each other, so
+      # without this the site could build, check itself, pass, and publish while
+      # `verify` was red in a tab nobody had open.
+      #
+      # No install step, because these tests have no dependencies either.
+      - name: The content the site is about to publish is valid
+        run: |
+          python3 tools/tests/test_content.py
+          python3 tools/tests/test_meta.py
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22

@@ -360,6 +360,143 @@ class GeneratedFiles(unittest.TestCase):
                     )
 
 
+class ContributedFiles(unittest.TestCase):
+    """What an exercise is allowed to hand to Docker and to kubectl.
+
+    An audit proved this was unbounded: a contributed compose.override.yaml,
+    which is a filename three real exercises already ship, produced a merged
+    configuration carrying `privileged: true` and a bind mount of `/`. CI
+    provisions every exercise on a branch, so that ran before any human read it.
+
+    These tests exist for the same reason the planted-secret tests below do. A
+    guard nobody has watched refuse anything is not a guard, and the guard here
+    also has to keep accepting fifty real files, so both halves are asserted.
+    """
+
+    def refusal(self, checker, text, source):
+        """The message a checker exits with, or None if it accepted the text."""
+        try:
+            checker(text, source)
+        except SystemExit as stop:
+            return str(stop.code)
+        return None
+
+    def test_the_allowlist_matches_gitignore(self):
+        """The list of contributable names and the list of generated names are
+        the same list, so a file the repository tracks can never be on it.
+
+        That equality is what protects compose.yaml, the Dockerfiles and the
+        service source without naming any of them: they are committed, so they
+        are not generated, so they are not contributable.
+        """
+        ignored = {
+            line.strip().removeprefix("labs/*/_stack/")
+            for line in (ROOT / ".gitignore").read_text().splitlines()
+            if line.strip().startswith("labs/*/_stack/")
+        }
+        self.assertEqual(tse.CONTRIBUTABLE_FILENAMES, ignored)
+
+    def test_every_real_variant_is_still_accepted(self):
+        """The guard must not have made the course itself unrunnable."""
+        for exercise in EXERCISES:
+            for variant in ("setup", "solution"):
+                directory = exercise.path / variant
+                if not directory.is_dir():
+                    continue
+                with self.subTest(f"{exercise.id}/{variant}"):
+                    try:
+                        tse.check_contributed_files(directory, stack=exercise.stack)
+                    except SystemExit as stop:
+                        self.fail(f"{exercise.id}/{variant} was refused: {stop.code}")
+
+    def test_no_permitted_override_key_is_unused(self):
+        """Every key the allowlist grants is one a real exercise needs.
+
+        A permission kept for a use that never arrived is a permission nobody
+        is thinking about, which is how the list widens back to where it started.
+        """
+        used = set()
+        for exercise in EXERCISES:
+            for variant in ("setup", "solution"):
+                override = exercise.path / variant / "compose.override.yaml"
+                if not override.is_file():
+                    continue
+                for line in override.read_text().splitlines():
+                    stripped = line.split("#", 1)[0].rstrip()
+                    if len(stripped) - len(stripped.lstrip(" ")) == 4:
+                        used.add(stripped.strip().split(":", 1)[0].strip())
+        self.assertEqual(
+            tse.COMPOSE_OVERRIDE_KEYS, used - {""},
+            "COMPOSE_OVERRIDE_KEYS and the keys the exercises use have diverged",
+        )
+
+    # One sample per family, planted the way a contributor would write it. The
+    # first is the exact payload the audit rendered.
+    HOSTILE_OVERRIDES = {
+        "privileged": "services:\n  app:\n    privileged: true\n",
+        "a host bind mount": "services:\n  app:\n    volumes:\n      - /:/host\n",
+        "the docker socket":
+            "services:\n  app:\n    volumes:\n      - /var/run/docker.sock:/s\n",
+        "capabilities added back": "services:\n  app:\n    cap_add:\n      - SYS_ADMIN\n",
+        "hardening switched off": "services:\n  app:\n    security_opt: []\n",
+        "host networking": "services:\n  app:\n    network_mode: host\n",
+        "a replaced image": "services:\n  app:\n    image: attacker/evil:latest\n",
+        "a build directive": "services:\n  app:\n    build: /\n",
+        "a replaced entrypoint": "services:\n  app:\n    entrypoint: /bin/sh\n",
+        "an added device": "services:\n  app:\n    devices:\n      - /dev/kmsg\n",
+        # Flow style on one line. An earlier version of the scan read only the
+        # first word of a line, so this passed while saying the same thing as
+        # the first case above.
+        "flow style": "services: {app: {privileged: true}}\n",
+        "an unexpected tag": "services:\n  app:\n    environment: !!python/object x\n",
+        "tab indentation": "services:\n\tapp:\n\t\tprivileged: true\n",
+        "a top level key beside services": "volumes:\n  evil:\n    driver: local\n",
+        "no services at all": "# nothing here\n",
+    }
+
+    def test_every_hostile_override_is_refused(self):
+        for label, text in self.HOSTILE_OVERRIDES.items():
+            with self.subTest(label):
+                self.assertIsNotNone(
+                    self.refusal(tse.check_compose_override, text, "probe.yaml"),
+                    f"an override that sets {label} was accepted",
+                )
+
+    HOSTILE_MANIFESTS = {
+        "a host path volume":
+            "kind: Deployment\nspec:\n  volumes:\n  - hostPath:\n      path: /\n",
+        "host networking": "kind: Deployment\nspec:\n  hostNetwork: true\n",
+        "a privileged container":
+            "kind: Deployment\nspec:\n  securityContext:\n    privileged: true\n",
+        "privilege escalation":
+            "kind: Deployment\nspec:\n  securityContext:\n"
+            "    allowPrivilegeEscalation: true\n",
+        "a cluster role binding": "kind: ClusterRoleBinding\nmetadata:\n  name: x\n",
+        "pinning a node": "kind: Deployment\nspec:\n  nodeName: control-plane\n",
+        "no kind at all": "just: some\nyaml: here\n",
+    }
+
+    def test_every_hostile_manifest_is_refused(self):
+        for label, text in self.HOSTILE_MANIFESTS.items():
+            with self.subTest(label):
+                self.assertIsNotNone(
+                    self.refusal(tse.check_kubernetes_manifest, text, "probe.yaml"),
+                    f"a manifest with {label} was accepted",
+                )
+
+    def test_a_stack_source_that_is_not_a_track_is_refused(self):
+        """stack_source is joined into a path, so it cannot be taken on trust."""
+        for bad in ("../../../../tmp/escape", "/etc", "nosuchtrack", ".."):
+            with self.subTest(bad):
+                exercise = tse.Exercise(
+                    id="docker/probe",
+                    path=ROOT / "labs" / "docker",
+                    meta={"track": "docker", "stack_source": bad},
+                )
+                with self.assertRaises(SystemExit):
+                    exercise.stack_dir()
+
+
 class Resolution(unittest.TestCase):
     """How a learner refers to an exercise. Typing the full slug is not it."""
 
@@ -700,6 +837,49 @@ class LeakGate(unittest.TestCase):
         ("fd12:3456:789a:1::1", "a private IPv6 address"),
         ("fe80::1ff:fe23:4567:890a", "a private IPv6 address"),
         ("someone@notreserved.test", "an email address"),
+        # Everything below was planted by an audit and got straight through.
+        # Twelve of seventeen credential formats did. The list had read as
+        # thorough for weeks on the strength of the nine it did catch, which is
+        # the same way the identity scan went missing.
+        #
+        # AWS's own published example secret, which is the half that spends
+        # money. The id above opens nothing without it, and the id was the half
+        # this list had.
+        ("aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+         "an AWS secret"),
+        ("AWS_SESSION_TOKEN=FwoGZXIvYXdzEBYaDGV4YW1wbGV0b2tlbg==", "an AWS secret"),
+        # The provider whose key is most likely to be sitting in this author's
+        # own shell history.
+        ("sk-ant-api03-" + "0" * 90, "an AI provider API key"),
+        ("sk-proj-" + "0" * 40, "an AI provider API key"),
+        ("sk_live_" + "0" * 24, "a Stripe secret key"),
+        ("AIzaSy" + "A" * 33, "a Google API key"),
+        ("npm_" + "0" * 36, "an npm token"),
+        ("pypi-AgEIcHlwaS5vcmc" + "A" * 32, "a PyPI token"),
+        ("AccountKey=" + "A" * 86 + "==", "an Azure storage key"),
+        ('"private_key_id": "0123456789abcdef0123456789abcdef01234567"',
+         "a Google service account key"),
+        ("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.c2lnbmF0dXJlZ29lc2hlcmU",
+         "a signed token"),
+        # Base64 in a kubeconfig, which none of the prefix rules can see. This
+        # course teaches Kubernetes, so a pasted kubeconfig is a realistic find.
+        ("    client-certificate-data: LS0tLS1CRUdJTiBDRVJU",
+         "a kubeconfig credential"),
+        ("/Volumes/Backup Drive/projects", "a mounted volume"),
+        (r"C:\Users\someone\Projects", "a Windows home directory"),
+    ]
+
+    # Formats this scan knowingly does not catch, recorded so the gap is a
+    # decision somebody made rather than one nobody noticed.
+    #
+    # A bare AWS secret with nothing naming it is forty characters of base64,
+    # which is also what a lockfile integrity hash is. A rule on shape alone
+    # fires constantly, and a scan that cries wolf is a scan somebody turns off.
+    # Every realistic way of writing one names it, and the named forms above are
+    # caught. GitHub's own secret scanning, which is free on public repositories
+    # and validates against the provider, is the right tool for the bare form.
+    KNOWINGLY_UNCAUGHT = [
+        ("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", "a bare AWS secret"),
     ]
 
     # Real text from this repository that each rule has to live beside without
@@ -760,6 +940,22 @@ class LeakGate(unittest.TestCase):
             with self.subTest(description):
                 self.assertIn(description, covered,
                               f"no planted sample proves the rule for {description} fires")
+
+    def test_the_known_gaps_are_still_the_gaps(self):
+        """A limitation written down has to stay true or stop being written down.
+
+        If a later rule starts catching one of these, the note explaining why it
+        is not caught has become false. Failing here is the good outcome: it
+        means the gap closed, and the paragraph above the list should say so
+        rather than keep arguing for a decision nobody is making any more.
+        """
+        for sample, what in self.KNOWINGLY_UNCAUGHT:
+            found = tse.scan_for_leaks(sample, tse.REPO_LEAK_PATTERNS)
+            with self.subTest(what):
+                self.assertEqual(
+                    found, [],
+                    f"{what} is now caught, so the note saying it is not is stale",
+                )
 
     def test_no_rule_fires_on_what_it_must_tolerate(self):
         for sample, what in self.TOLERATED:

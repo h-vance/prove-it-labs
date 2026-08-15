@@ -78,7 +78,16 @@ jobs:
 
   verify:
     name: ${{ matrix.exercise }}
-    needs: discover
+    # `tests` as well as `discover`, which it did not have before.
+    #
+    # This job provisions every exercise it finds on the branch, which means it
+    # hands contributed files to Docker and to kubectl. `tools/tse` now refuses
+    # a file that reaches past what an exercise is allowed to change, and that
+    # is the guard that matters because it runs everywhere. This ordering is the
+    # second line: `test_content.py` refuses the same file a minute earlier and
+    # without starting anything, so a bad pull request costs one job rather than
+    # twenty-five.
+    needs: [discover, tests]
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     strategy:
@@ -117,6 +126,9 @@ jobs:
 
   loop:
     name: learner loop
+    # Same reasoning as `verify`: the full smoke test runs the learner loop,
+    # which provisions a real exercise.
+    needs: tests
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:

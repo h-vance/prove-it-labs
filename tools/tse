@@ -56,6 +56,187 @@ TEMPLATES = ROOT / "tools" / "templates"
 
 
 # --------------------------------------------------------------------------- #
+# What an exercise is allowed to contribute
+#
+# An exercise describes a broken system by dropping files into a shared stack,
+# which `provision` then hands to Docker or to kubectl. That is the whole design
+# and it is a good one, but it means the exercise, not the stack, has the last
+# word on what runs.
+#
+# While this repository had one author that was a private matter. The moment it
+# is public and takes pull requests it stops being one: `verify.yml` provisions
+# every exercise it discovers on a branch, so a contributed file is executed by
+# CI before any human reads it. An audit proved the consequence rather than
+# assuming it, by rendering the merged configuration a contributed
+# compose.override.yaml produces. It carried `privileged: true` and a bind mount
+# of `/` into the container, and every hardening flag the stack declares was
+# gone.
+#
+# So the stack now keeps the last word. Three rules, each narrow enough to state
+# in one line, and each enforced here rather than only in a test, because
+# provisioning happens before any test could intervene.
+# --------------------------------------------------------------------------- #
+
+# Rule one: an exercise may only write a filename the stack is declared to
+# generate. Every name here appears in .gitignore under labs/*/_stack/, and a
+# test asserts the two lists still agree, so this cannot drift into a list that
+# permits a file the repository also tracks. That is what protects compose.yaml,
+# the Dockerfiles and the service source: they are committed, so they are not
+# here, so an exercise cannot replace them.
+#
+# Adding a name is a deliberate one-line change. That friction is the point.
+CONTRIBUTABLE_FILENAMES = {
+    "compose.override.yaml",
+    "request.sh",
+    "query.sql",
+    "tenants.json",
+    "customer-update.md",
+    "escalation.md",
+    "evidence.md",
+}
+
+# Rule two: an override may only reach the keys the exercises actually use.
+#
+# Exactly four, counted across all twenty override files in the repository:
+# environment, user, group_add and ports. Nothing is listed here on the grounds
+# that it might be wanted later. A fifth key costs one line and a moment's
+# thought about whether it can be used to leave the container, which is the
+# thought this list exists to force.
+COMPOSE_OVERRIDE_KEYS = {"environment", "user", "group_add", "ports"}
+
+# Compose's own merge tags. `ports: !override` is used by mixed/01 to replace
+# the list rather than append to it. Any other tag is refused, because a tag is
+# an instruction to the parser and this scan is not a parser.
+COMPOSE_TAGS = {"!override", "!reset"}
+
+# Rule three: a manifest may only create the kinds the track teaches with, and
+# may not ask for anything that reaches the node.
+#
+# Every contributed manifest in the repository is a Deployment or a Service.
+# ConfigMap and Namespace live in the committed base.yaml, which is not
+# contributed and is not checked here.
+KUBERNETES_KINDS = {"Deployment", "Service", "ConfigMap"}
+
+# Fields that cross the boundary between the pod and the machine underneath it.
+# Matched as keys anywhere in the document rather than by path, because the
+# point is that none of them belong in a lab manifest at any depth.
+KUBERNETES_FORBIDDEN_FIELDS = {
+    "hostPath", "hostNetwork", "hostPID", "hostIPC", "hostPort", "hostUsers",
+    "privileged", "allowPrivilegeEscalation", "nodeName", "hostAliases",
+}
+
+
+def check_compose_override(text: str, source: str) -> None:
+    """Refuse an override that reaches past the keys exercises use.
+
+    A deliberately small scan rather than a YAML parse, and strict about what it
+    will look at: two space indents, block style only, no flow mappings, no tags
+    beyond compose's own merge tags. Anything it cannot read confidently it
+    refuses, because the failure it exists to prevent is one where something
+    unreadable is waved through.
+    """
+    services_seen = False
+    for number, raw in enumerate(text.splitlines(), start=1):
+        where = f"{source}:{number}"
+        if "\t" in raw:
+            sys.exit(f"tse: {where}: tabs are not valid YAML indentation.")
+        line = raw.split("#", 1)[0].rstrip()
+        if not line.strip():
+            continue
+
+        indent = len(line) - len(line.lstrip(" "))
+        if indent % 2:
+            sys.exit(f"tse: {where}: indentation must be a multiple of two spaces.")
+        body = line.strip()
+        # Anywhere on the line, not only at the start of one. `services: {app:
+        # {privileged: true}}` is a single line whose first word is the one key
+        # this scan expects, and an earlier version of this check waved it
+        # through for exactly that reason. No real override in the repository
+        # contains either character, so refusing both outright costs nothing.
+        if "{" in body or "[" in body:
+            sys.exit(
+                f"tse: {where}: flow style is not accepted in an override.\n"
+                "     Write it as an indented block so it can be checked."
+            )
+
+        for word in body.split():
+            if word.startswith("!") and word not in COMPOSE_TAGS:
+                sys.exit(f"tse: {where}: unknown YAML tag {word!r}.")
+
+        if indent == 0:
+            key, _, value = body.partition(":")
+            key = key.strip()
+            if key != "services":
+                sys.exit(
+                    f"tse: {where}: an override may only define `services`, not {key!r}."
+                )
+            if value.strip():
+                sys.exit(
+                    f"tse: {where}: `services` must open a block, not carry a value."
+                )
+            services_seen = True
+        elif indent == 4:
+            # A service's own keys. Two deeper than `services`, one deeper than
+            # the service name. List items belong to the key above them.
+            if body.startswith("- "):
+                continue
+            key = body.split(":", 1)[0].strip()
+            if key not in COMPOSE_OVERRIDE_KEYS:
+                sys.exit(
+                    f"tse: {where}: an override may not set {key!r}.\n"
+                    f"     Allowed: {', '.join(sorted(COMPOSE_OVERRIDE_KEYS))}.\n"
+                    "     The stack declares how its containers are confined and an\n"
+                    "     exercise does not get to change that."
+                )
+
+    if not services_seen:
+        sys.exit(f"tse: {source}: no `services` block, so there is nothing to apply.")
+
+
+def check_kubernetes_manifest(text: str, source: str) -> None:
+    """Refuse a manifest that creates an unexpected kind or reaches the node."""
+    kinds = re.findall(r"(?m)^\s*kind:\s*(\S+)", text)
+    if not kinds:
+        sys.exit(f"tse: {source}: no `kind`, so this is not a manifest.")
+    for kind in kinds:
+        if kind.strip("\"'") not in KUBERNETES_KINDS:
+            sys.exit(
+                f"tse: {source}: {kind} is not a kind the labs create.\n"
+                f"     Allowed: {', '.join(sorted(KUBERNETES_KINDS))}."
+            )
+    for number, raw in enumerate(text.splitlines(), start=1):
+        key = raw.split("#", 1)[0].split(":", 1)[0].strip().lstrip("- ")
+        if key in KUBERNETES_FORBIDDEN_FIELDS:
+            sys.exit(
+                f"tse: {source}:{number}: {key} reaches the machine the pod runs on.\n"
+                "     A lab manifest has no reason to, so this is refused."
+            )
+
+
+def check_contributed_files(source_dir: Path, *, stack: str) -> None:
+    """Check every file an exercise variant is about to hand to the system."""
+    for item in sorted(source_dir.iterdir()):
+        if not item.is_file():
+            sys.exit(f"tse: {item.relative_to(ROOT)} is not a file.")
+        where = str(item.relative_to(ROOT))
+
+        if stack == "kind":
+            if item.suffix != ".yaml":
+                continue
+            check_kubernetes_manifest(item.read_text(), where)
+            continue
+
+        if item.name not in CONTRIBUTABLE_FILENAMES:
+            sys.exit(
+                f"tse: {where}: an exercise may not contribute a file named "
+                f"{item.name!r}.\n"
+                f"     Allowed: {', '.join(sorted(CONTRIBUTABLE_FILENAMES))}."
+            )
+        if item.name == "compose.override.yaml":
+            check_compose_override(item.read_text(), where)
+
+
+# --------------------------------------------------------------------------- #
 # Metadata parsing
 #
 # tse deliberately has no third-party dependencies. On a modern Mac or Linux
@@ -209,11 +390,31 @@ class Exercise:
         Almost always its own. Mixed incidents borrow an existing stack rather
         than duplicating one, because the point of that track is a familiar
         system with an unfamiliar, unlabelled failure.
+
+        Checked against the known tracks rather than trusted, because this value
+        comes from the exercise's own meta.yaml and is joined into a path below.
+        `stack_source: ../../../tmp` would otherwise put stack_dir() outside the
+        repository, where the next line creates directories and copies files.
         """
-        return self.meta.get("stack_source") or self.track
+        source = self.meta.get("stack_source") or self.track
+        if source not in TRACK_ORDER:
+            sys.exit(
+                f"tse: {self.id}: stack_source {source!r} is not a track.\n"
+                f"     Known tracks: {', '.join(TRACK_ORDER)}."
+            )
+        return source
 
     def stack_dir(self) -> Path:
-        return LABS / self.stack_source / "_stack"
+        """The shared stack directory, asserted to be inside labs/.
+
+        The check above already constrains the only value that reaches this
+        path. This is the second lock on the same door: a path that escapes
+        labs/ is refused here no matter how it was produced.
+        """
+        stack = (LABS / self.stack_source / "_stack").resolve()
+        if not stack.is_relative_to(LABS.resolve()):
+            sys.exit(f"tse: {self.id}: its stack directory resolves outside labs/.")
+        return stack
 
     def questions(self) -> list[dict]:
         """The multiple choice set that replaced the spoken answer.
@@ -597,6 +798,11 @@ REPO_LEAK_PATTERNS: list[tuple["re.Pattern[str]", str]] = [
     # /home/runner is GitHub Actions' own working directory, so it turns up in
     # legitimately recorded CI output and is not anybody's home directory.
     (re.compile(r"/(?:Users|home)/(?!runner\b)[A-Za-z0-9._-]+"), "a home directory"),
+    # An external disk on a Mac, which is where a lot of people keep a projects
+    # folder, and a Windows home path for anybody not working through WSL. The
+    # rule above sees neither.
+    (re.compile(r"/Volumes/[A-Za-z0-9._-]+"), "a mounted volume"),
+    (re.compile(r"(?i)\b[A-Z]:\\Users\\[A-Za-z0-9._-]+"), "a Windows home directory"),
     (re.compile(r"arn:aws:"), "an AWS ARN"),
     (re.compile(r"\b\d{12}\.dkr\.ecr\b"), "an ECR registry with an account id"),
     # Four complete octets. A three-octet form matches the semver in
@@ -606,7 +812,47 @@ REPO_LEAK_PATTERNS: list[tuple["re.Pattern[str]", str]] = [
     (re.compile(r"\b(?:10\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])|192\.168)"
                 r"\.\d{1,3}\.\d{1,3}\b"), "a private network address"),
     (re.compile(r"\bAKIA[0-9A-Z]{16}\b"), "an AWS access key id"),
+    # The half that matters. An access key id on its own opens nothing; the
+    # secret beside it is the part that spends money, and until an audit planted
+    # one this list caught the harmless half and missed the other.
+    #
+    # Matched by the name it is assigned to rather than by its shape. The value
+    # is forty characters of base64, which is also what a lockfile integrity
+    # hash looks like, so a rule on shape alone would fire constantly and get
+    # switched off. Every real way of writing one names it: the shared
+    # credentials file, an export line, a compose environment, a CI variable.
+    (re.compile(r"(?i)\baws_(?:secret_access_key|session_token)\b\s*[=:]\s*"
+                r"[\"']?[A-Za-z0-9/+=_-]{16,}"), "an AWS secret"),
     (re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}"), "a GitHub token"),
+    # The rest of the prefixed credentials, which is the class this file already
+    # argues is worth matching: a fixed prefix means almost no false positives.
+    # Nine formats, all of which an audit planted and all of which got through.
+    #
+    # sk- covers Anthropic's sk-ant-, OpenAI's sk-proj- and sk-svcacct-, and the
+    # older bare sk- form, in one rule rather than four that would each need
+    # updating when a vendor changes a middle segment.
+    (re.compile(r"\bsk-[A-Za-z0-9_-]{20,}"), "an AI provider API key"),
+    (re.compile(r"\b[sr]k_(?:live|test)_[A-Za-z0-9]{16,}"), "a Stripe secret key"),
+    # Thirty-five characters is the real length. Matched as a floor rather than
+    # exactly, with no closing boundary, because the first version of this rule
+    # used `{35}\b` and a planted sample one character too long slid past it:
+    # the length is fixed, so the engine had nothing to backtrack to. A leak
+    # scanner should err toward catching a malformed key, not toward ignoring it.
+    (re.compile(r"\bAIza[0-9A-Za-z_-]{30,}"), "a Google API key"),
+    (re.compile(r"\bnpm_[A-Za-z0-9]{30,}"), "an npm token"),
+    (re.compile(r"\bpypi-[A-Za-z0-9_-]{32,}"), "a PyPI token"),
+    (re.compile(r"\bAccountKey=[A-Za-z0-9+/=]{40,}"), "an Azure storage key"),
+    (re.compile(r"\"private_key_id\"\s*:"), "a Google service account key"),
+    # A signed token, matched on its three-part shape rather than a prefix
+    # because it has none. Anchored on the two base64 segments that always
+    # decode to `{"` , which is what makes this specific enough to keep.
+    (re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]+"),
+     "a signed token"),
+    # Kubernetes puts its credentials in a kubeconfig as base64, so none of the
+    # rules above can see them. This track teaches Kubernetes, which makes a
+    # pasted kubeconfig a realistic thing to find in a recording.
+    (re.compile(r"\b(?:client-key-data|client-certificate-data)\s*:"),
+     "a kubeconfig credential"),
     # The fine-grained format, which is the one GitHub now hands out by default
     # and which the classic `ghp_` rule above does not match. Found by an
     # outside scan of this repository rather than by us, which is the argument
@@ -979,6 +1225,11 @@ def provision(exercise: Exercise, *, variant: str) -> None:
     if not source_dir.is_dir():
         sys.exit(f"tse: {exercise.id} has no {variant}/ directory")
 
+    # Before anything is copied, applied or started. Everything below this line
+    # hands a contributed file to Docker or to kubectl, and a check that runs
+    # afterwards is a report rather than a guard.
+    check_contributed_files(source_dir, stack=exercise.stack)
+
     if exercise.stack == "kind":
         ensure_cluster()
         reset_namespace()
@@ -1002,7 +1253,14 @@ def provision(exercise: Exercise, *, variant: str) -> None:
 
 
 def materialize(exercise: Exercise, source_dir: Path) -> None:
-    """Copy a variant's files into the shared stack, clearing prior ones first."""
+    """Copy a variant's files into the shared stack, clearing prior ones first.
+
+    Checks the files again even though `provision` already did. This is the
+    function that actually writes them, so it is the one that has to be safe on
+    its own: a later caller that forgets the check would otherwise reopen the
+    hole silently, which is how the hole got there the first time.
+    """
+    check_contributed_files(source_dir, stack=exercise.stack)
     stack = exercise.stack_dir()
     stack.mkdir(parents=True, exist_ok=True)
     for name in managed_files(exercise.stack_source):
