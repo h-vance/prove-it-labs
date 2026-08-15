@@ -141,8 +141,20 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # info rather than warning, which is what this ran at until an audit
+      # planted an unquoted variable in a check.sh and nothing happened. SC2086,
+      # the unquoted expansion, is classed info, so the most common bug in shell
+      # was the one bug this gate could not see. Every file here is a grader or
+      # sets up a lab, and an unquoted path in a grader is how an exercise
+      # passes for the wrong reason.
+      #
+      # SC1091 is excluded rather than fixed. Each check.sh sources the
+      # assertion library through $TSE_LIB, which has no value at lint time, so
+      # shellcheck cannot follow it and says so once per file. Twenty-six copies
+      # of a message about a file that is itself linted here is noise, and noise
+      # is what made the severity worth lowering in the first place.
       - run: |
-          shellcheck --severity=warning \
+          shellcheck --severity=info -e SC1091 \
             tools/lib/assert.sh \
             tools/tests/smoke.sh \
             .devcontainer/post-create.sh \

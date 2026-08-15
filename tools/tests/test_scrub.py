@@ -262,6 +262,41 @@ class RulesDoNotOverReach(unittest.TestCase):
         one = "orders-api-8c8575974-6n2ts   0/1   CrashLoopBackOff   3 (41s ago)   75s\n"
         self.assertNotEqual(scrub(two), scrub(one))
 
+    def test_the_two_states_of_a_crash_loop_fold_into_one(self):
+        """Which state a command catches is where in the backoff it landed.
+
+        This is what the rule is for, and until an audit checked, it had never
+        been asserted: every recording in the repository happened to catch
+        CrashLoopBackOff, so the Error half had never fired on anything.
+        """
+        looping = "orders-api-8c8575974-6n2ts   0/1   CrashLoopBackOff   3 (41s ago)   75s"
+        erroring = "orders-api-8c8575974-6n2ts   0/1   Error              3 (41s ago)   75s"
+        self.assertEqual(scrub(looping), scrub(erroring))
+
+    def test_the_word_error_in_a_sentence_is_left_alone(self):
+        """A status sits in a column. A message does not.
+
+        Written without that guard the rule rewrote `Error from server` in two
+        Kubernetes recordings, and `Error response from daemon` on every other
+        track, because those are the words Docker and kubectl use for things
+        that are not pod states at all.
+        """
+        prose = [
+            'Error from server (BadRequest): container "app" is waiting to start',
+            "Error response from daemon: no such container",
+            "psql: Error connecting to server",
+        ]
+        for line in prose:
+            with self.subTest(line[:40]):
+                self.assertNotIn("<crash-loop>", scrub(line))
+
+    def test_a_pod_that_is_running_is_never_folded_into_a_failure(self):
+        """kubernetes/05 turns on 0/1 while Running, so that must survive."""
+        running = "orders-api-8c8575974-6n2ts   0/1   Running            0          75s"
+        looping = "orders-api-8c8575974-6n2ts   0/1   CrashLoopBackOff   3 (41s ago) 75s"
+        self.assertNotEqual(scrub(running), scrub(looping))
+        self.assertIn("Running", scrub(running))
+
     def test_a_listing_date_folds_but_the_permissions_beside_it_do_not(self):
         """The mode and ownership are the evidence; the mtime is build noise."""
         first = "-rw-r-----    1 root     reporting       78 Aug 15 14:16 credentials.conf"

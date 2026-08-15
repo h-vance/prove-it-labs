@@ -23,6 +23,13 @@ _TSE_PASSED=0
 _TSE_FAILED=0
 _TSE_MAX_OUTPUT_LINES=${TSE_MAX_OUTPUT_LINES:-12}
 
+# GNU coreutils calls it `timeout`; Homebrew's coreutils installs it as
+# `gtimeout` unless the user asked for unprefixed names. Looked up once here
+# rather than per assertion. If neither exists the assertion runs unbounded,
+# which is what it did before this, so nothing is worse off for the lookup
+# failing.
+_TSE_TIMEOUT_BIN=$(command -v timeout || command -v gtimeout || true)
+
 if [[ -t 1 && -z ${NO_COLOR:-} && ${TERM:-dumb} != dumb ]]; then
     _C_PASS=$'\033[32m'
     _C_FAIL=$'\033[31m'
@@ -92,7 +99,23 @@ assert() {
     local output='' attempt=0 ok=1
     while (( attempt < retries )); do
         attempt=$((attempt + 1))
-        output=$(eval "$command" 2>&1)
+        # Bounded, once, here, rather than in each of the twenty five graders.
+        #
+        # A grader runs the customer's own request script, and several of those
+        # are a bare curl with no time limit. A broken backend that holds the
+        # connection open instead of refusing it, which is an ordinary way for a
+        # service to be broken, hangs the grader with nothing printed. The
+        # learner sees `tse check` stop, and CI sees a job time out half an hour
+        # later naming nothing.
+        #
+        # `timeout` is not on every machine. Where it is missing the command
+        # runs unbounded, which is what happened before, so this can only help.
+        if [[ -n ${_TSE_TIMEOUT_BIN:-} ]]; then
+            output=$("$_TSE_TIMEOUT_BIN" "${TSE_ASSERT_TIMEOUT:-60}" \
+                     bash -c "$command" 2>&1)
+        else
+            output=$(eval "$command" 2>&1)
+        fi
         if _tse_matches "$mode" "$expected" "$output"; then
             ok=0
             break
@@ -119,6 +142,20 @@ assert() {
 
 finish() {
     local total=$((_TSE_PASSED + _TSE_FAILED))
+    # A grader that asked nothing is not a grader that found nothing wrong.
+    #
+    # This used to print "0 of 0 checks passed" and exit 0, which every one of
+    # the twenty five check.sh files would inherit the moment its assertions
+    # ended up behind a condition that turned out false: a renamed variable, a
+    # stale flag, an `if` that stopped matching. `tse verify` catches only the
+    # version of that where the broken state passes too, so it is not cover for
+    # this. Nothing else in the repository was watching.
+    if (( total == 0 )); then
+        printf '%sThis grader ran no checks at all, so it has proved nothing.%s\n' \
+            "$_C_FAIL" "$_C_OFF"
+        printf '      Its assertions are all behind a condition that was false.\n'
+        exit 1
+    fi
     if (( _TSE_FAILED == 0 )); then
         printf '%s%d of %d checks passed.%s\n' "$_C_PASS" "$_TSE_PASSED" "$total" "$_C_OFF"
         exit 0

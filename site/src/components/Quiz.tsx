@@ -35,9 +35,14 @@ export default function Quiz({ exerciseId, questions }: Props) {
   // after someone last visited. Pad rather than throwing their progress away.
   const chosen = questions.map((_, index) => answers[index] ?? UNANSWERED);
   const answered = chosen.filter((value) => value !== UNANSWERED).length;
-  const score = questions.filter(
-    (question, index) => chosen[index] !== UNANSWERED && question.options[chosen[index]]?.correct,
-  ).length;
+  // `pick` is read into a local first. Indexing twice in one expression means
+  // the compiler cannot carry the "this is a real answer" check across to the
+  // options lookup, and the score is the one number on this page a learner
+  // would take at face value.
+  const score = questions.filter((question, index) => {
+    const pick = chosen[index];
+    return pick !== undefined && pick !== UNANSWERED && question.options[pick]?.correct;
+  }).length;
 
   // Functional update, not setAnswers([...chosen]). Two answers given before
   // the next render would otherwise both build from the same stale array and
@@ -61,7 +66,7 @@ export default function Quiz({ exerciseId, questions }: Props) {
 
       {questions.map((question, questionIndex) => {
         const pick = chosen[questionIndex];
-        const isAnswered = pick !== UNANSWERED;
+        const isAnswered = pick !== undefined && pick !== UNANSWERED;
         const picked = isAnswered ? question.options[pick] : null;
         const isCorrect = Boolean(picked?.correct);
         const answer = question.options.find((option) => option.correct);

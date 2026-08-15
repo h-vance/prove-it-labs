@@ -42,6 +42,19 @@ jobs:
       - run: npm ci
         working-directory: site
 
+      # Before the build, not after, because a type error is cheaper to read
+      # than a page that rendered blank.
+      #
+      # `npm run check` was in package.json from the start and was never run
+      # anywhere. It reported nothing when an audit finally ran it, which was
+      # itself the finding: `noUncheckedIndexedAccess` was off, so every array
+      # and record lookup was typed as though it always returns something. Six
+      # real "this could be undefined" sites were hiding behind that, including
+      # the quiz score. It is on now, so this step has something to check.
+      - name: Types
+        run: npm run check
+        working-directory: site
+
       - run: npm run build
         working-directory: site
 

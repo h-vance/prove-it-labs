@@ -8,6 +8,7 @@ gather evidence yourself, then ask the grader what it can prove.
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import os
 import re
@@ -482,11 +483,31 @@ def read_state() -> dict:
     try:
         return json.loads(path.read_text())
     except json.JSONDecodeError:
+        # Say so. This used to return a fresh state in silence, which meant a
+        # truncated file erased every exercise the learner had completed and
+        # the only sign was the list going empty. Losing the progress is
+        # survivable. Losing it without a word is what made it worth changing.
+        print(
+            f"{YELLOW}tse: {STATE_FILENAME} could not be read and has been "
+            f"reset.{OFF}\n"
+            "     Progress before this point is gone. Everything else is fine.",
+            file=sys.stderr,
+        )
         return {"current": None, "hints": {}, "completed": []}
 
 
 def write_state(state: dict) -> None:
-    (ROOT / STATE_FILENAME).write_text(json.dumps(state, indent=2) + "\n")
+    """Write the state file in one step rather than two.
+
+    `write_text` truncates and then writes, so a Ctrl-C in between leaves the
+    file half written and unreadable. Writing beside it and renaming means the
+    file is either the old one or the new one and never neither, because rename
+    within a directory is atomic.
+    """
+    path = ROOT / STATE_FILENAME
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(state, indent=2) + "\n")
+    os.replace(temporary, path)
 
 
 def current_exercise() -> Exercise:
@@ -511,6 +532,15 @@ TRUNCATION_NOTE = "... output truncated. Run it for real to see the rest."
 # exercise reports rather than occupying a CI runner.
 UNTIL_TIMEOUT_S = 90.0
 UNTIL_DELAY_S = 1.0
+
+# How long any single recorded command may take before it is stopped.
+#
+# Generous, because the slowest thing a lab records is `docker compose up
+# --build` pulling a base image on a cold runner, and that is a legitimate two
+# minutes. Anything past this is not slow, it is stuck: following a log, reading
+# a stdin nobody is going to type into, or waiting on a cluster that is not
+# there. The whole `# until:` deadline fits inside this, on purpose.
+RECORD_TIMEOUT_S = 300.0
 
 # Fragments of genuine output that differ between two runs of the same broken
 # system. Recording exists so the site can replay real output, and comparing a
@@ -677,7 +707,18 @@ SCRUB_RULES: list[tuple[str, "re.Pattern[str]", str]] = [
     # "Running" is deliberately not in this list. A pod that is Running while
     # reporting 0/1 is the entire point of kubernetes/05, and folding that in
     # would erase the distinction the exercise exists to teach.
-    ("crash-loop-state", re.compile(r"\b(?:CrashLoopBackOff|Error)\b(?=\s)"),
+    #
+    # `Error` is required to sit in a column, which is the only place it means a
+    # pod status. Written as a bare word it fired on prose instead: an audit
+    # found it rewriting `Error from server (BadRequest)` in kubernetes/01 and
+    # /02, which is a message and not a state, while never once matching the
+    # status it was written for. Two or more spaces on each side is what a
+    # kubectl column looks like and what an English sentence does not.
+    #
+    # CrashLoopBackOff keeps no such guard. It is not a word that turns up in
+    # prose, so it needs no context to be sure of.
+    ("crash-loop-state", re.compile(
+        r"\bCrashLoopBackOff\b(?=\s)|(?<=\s\s)Error(?=\s\s)"),
         "<crash-loop>"),
     # The AGE column: 13s, 5m32s, 2d4h.
     #
@@ -951,17 +992,31 @@ def foreign_projects() -> set[str]:
     unrelated work in a repository meant to go public, and it could never match
     a fresh run in CI. Rather than trusting the author to notice, the recorder
     asks Docker what else exists and refuses to record output naming any of it.
+
+    Refuses rather than returning nothing when it cannot get an answer. An
+    empty set means "asked Docker, there is nothing else running". Returning it
+    for a failed call would mean "could not ask", and the caller cannot tell
+    those apart: the second one silently switches this protection off at
+    exactly the moment something is wrong with the machine.
     """
     result = subprocess.run(
         ["docker", "compose", "ls", "--all", "--format", "json"],
         capture_output=True, text=True,
     )
     if result.returncode != 0:
-        return set()
+        sys.exit(
+            "tse: could not ask Docker what else is running, so a recording "
+            "cannot be checked\n"
+            "     for another project's name. Start Docker and try again.\n"
+            f"     {result.stderr.strip().splitlines()[0] if result.stderr.strip() else ''}"
+        )
     try:
         projects = json.loads(result.stdout or "[]")
     except json.JSONDecodeError:
-        return set()
+        sys.exit(
+            "tse: Docker's project list was not valid JSON, so it could not be "
+            "checked."
+        )
     names = {project.get("Name", "") for project in projects if project.get("Name")}
     return {name for name in names if not name.startswith("proveit")}
 
@@ -1058,10 +1113,31 @@ def match_keys(command: str, aliases: list[str]) -> list[str]:
 
 
 def run_for_record(command: str) -> tuple[str, int]:
-    """Run one block and capture stdout and stderr exactly as a terminal shows them."""
-    result = subprocess.run(
-        ["bash", "-c", command], capture_output=True, text=True, cwd=ROOT,
-    )
+    """Run one block and capture stdout and stderr exactly as a terminal shows them.
+
+    Bounded, because a recorded command is written by hand and one of them will
+    eventually wait forever: anything that follows a log, anything that reads
+    stdin, anything pointed at a cluster that is not answering. Without a bound
+    the tool simply stops, and in CI that reads as a job timeout twenty-five
+    minutes later with nothing naming the command that did it.
+
+    The bound is also what makes the `# until:` retry loop mean anything. That
+    loop has a ninety second deadline, and a deadline measured around a call
+    that can never return is not a deadline.
+    """
+    try:
+        result = subprocess.run(
+            ["bash", "-c", command], capture_output=True, text=True, cwd=ROOT,
+            timeout=RECORD_TIMEOUT_S,
+        )
+    except subprocess.TimeoutExpired:
+        sys.exit(
+            f"tse: this command did not finish within {RECORD_TIMEOUT_S:.0f} "
+            "seconds, so it was stopped:\n"
+            f"     {command.strip().splitlines()[0]}\n"
+            "     A recorded command has to end on its own. Drop any flag that "
+            "follows output,\n     and redirect stdin if it might be read."
+        )
     output = (result.stdout or "") + (result.stderr or "")
     lines = output.rstrip("\n").split("\n")
     if len(lines) > TRANSCRIPT_LINE_CAP:
@@ -1500,12 +1576,24 @@ def private_leaks(output: str, foreign: set[str]) -> list[str]:
     """
     found = [name for name in sorted(foreign) if name in output]
 
+    # /home/runner is GitHub Actions' own checkout, exempted for the same
+    # reason REPO_LEAK_PATTERNS exempts it: it turns up in legitimately
+    # recorded CI output and belongs to nobody. That exemption existed on one
+    # of the two lists and not the other, which left `tse record` able to
+    # refuse a perfectly clean recording made on a runner.
     home = str(Path.home())
-    if home in output:
+    if home not in {"/home/runner"} and home in output:
         found.append(home)
 
-    user = os.environ.get("USER") or ""
-    if user and re.search(rf"\b{re.escape(user)}\b", output):
+    # getpass reads the environment first and falls back to the password
+    # database. Reading $USER alone meant that in any shell that does not set
+    # it, a cron job or a stripped container, the username check did nothing
+    # at all and said nothing about it.
+    try:
+        user = getpass.getuser()
+    except (KeyError, OSError):
+        user = ""
+    if user and user != "runner" and re.search(rf"\b{re.escape(user)}\b", output):
         found.append(user)
 
     hostname = socket.gethostname()
@@ -1546,6 +1634,17 @@ def history_leaks() -> list[str]:
         ["git", "rev-parse", "--is-shallow-repository"],
         capture_output=True, text=True, cwd=ROOT,
     )
+    # The guard has to survive its own command failing. Comparing only the text
+    # meant a git that errored produced an empty string, which is not "true",
+    # which read as a full clone and let the scan proceed. That is the exact
+    # vacuous pass the paragraph above calls worse than no scan at all, sitting
+    # inside the check written to prevent it.
+    if shallow.returncode != 0:
+        sys.exit(
+            "tse: could not tell whether this is a shallow clone, so scanning "
+            "its history\n     would prove nothing. "
+            f"{shallow.stderr.strip().splitlines()[0] if shallow.stderr.strip() else ''}"
+        )
     if shallow.stdout.strip() == "true":
         sys.exit(
             "tse: this is a shallow clone, so scanning its history would prove nothing.\n"
@@ -1973,6 +2072,12 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     probe("kind", ["kind", "version"], "Needed for the Kubernetes track.")
     probe("curl", ["curl", "--version"], "Needed by most checks.")
     probe("jq", ["jq", "--version"], "Needed by the API and observability tracks.")
+    # Not needed to run a lab, and needed to get a change merged. CI lints every
+    # shell script in the repository and nothing said so anywhere: not here, not
+    # in CONTRIBUTING, not in the devcontainer. The first a contributor heard of
+    # it was a red build on work that passed on their own machine.
+    probe("shellcheck", ["shellcheck", "--version"],
+          "Only needed to contribute. CI lints every shell script with it.")
 
     cpus = os.cpu_count() or 1
     checks.append((

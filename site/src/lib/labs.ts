@@ -293,7 +293,7 @@ export function loadReference(): ReferenceDoc[] {
       const heading = source.match(/^#\s+(.+)$/m);
       return {
         slug: name.replace(/\.md$/, ""),
-        title: heading ? heading[1].trim() : name,
+        title: heading?.[1]?.trim() || name,
         // Drop the H1: Starlight renders the title from frontmatter, and a
         // second one would put two top-level headings on the page.
         html: md(source.replace(/^#\s+.+$/m, "")),

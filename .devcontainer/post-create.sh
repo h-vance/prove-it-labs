@@ -17,7 +17,14 @@ fi
 
 echo "Installing lab utilities ..."
 sudo apt-get update -qq
-sudo apt-get install -y -qq jq postgresql-client dnsutils netcat-openbsd >/dev/null
+# The linter is here for contributors rather than for learners. CI checks every
+# shell script in the repository, and somebody working in a Codespace should be
+# able to run that check before pushing rather than after.
+#
+# Not written as "# shellcheck is ..." because a comment opening with that word
+# is read as a directive to the tool itself, which is an error. The stricter
+# severity added in the same change caught it immediately.
+sudo apt-get install -y -qq jq postgresql-client dnsutils netcat-openbsd shellcheck >/dev/null
 
 chmod +x tools/tse
 chmod +x labs/*/*/check.sh 2>/dev/null || true

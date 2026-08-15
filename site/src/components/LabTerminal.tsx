@@ -205,7 +205,10 @@ export default function LabTerminal({ exerciseId, entries }: Props) {
       event.preventDefault();
       const next = walked === -1 ? history.length - 1 : Math.max(0, walked - 1);
       setWalked(next);
-      setDraft(history[next]);
+      // The index is bounded on the line above, so this can only be undefined
+      // if the history emptied in between. An empty draft is what walking off
+      // the end of the list does anyway.
+      setDraft(history[next] ?? "");
     } else if (event.key === "ArrowDown") {
       if (walked === -1) return;
       event.preventDefault();
@@ -215,7 +218,7 @@ export default function LabTerminal({ exerciseId, entries }: Props) {
         setDraft("");
       } else {
         setWalked(next);
-        setDraft(history[next]);
+        setDraft(history[next] ?? "");
       }
     }
   }

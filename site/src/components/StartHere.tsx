@@ -65,7 +65,12 @@ export default function StartHere({ base, entryPoints }: Props) {
   for (const question of QUESTIONS) {
     const chosen = answers[question.id];
     if (chosen === undefined) continue;
-    for (const [track, points] of Object.entries(question.options[chosen].score)) {
+    // A stored answer can outlive the question it belongs to. Someone who
+    // answered before the options were edited has an index that may no longer
+    // exist, and reading .score off nothing takes the whole page down.
+    const option = question.options[chosen];
+    if (option === undefined) continue;
+    for (const [track, points] of Object.entries(option.score)) {
       totals[track] = (totals[track] ?? 0) + (points ?? 0);
     }
   }

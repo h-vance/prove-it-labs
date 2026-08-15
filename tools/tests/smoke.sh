@@ -147,15 +147,31 @@ missing=""
 for f in meta.yaml ticket.md check.sh solution.md hints/1.md; do
     [[ -f $SCAFFOLD/$f ]] || missing="$missing $f"
 done
-[[ -z $missing ]] && pass "scaffold has every required file" \
-                  || fail "scaffold has every required file" "missing:$missing"
+# Written as if/else rather than `cond && pass || fail`. That idiom runs the
+# third branch whenever the second one returns non-zero, and `fail` does return
+# non-zero when it is called without a detail line. The placeholder check below
+# hit exactly that: with the defect present it printed FAIL and then ok for the
+# same assertion and counted both. The suite still failed, so nothing shipped
+# broken, but a contradictory report is worst at the one moment somebody is
+# reading it.
+if [[ -z $missing ]]; then
+    pass "scaffold has every required file"
+else
+    fail "scaffold has every required file" "missing:$missing"
+fi
 
-[[ -x $SCAFFOLD/check.sh ]] && pass "scaffold check.sh is executable" \
-                            || fail "scaffold check.sh is executable"
+if [[ -x $SCAFFOLD/check.sh ]]; then
+    pass "scaffold check.sh is executable"
+else
+    fail "scaffold check.sh is executable"
+fi
 
 ok_contains "scaffold is discoverable" "98-smoke-scaffold" "$TSE" list --track docker
-grep -q '{{TRACK}}' "$SCAFFOLD/meta.yaml" && fail "scaffold placeholders substituted" \
-                                          || pass "scaffold placeholders substituted"
+if grep -q '{{TRACK}}' "$SCAFFOLD/meta.yaml"; then
+    fail "scaffold placeholders substituted"
+else
+    pass "scaffold placeholders substituted"
+fi
 fails_cleanly "new refuses to overwrite" "already exists" "$TSE" new docker/98-smoke-scaffold
 fails_cleanly "new rejects a bad name"   "expected"       "$TSE" new nosuchformat
 rm -rf "$SCAFFOLD"
@@ -293,6 +309,34 @@ else
             pass "$track leaves nothing behind"
         fi
     done
+fi
+
+# --------------------------------------------------------------------------- #
+# The assertion library every one of the graders is built on. Its own behavior
+# had no test at all, which is how it spent this long reporting "0 of 0 checks
+# passed" and exiting 0.
+section "Assertion library"
+
+if bash -c "source '$ROOT/tools/lib/assert.sh'; finish" >/dev/null 2>&1; then
+    fail "a grader that ran no checks is refused" "it exited 0 having proved nothing"
+else
+    pass "a grader that ran no checks is refused"
+fi
+
+if bash -c "source '$ROOT/tools/lib/assert.sh'
+            assert 'a thing that is true' --run 'echo yes' --contains yes
+            finish" >/dev/null 2>&1; then
+    pass "a grader whose checks pass still passes"
+else
+    fail "a grader whose checks pass still passes" "the refusal above is too broad"
+fi
+
+if bash -c "source '$ROOT/tools/lib/assert.sh'
+            assert 'a thing that is not true' --run 'echo yes' --contains no
+            finish" >/dev/null 2>&1; then
+    fail "a grader whose checks fail still fails"
+else
+    pass "a grader whose checks fail still fails"
 fi
 
 # --------------------------------------------------------------------------- #

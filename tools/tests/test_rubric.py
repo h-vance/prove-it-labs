@@ -299,6 +299,32 @@ class RealExercisesAgree(unittest.TestCase):
                     else:
                         self.assertEqual(failures, set())
 
+    def test_a_missing_evidence_file_refuses_rather_than_grading(self):
+        """Four of the six rules pass when their section is absent, on purpose.
+
+        That is right for a section a particular exercise does not have, and
+        catastrophic for the whole file: with no evidence, most of the rubric
+        stops comparing anything and a draft that commits to nothing scores
+        full marks. An audit demonstrated that against this exact wording, so
+        the wording is kept here rather than paraphrased.
+        """
+        import tempfile
+
+        empty = (
+            "Hello,\n\nThank you for your patience. We take reliability "
+            "extremely seriously\nand we understand how frustrating this was. "
+            "Our engineers worked hard\nthroughout and everything is now "
+            "operating normally.\n\nBest regards,\nSupport\n"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            draft = Path(directory) / "customer-update.md"
+            draft.write_text(empty)
+            missing = Path(directory) / "evidence.md"
+            self.assertEqual(
+                rubric.grade("customer", draft, missing), 2,
+                "a draft was graded against evidence that does not exist",
+            )
+
     def test_the_two_evidence_files_are_identical_across_variants(self):
         """The evidence is reference material, not part of the answer."""
         for exercise, _, _ in self.CASES:

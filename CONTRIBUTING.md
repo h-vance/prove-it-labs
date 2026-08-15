@@ -25,7 +25,26 @@ Then run the rest of the suite, which is fast:
 ```bash
 python3 tools/tests/test_content.py   # structure and the editorial rules below
 python3 tools/tests/test_meta.py      # the meta.yaml subset parser
+python3 tools/tests/test_scrub.py     # the output scrubber and commands.txt
+python3 tools/tests/test_rubric.py    # the communication track's grading
 tools/tests/smoke.sh --fast           # the CLI surface
+```
+
+CI also lints every shell script in the repository, which is the one check with
+a tool you have to install. `tse doctor` reports whether you have it.
+
+```bash
+shellcheck --severity=info -e SC1091 \
+    tools/lib/assert.sh tools/tests/smoke.sh .devcontainer/post-create.sh \
+    labs/*/*/check.sh labs/*/*/setup/*.sh labs/*/*/solution/*.sh \
+    labs/*/_stack/*.sh
+```
+
+Without it locally, run the same thing through Docker and install nothing:
+
+```bash
+docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck-alpine:stable \
+    shellcheck --severity=info -e SC1091 labs/*/*/check.sh
 ```
 
 One test in `test_meta.py` compares the subset parser against real PyYAML, and

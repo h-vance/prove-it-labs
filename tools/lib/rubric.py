@@ -273,7 +273,25 @@ def grade(rubric: str, draft_path: Path, evidence_path: Path) -> int:
         return 2
 
     draft = draft_path.read_text()
-    evidence = sections(evidence_path.read_text()) if evidence_path.is_file() else {}
+    # Refuse rather than grading against nothing.
+    #
+    # Four of the six rules open with "no evidence section, so nothing to check
+    # here", which is right when a particular section is legitimately absent and
+    # very wrong when the whole file is. With no evidence at all the rubric
+    # quietly drops to checking length and vocabulary, and a draft that cites no
+    # figure, rules nothing out and never names the workflow scores six of six.
+    # An audit demonstrated exactly that.
+    if not evidence_path.is_file():
+        print(
+            f"rubric: no evidence at {evidence_path}, so this draft cannot be "
+            "graded.\n"
+            "        Most of the rules compare the draft against it, and "
+            "without it they\n"
+            "        would all pass by having nothing to disagree with.",
+            file=sys.stderr,
+        )
+        return 2
+    evidence = sections(evidence_path.read_text())
 
     failures = []
     for description, rule in RUBRICS[rubric]:
