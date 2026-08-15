@@ -72,18 +72,18 @@
       "exit": 0
     },
     {
-      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client sh -c 'echo | openssl s_client -connect gateway:8443 -servername gateway'",
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client sh -c 'echo | openssl s_client -verify_return_error -connect gateway:8443 -servername gateway'",
       "aliases": [
-        "openssl s_client -connect gateway:8443",
-        "openssl s_client"
+        "openssl s_client -verify_return_error -connect gateway:8443",
+        "openssl s_client -verify_return_error"
       ],
       "match": [
-        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T client sh -c 'echo | openssl s_client -connect gateway:8443 -servername gateway'",
-        "openssl s_client",
-        "openssl s_client -connect gateway:8443"
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T client sh -c 'echo | openssl s_client -verify_return_error -connect gateway:8443 -servername gateway'",
+        "openssl s_client -verify_return_error",
+        "openssl s_client -verify_return_error -connect gateway:8443"
       ],
-      "output": "CONNECTED(00000003)\n---\nCertificate chain\n 0 s:C=US, O=Prove It Lab, CN=gateway\n   i:C=US, O=Prove It Lab, CN=Prove It Lab Internal CA\n   a:PKEY: RSA, 2048 (bit); sigalg: sha256WithRSAEncryption\n   v:NotBefore: Jan  1 00:00:00 2025 GMT; NotAfter: Apr  1 00:00:00 2025 GMT\n---\nServer certificate\n-----BEGIN CERTIFICATE-----\n<certificate>\n-----END CERTIFICATE-----\nsubject=C=US, O=Prove It Lab, CN=gateway\nissuer=C=US, O=Prove It Lab, CN=Prove It Lab Internal CA\n---\nNo client certificate CA names sent\nPeer signing digest: SHA256\nPeer signature type: rsa_pss_rsae_sha256\nNegotiated TLS1.3 group: X25519MLKEM768\n---\nSSL handshake has read 2556 bytes and written 1620 bytes\nVerification error: certificate has expired\n---\nNew, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384\nProtocol: TLSv1.3\nServer public key is 2048 bit\nThis TLS version forbids renegotiation.\nNo ALPN negotiated\nEarly data was not sent\nVerify return code: 10 (certificate has expired)\n---\nConnecting to <ip>\ndepth=1 C=US, O=Prove It Lab, CN=Prove It Lab Internal CA\nverify return:1\ndepth=0 C=US, O=Prove It Lab, CN=gateway\nverify error:num=10:certificate has expired\nnotAfter=Apr  1 00:00:00 2025 GMT\nverify return:1\ndepth=0 C=US, O=Prove It Lab, CN=gateway\nnotAfter=Apr  1 00:00:00 2025 GMT\nverify return:1\nDONE",
-      "exit": 0
+      "output": "CONNECTED(00000003)\n---\nCertificate chain\n 0 s:C=US, O=Prove It Lab, CN=gateway\n   i:C=US, O=Prove It Lab, CN=Prove It Lab Internal CA\n   a:PKEY: RSA, 2048 (bit); sigalg: sha256WithRSAEncryption\n   v:NotBefore: Jan  1 00:00:00 2025 GMT; NotAfter: Apr  1 00:00:00 2025 GMT\n---\nno peer certificate available\n---\nNo client certificate CA names sent\nNegotiated TLS1.3 group: X25519MLKEM768\n---\nSSL handshake has read 2196 bytes and written 1547 bytes\nVerification error: certificate has expired\n---\nNew, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384\nProtocol: TLSv1.3\nThis TLS version forbids renegotiation.\nNo ALPN negotiated\nEarly data was not sent\nVerify return code: 10 (certificate has expired)\n---\nConnecting to <ip>\ndepth=1 C=US, O=Prove It Lab, CN=Prove It Lab Internal CA\nverify return:1\ndepth=0 C=US, O=Prove It Lab, CN=gateway\nverify error:num=10:certificate has expired\nnotAfter=Apr  1 00:00:00 2025 GMT\n28CD2A97FFFF0000:error:0A000086:SSL routines:tls_post_process_server_certificate:certificate verify failed:ssl/statem/statem_clnt.c:2124:",
+      "exit": 1
     },
     {
       "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T gateway sh -c 'for c in /certs/v*.pem; do echo \"$c\"; openssl x509 -in \"$c\" -noout -dates -ext subjectAltName; done'",

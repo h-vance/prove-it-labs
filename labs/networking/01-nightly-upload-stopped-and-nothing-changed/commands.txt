@@ -43,19 +43,30 @@ docker compose -f labs/networking/_stack/compose.yaml \
                -f labs/networking/_stack/compose.override.yaml \
                exec -T client sh -c 'echo | openssl s_client -connect gateway:8443 -servername gateway 2>/dev/null | openssl x509 -noout -subject -dates -ext subjectAltName'
 ---
-# The same connection unfiltered, which is the command most people reach for
-# first. The verification failure is stated twice, once as the chain is walked
-# and once in the summary at the end.
+# The connection on its own, asked to treat a bad chain as fatal. The
+# verification failure is stated twice, once as the chain is walked and once in
+# the summary, and `-verify_return_error` is what stops after the second one.
 #
-# The body of the certificate is folded away when this is compared. It is the
-# only thing in this output that differs between two builds of the image, and
-# it is the only part that is not evidence.
-# alias: openssl s_client -connect gateway:8443
-# alias: openssl s_client
+# The flag is not decoration. Plain `s_client` completes the handshake and then
+# keeps the socket open, and everything it prints after that point moves:
+#
+#   - TLS 1.3 delivers the session ticket after the handshake, so whether it
+#     arrives before `echo` closes the connection is a race. Each one that
+#     lands prints another 34 lines. Fifteen runs returned three lengths:
+#     63, 97 and 131.
+#   - The chain walk goes to standard error and the summary to standard output.
+#     Merging them puts the two blocks in whichever order they flush, which is
+#     not fixed either. That is what CI caught: one run in eight swapped them.
+#
+# Failing on the bad chain ends the connection before any of that, so every run
+# is identical. What is lost is the body of the certificate, which is the one
+# part of this output that is not evidence.
+# alias: openssl s_client -verify_return_error -connect gateway:8443
+# alias: openssl s_client -verify_return_error
 # keep: verify error:num=10, Verify return code: 10, NotAfter: Apr
 docker compose -f labs/networking/_stack/compose.yaml \
                -f labs/networking/_stack/compose.override.yaml \
-               exec -T client sh -c 'echo | openssl s_client -connect gateway:8443 -servername gateway'
+               exec -T client sh -c 'echo | openssl s_client -verify_return_error -connect gateway:8443 -servername gateway'
 ---
 # Every version the internal CA has issued, with the dates on each.
 #

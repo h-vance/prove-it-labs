@@ -102,6 +102,14 @@ SAMPLES: dict[str, str] = {
         "nRbKoPpc2pBPBw==\n"
         "-----END CERTIFICATE-----"
     ),
+    # `openssl s_client -verify_return_error` writes its error queue out with a
+    # thread identifier in front. Two consecutive runs against one unchanged
+    # gateway produced 285DDCAFFFFF0000 and 28ED2AA3FFFF0000.
+    "openssl-error-id": (
+        "285DDCAFFFFF0000:error:0A000086:SSL routines:"
+        "tls_post_process_server_certificate:certificate verify failed:"
+        "ssl/statem/statem_clnt.c:2124:"
+    ),
     # Recorded on Docker Desktop. A Linux runner produced curl: (56) for the
     # identical fault.
     "curl-accepted-then-nothing": "curl: (52) Empty reply from server",
@@ -285,6 +293,34 @@ class RulesDoNotOverReach(unittest.TestCase):
         expired = "notAfter=Apr  1 00:00:00 2025 GMT"
         current = "notAfter=Dec 31 23:59:59 2035 GMT"
         self.assertNotEqual(scrub(expired), scrub(current))
+
+    def test_two_runs_of_the_same_verification_failure_fold_together(self):
+        """CI caught this one, and it took two attempts to fix properly.
+
+        The first fix suppressed the session ticket, which fixed the length but
+        not the ordering, and the gate still drifted one run in eight. Failing
+        on the bad chain ends the connection early and leaves exactly one
+        moving token, which is this identifier.
+        """
+        line = (
+            "{}:error:0A000086:SSL routines:"
+            "tls_post_process_server_certificate:certificate verify failed:"
+            "ssl/statem/statem_clnt.c:2124:"
+        )
+        self.assertEqual(
+            scrub(line.format("285DDCAFFFFF0000")),
+            scrub(line.format("28ED2AA3FFFF0000")),
+        )
+        folded = scrub(line.format("285DDCAFFFFF0000"))
+        for evidence in ("certificate verify failed", "SSL routines", "0A000086"):
+            self.assertIn(evidence, folded)
+
+    def test_a_different_openssl_failure_still_compares_unequal(self):
+        """Folding the identifier must not fold the reason next to it."""
+        prefix = "285DDCAFFFFF0000:error:0A000086:SSL routines:x:"
+        expired = prefix + "certificate verify failed:ssl/statem/statem_clnt.c:2124:"
+        refused = prefix + "tlsv1 alert unknown ca:ssl/record/rec_layer_s3.c:907:"
+        self.assertNotEqual(scrub(expired), scrub(refused))
 
     def test_a_certificate_body_folds_but_everything_around_it_survives(self):
         """Two builds issue identical fields over a fresh key, and only this moves."""

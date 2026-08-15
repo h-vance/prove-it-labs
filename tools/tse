@@ -342,6 +342,17 @@ SCRUB_RULES: list[tuple[str, "re.Pattern[str]", str]] = [
     ("certificate-body", re.compile(
         r"(-----BEGIN CERTIFICATE-----\n)[A-Za-z0-9+/=\s]+?(-----END CERTIFICATE-----)"),
         r"\1<certificate>\n\2"),
+    # The number OpenSSL puts in front of a line from its error queue. It
+    # identifies the thread that raised the error, so it is new on every run
+    # and describes nothing about the failure. Everything after it, which is
+    # the library, the function and the reason, is the evidence and is left
+    # alone.
+    #
+    # Anchored to the start of a line and required to be followed by `:error:`,
+    # because sixteen hex characters on their own are not rare enough to fold
+    # on sight.
+    ("openssl-error-id", re.compile(
+        r"(?m)^[0-9A-F]{16}(?=:error:)"), "<openssl-error>"),
     ("sha256", re.compile(r"\bsha256:[0-9a-f]{12,64}\b"), "sha256:<digest>"),
     ("digest", re.compile(r"\b[0-9a-f]{64}\b"), "<digest>"),
     # The first column of `docker ps`. Anchored to the line start so a short
