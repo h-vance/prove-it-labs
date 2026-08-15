@@ -450,6 +450,25 @@ class MatchKeys(unittest.TestCase):
     def test_blank_aliases_are_dropped(self):
         self.assertEqual(tse.match_keys("docker ps", ["", "   "]), ["docker ps"])
 
+    def test_curls_two_statuses_for_one_fault_agree(self):
+        """The exit status carries the same information as the message.
+
+        Folding one without the other left the comparison failing on the half
+        that was missed, which is how this was found.
+        """
+        curl = "curl -sS --max-time 5 http://127.0.0.1:8100/customers"
+        self.assertTrue(tse.exits_agree(curl, 52, 56))
+        self.assertTrue(tse.exits_agree(curl, 56, 52))
+
+    def test_a_refused_connection_still_disagrees(self):
+        curl = "curl -sS http://127.0.0.1:8100/customers"
+        self.assertFalse(tse.exits_agree(curl, 7, 52))
+        self.assertFalse(tse.exits_agree(curl, 0, 52))
+
+    def test_those_statuses_mean_nothing_special_to_other_commands(self):
+        self.assertFalse(tse.exits_agree("bash labs/api/_stack/request.sh", 52, 56))
+        self.assertTrue(tse.exits_agree("docker ps", 0, 0))
+
     def test_an_alias_added_without_re_recording_is_caught(self):
         """The one drift nothing else would notice.
 

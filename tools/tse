@@ -1385,6 +1385,26 @@ def cmd_record(args: argparse.Namespace) -> None:
     print(f"\n{GREEN}Wrote {transcript_path.relative_to(ROOT)}{OFF}")
 
 
+# curl carries the same information in its exit status as in its message, so
+# folding one without the other leaves the comparison failing on the half that
+# was missed. 52 is a connection closed cleanly with nothing sent and 56 is the
+# same connection reset, which is decided by the host rather than by the lab.
+#
+# Scoped to commands that actually run curl, because these numbers mean nothing
+# in particular anywhere else. 7, a refused connection, is deliberately absent:
+# see the curl-accepted-then-nothing scrub rule for why that distinction has to
+# survive.
+CURL_EQUIVALENT_EXITS = frozenset({52, 56})
+
+
+def exits_agree(command: str, before: object, after: object) -> bool:
+    if before == after:
+        return True
+    if not re.search(r"\bcurl\b", command):
+        return False
+    return {before, after} <= CURL_EQUIVALENT_EXITS
+
+
 def compare_transcript(previous: dict, fresh: list[dict]) -> list[str]:
     """Differences that survive scrubbing, which are the ones that mean something."""
     before = previous.get("entries", [])
@@ -1406,7 +1426,7 @@ def compare_transcript(previous: dict, fresh: list[dict]) -> list[str]:
                 f"{label}\n      the spellings in commands.txt changed since the "
                 f"recording:\n        recorded: {old.get('match')}\n        now:      {new['match']}"
             )
-        if old.get("exit") != new["exit"]:
+        if not exits_agree(new["command"], old.get("exit"), new["exit"]):
             differences.append(
                 f"{label}\n      exited {new['exit']}, the recording has {old.get('exit')}"
             )
