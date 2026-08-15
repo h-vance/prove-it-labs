@@ -7,7 +7,15 @@
 # alias: docker ps -a
 # alias: docker ps
 # alias: docker compose ps -a
+#
+# A crash looping container is not in one state, it is in two. It alternates
+# between the backoff, which prints `Restarting`, and the next attempt, which
+# prints `Up` for as long as the process survives. A fixed wait records
+# whichever phase it lands in. This one recorded `Restarting`, passed for
+# weeks, then landed on the `Up` window in CI with nothing changed. `until:`
+# captures the state the exercise is actually about.
 # wait: 10
+# until: Restarting
 # keep: Restarting, proveit-docker-app-1
 docker ps -a --filter "label=com.docker.compose.project=proveit-docker"
 ---
@@ -26,6 +34,11 @@ cat labs/docker/_stack/compose.override.yaml
 ---
 # The count itself is a function of how fast the machine is. That it is
 # counting at all, and the code it exits with, are the evidence.
+#
+# Same alternation as the first block, and the same fix. Sampled during an
+# attempt rather than during the backoff, a running container reports exit code
+# 0, which is the opposite of what this is here to show.
+# until: exit=1
 # keep: restart=, exit=1
 docker inspect --format '{{.Name}} restart={{.RestartCount}} exit={{.State.ExitCode}}' proveit-docker-app-1
 ---

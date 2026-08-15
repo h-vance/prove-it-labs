@@ -304,6 +304,13 @@ def current_exercise() -> Exercise:
 TRANSCRIPT_LINE_CAP = 120
 TRUNCATION_NOTE = "... output truncated. Run it for real to see the rest."
 
+# How long a `# until:` block may keep re-running before it gives up and
+# captures whatever it last saw. Long enough to cover Docker's restart backoff,
+# which doubles after each crash, and short enough that a genuinely stuck
+# exercise reports rather than occupying a CI runner.
+UNTIL_TIMEOUT_S = 90.0
+UNTIL_DELAY_S = 1.0
+
 # Fragments of genuine output that differ between two runs of the same broken
 # system. Recording exists so the site can replay real output, and comparing a
 # recording against a fresh run then needs a way to tell "the system changed"
@@ -707,6 +714,20 @@ def parse_commands(text: str) -> list[dict]:
         # stack has not finished failing yet: docker/01 needs its container to
         # have crashed a few times before a restart loop is visible at all.
         wait = 0.0
+        # Text that must appear before the output is worth capturing.
+        #
+        # `wait:` samples one moment, and some states do not hold still long
+        # enough for that to be honest. A crash looping container alternates
+        # between `Restarting` and a short `Up` window for as long as it lives,
+        # so a fixed sleep records whichever phase it happens to land in.
+        # docker/01 recorded `Restarting`, passed for weeks, then landed on the
+        # `Up` window in CI and failed. Nothing had changed.
+        #
+        # This re-runs the command until the state the exercise is about is the
+        # one on screen. On timeout it captures whatever it last saw, so a
+        # system that genuinely no longer reaches that state fails the
+        # comparison loudly instead of hanging.
+        until = ""
         for line in raw.strip().splitlines():
             stripped = line.strip()
             if stripped.startswith("# keep:"):
@@ -715,6 +736,8 @@ def parse_commands(text: str) -> list[dict]:
                 aliases.append(stripped[8:].strip())
             elif stripped.startswith("# wait:"):
                 wait = float(stripped[7:].strip())
+            elif stripped.startswith("# until:"):
+                until = stripped[8:].strip()
             elif stripped.startswith("#"):
                 continue
             else:
@@ -722,7 +745,13 @@ def parse_commands(text: str) -> list[dict]:
         command = "\n".join(lines).strip()
         if command:
             blocks.append(
-                {"command": command, "aliases": aliases, "keep": keep, "wait": wait}
+                {
+                    "command": command,
+                    "aliases": aliases,
+                    "keep": keep,
+                    "wait": wait,
+                    "until": until,
+                }
             )
     return blocks
 
@@ -1365,6 +1394,12 @@ def cmd_record(args: argparse.Namespace) -> None:
             if block["wait"]:
                 time.sleep(block["wait"])
             captured, code = run_for_record(block["command"])
+            if block["until"]:
+                deadline = time.monotonic() + UNTIL_TIMEOUT_S
+                while (block["until"] not in captured
+                       and time.monotonic() < deadline):
+                    time.sleep(UNTIL_DELAY_S)
+                    captured, code = run_for_record(block["command"])
             label = normalize_command(block["command"])[:70]
 
             # Store the scrubbed form, not what was captured.

@@ -563,6 +563,33 @@ class CommandParsing(unittest.TestCase):
         self.assertEqual(parsed[0]["command"], "kubectl -n tse-training get pods")
         self.assertIn("\\\n", parsed[1]["command"])
         self.assertEqual(parsed[1]["keep"], [])
+        self.assertEqual(parsed[0]["until"], "")
+
+    def test_until_is_read_and_defaults_to_empty(self):
+        """The directive that fixed docker/01.
+
+        A crash looping container alternates between `Restarting` and a short
+        `Up` window, so `wait:` records whichever phase it lands in. That
+        passed for weeks and then failed in CI with nothing changed. A block
+        without the directive must still parse, because most do not need it.
+        """
+        parsed = tse.parse_commands(
+            "# wait: 10\n"
+            "# until: Restarting\n"
+            "# keep: Restarting\n"
+            "docker ps -a\n"
+            "---\n"
+            "cat compose.yaml\n"
+        )
+        self.assertEqual(parsed[0]["until"], "Restarting")
+        self.assertEqual(parsed[0]["wait"], 10)
+        self.assertEqual(parsed[1]["until"], "")
+
+    def test_until_is_not_mistaken_for_a_comment(self):
+        """`# until:` has to be read before the catch-all comment branch."""
+        parsed = tse.parse_commands("# until: exit=1\ndocker inspect thing\n")
+        self.assertEqual(parsed[0]["until"], "exit=1")
+        self.assertEqual(parsed[0]["command"], "docker inspect thing")
 
     def test_normalization_joins_what_a_learner_pastes(self):
         """A command copied across three lines is the same command."""

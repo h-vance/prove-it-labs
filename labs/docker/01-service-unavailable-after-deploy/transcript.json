@@ -1,5 +1,5 @@
 {
-  "recorded": "2026-08-14",
+  "recorded": "2026-08-15",
   "entries": [
     {
       "command": "docker ps -a --filter \"label=com.docker.compose.project=proveit-docker\"",
@@ -14,7 +14,7 @@
         "docker ps -a",
         "docker ps -a --filter \"label=com.docker.compose.project=proveit-docker\""
       ],
-      "output": "CONTAINER ID   IMAGE                COMMAND                  CREATED          STATUS                        PORTS      NAMES\n2a753e2b4be1   proveit-docker-app   \"python /app/app.py\"     13 seconds ago   Restarting (1) 1 second ago              proveit-docker-app-1\nefcac66ccabc   postgres:16-alpine   \"docker-entrypoint.s\u2026\"   13 seconds ago   Up 12 seconds (healthy)       5432/tcp   proveit-docker-postgres-1",
+      "output": "CONTAINER ID   IMAGE                COMMAND                  CREATED          STATUS                                  PORTS      NAMES\n5aca06905314   proveit-docker-app   \"python /app/app.py\"     12 seconds ago   Restarting (1) Less than a second ago              proveit-docker-app-1\n800e69c1a5ea   postgres:16-alpine   \"docker-entrypoint.s\u2026\"   12 seconds ago   Up 12 seconds (healthy)                 5432/tcp   proveit-docker-postgres-1",
       "exit": 0
     },
     {
