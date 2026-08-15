@@ -559,16 +559,11 @@ class Transcripts(unittest.TestCase):
     enforces it on every build, including for a transcript edited by hand.
     """
 
-    # Patterns that would mean somebody's own environment ended up in the repo.
-    PRIVATE = (
-        (re.compile(r"/(?:Users|home)/(?!runner\b)[A-Za-z0-9._-]+"), "a home directory"),
-        (re.compile(r"arn:aws:"), "an AWS ARN"),
-        (re.compile(r"\b\d{12}\.dkr\.ecr\b"), "an ECR registry with an account id"),
-        (re.compile(r"\b(?:10|172\.(?:1[6-9]|2\d|3[01])|192\.168)\.\d{1,3}\.\d{1,3}\b"),
-         "a private network address"),
-        (re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}"), "a wall-clock timestamp"),
-        (re.compile(r"\w{3}, \d{2} \w{3} \d{4} \d{2}:\d{2}:\d{2}"), "a wall-clock timestamp"),
-    )
+    # Imported rather than restated. This list used to live here as well as in
+    # tools/tse, and the two drifted: the copy here matched only three octets of
+    # a 10.x address, so it fired on the semver in package-lock.json and would
+    # have captured half of a real address. One definition, one behavior.
+    PRIVATE = tse.TRANSCRIPT_LEAK_PATTERNS
 
     def transcripts(self):
         for exercise in EXERCISES:
@@ -630,6 +625,109 @@ class Transcripts(unittest.TestCase):
                 with self.subTest(f"{exercise.id}:{entry['command'][:40]}"):
                     self.assertTrue(entry.get("output", "").strip(),
                                     f"{exercise.id}: {entry['command'][:40]} recorded nothing")
+
+
+class LeakGate(unittest.TestCase):
+    """The same bar as the recordings, over every committed file.
+
+    This file is one of the three exempt from the scan, which is what makes it
+    the right place to keep planted samples: they have to look like the real
+    thing to prove anything, and they cannot live anywhere the scan can read.
+    """
+
+    # One obviously fake sample per repository-wide rule, with the description
+    # that rule should report. Every string here is a documentation placeholder
+    # or a reserved value, never a real credential.
+    PLANTED = [
+        ("/Users/someone/Projects/thing", "a home directory"),
+        ("arn:aws:eks:us-east-1:123456789012:cluster/prod", "an AWS ARN"),
+        ("123456789012.dkr.ecr.us-east-1.amazonaws.com", "an ECR registry with an account id"),
+        ("pod ip 10.244.0.23", "a private network address"),
+        ("172.22.0.2", "a private network address"),
+        ("192.168.1.5", "a private network address"),
+        # AWS's own published example key id.
+        ("AKIAIOSFODNN7EXAMPLE", "an AWS access key id"),
+        ("ghp_" + "0" * 36, "a GitHub token"),
+        ("-----BEGIN RSA PRIVATE KEY-----", "a private key"),
+        ("xoxb-000000000000-000000000000-abcdefghijklmnop", "a Slack token"),
+        ("someone@notreserved.test", "an email address"),
+    ]
+
+    # Real text from this repository that each rule has to live beside without
+    # firing. Every one of these was an actual false positive when the transcript
+    # rules were first pointed at the whole repository.
+    TOLERATED = [
+        ("10.29.8", "the preact version in package-lock.json"),
+        ("nginx/1.10.3", "a version string that looks like an address"),
+        ("postgres 10.4.2", "another one"),
+        ("user1_1@example.invalid", "the seeded addresses in the SQL lab"),
+        ("support@example.com", "a documentation address"),
+        ("/home/runner/work/repo", "GitHub Actions' own working directory"),
+    ]
+
+    def test_the_repository_is_clean(self):
+        for path in tse.tracked_files():
+            if path in tse.LEAK_EXEMPT:
+                continue
+            try:
+                text = (ROOT / path).read_text()
+            except (UnicodeDecodeError, OSError):
+                continue
+            found = tse.scan_for_leaks(text, tse.leak_patterns_for(path))
+            with self.subTest(path):
+                self.assertEqual(
+                    found, [],
+                    f"{path} would publish {found[0][1] if found else ''}: "
+                    f"{found[0][2] if found else ''!r}",
+                )
+
+    def test_every_exempt_path_still_exists(self):
+        """An exemption that outlives its file is a hole nobody argued for."""
+        for path, reason in tse.LEAK_EXEMPT.items():
+            with self.subTest(path):
+                self.assertTrue((ROOT / path).is_file(),
+                                f"{path} is exempt ({reason}) but does not exist")
+
+    def test_every_planted_sample_is_caught(self):
+        for sample, description in self.PLANTED:
+            found = tse.scan_for_leaks(sample, tse.REPO_LEAK_PATTERNS)
+            with self.subTest(description):
+                self.assertIn(description, [item[1] for item in found],
+                              f"{sample!r} was not reported as {description}")
+
+    def test_every_rule_has_a_planted_sample(self):
+        """A rule that ships without a sample has never been proven to fire."""
+        covered = {description for _, description in self.PLANTED}
+        for _, description in tse.REPO_LEAK_PATTERNS:
+            with self.subTest(description):
+                self.assertIn(description, covered,
+                              f"no planted sample proves the rule for {description} fires")
+
+    def test_no_rule_fires_on_what_it_must_tolerate(self):
+        for sample, what in self.TOLERATED:
+            found = tse.scan_for_leaks(sample, tse.REPO_LEAK_PATTERNS)
+            with self.subTest(what):
+                self.assertEqual(found, [],
+                                 f"{what} ({sample!r}) was wrongly reported as {found}")
+
+    def test_recordings_are_held_to_more_than_everything_else(self):
+        """The extra rules are the point of having two lists rather than one."""
+        self.assertGreater(len(tse.TRANSCRIPT_LEAK_PATTERNS), len(tse.REPO_LEAK_PATTERNS))
+        for rule in tse.REPO_LEAK_PATTERNS:
+            self.assertIn(rule, tse.TRANSCRIPT_LEAK_PATTERNS)
+        # A fixed date in a seed file makes a lab reproducible. The same string
+        # in a recording means the recorder's clock leaked. Same pattern,
+        # opposite meaning, and only the location tells them apart.
+        stamp = "2026-08-01 09:00:00"
+        self.assertEqual(tse.scan_for_leaks(stamp, tse.REPO_LEAK_PATTERNS), [])
+        self.assertNotEqual(tse.scan_for_leaks(stamp, tse.TRANSCRIPT_LEAK_PATTERNS), [])
+
+    def test_transcripts_are_scanned_under_the_stricter_rules(self):
+        self.assertIs(
+            tse.leak_patterns_for("labs/docker/01-x/transcript.json"),
+            tse.TRANSCRIPT_LEAK_PATTERNS,
+        )
+        self.assertIs(tse.leak_patterns_for("labs/sql/_stack/seed.sql"), tse.REPO_LEAK_PATTERNS)
 
 
 class DetectorsActuallyFire(unittest.TestCase):

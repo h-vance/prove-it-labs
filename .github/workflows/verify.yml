@@ -23,6 +23,13 @@ jobs:
           tools/tse list --ids
           tools/tse progress --json
 
+      # Every committed file, not just the recordings. The tree only, because
+      # actions/checkout is shallow by default and scanning one commit of
+      # history would pass without proving anything. `tse leaks --history` is
+      # run locally against a full clone before the repository goes public.
+      - name: Nothing from a real machine is committed
+        run: tools/tse leaks
+
       - name: Parser and content tests
         run: |
           python3 tools/tests/test_meta.py

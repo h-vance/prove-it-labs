@@ -456,6 +456,96 @@ def rules_that_fire(text: str) -> list[str]:
     return [name for name, pattern, _ in SCRUB_RULES if pattern.search(text)]
 
 
+# --------------------------------------------------------------------------- #
+# Privacy
+# --------------------------------------------------------------------------- #
+
+# Patterns that mean somebody's own environment reached a committed file.
+#
+# Two lists rather than one, and the split is the whole design. A wall-clock
+# timestamp inside a recording means the recorder's clock leaked into a
+# published file. The same timestamp in labs/sql/_stack/seed.sql is a deliberate
+# fixture that makes the lab reproducible. Same pattern, opposite meaning,
+# decided entirely by where it appears. Scanning the whole repository with the
+# recording rules produced thirty false positives when it was measured, and a
+# gate that noisy gets switched off within a week.
+
+# Rules for anything committed. Each of these is a leak wherever it appears.
+REPO_LEAK_PATTERNS: list[tuple["re.Pattern[str]", str]] = [
+    # /home/runner is GitHub Actions' own working directory, so it turns up in
+    # legitimately recorded CI output and is not anybody's home directory.
+    (re.compile(r"/(?:Users|home)/(?!runner\b)[A-Za-z0-9._-]+"), "a home directory"),
+    (re.compile(r"arn:aws:"), "an AWS ARN"),
+    (re.compile(r"\b\d{12}\.dkr\.ecr\b"), "an ECR registry with an account id"),
+    # Four complete octets. A three-octet form matches the semver in
+    # site/package-lock.json ("10.29.8") and would only ever capture part of a
+    # real address, which makes both the false positives and the true positives
+    # wrong at once.
+    (re.compile(r"\b(?:10\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])|192\.168)"
+                r"\.\d{1,3}\.\d{1,3}\b"), "a private network address"),
+    (re.compile(r"\bAKIA[0-9A-Z]{16}\b"), "an AWS access key id"),
+    (re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}"), "a GitHub token"),
+    (re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"), "a private key"),
+    (re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}"), "a Slack token"),
+    # No entropy heuristic. A rule for "long random-looking string" fires on
+    # base64 in logs, on hashes, and on half the lockfile, and the cost of that
+    # is that somebody turns the whole scan off. Prefixed credentials have
+    # almost no false positives, so those are the ones worth matching.
+    #
+    # example.com, .org and .net are reserved by RFC 2606 and .invalid by
+    # RFC 6761, precisely so documentation and fixtures can use them.
+    (re.compile(r"[\w.+-]+@(?!example\.(?:com|org|net|invalid)\b|localhost\b)"
+                r"[\w-]+\.[\w.]+"), "an email address"),
+]
+
+# Additional rules for recordings, where a clock reading can only have come from
+# the machine that did the recording.
+TRANSCRIPT_LEAK_PATTERNS: list[tuple["re.Pattern[str]", str]] = REPO_LEAK_PATTERNS + [
+    (re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}"), "a wall-clock timestamp"),
+    (re.compile(r"\w{3}, \d{2} \w{3} \d{4} \d{2}:\d{2}:\d{2}"), "a wall-clock timestamp"),
+]
+
+# Files whose job is to hold the patterns, or real captured samples of them.
+#
+# Exact paths with a stated reason rather than a glob, because an exemption is a
+# hole and a hole should have to be argued for one file at a time. Every path
+# here is asserted to still exist, so renaming one fails loudly instead of
+# quietly widening the exemption to nothing.
+#
+# site/package-lock.json is pointedly absent. Exempting a lockfile wholesale is
+# exactly how a real leak hides, so the address rule was narrowed instead.
+LEAK_EXEMPT: dict[str, str] = {
+    "tools/tse": "defines the patterns",
+    "tools/tests/test_content.py": "asserts against the patterns",
+    "tools/tests/test_scrub.py": "holds real captured samples, which is its purpose",
+}
+
+
+def leak_patterns_for(path: str) -> list[tuple["re.Pattern[str]", str]]:
+    """The rules a given committed file is held to."""
+    return TRANSCRIPT_LEAK_PATTERNS if path.endswith("transcript.json") else REPO_LEAK_PATTERNS
+
+
+def scan_for_leaks(text: str, patterns) -> list[tuple[int, str, str]]:
+    """Every match in this text, as (line number, what it is, what matched)."""
+    found = []
+    for number, line in enumerate(text.splitlines(), start=1):
+        for pattern, description in patterns:
+            for match in pattern.finditer(line):
+                found.append((number, description, match.group(0)))
+    return found
+
+
+def tracked_files() -> list[str]:
+    """Every file git knows about, which is exactly the set that would be published."""
+    result = subprocess.run(
+        ["git", "ls-files"], capture_output=True, text=True, cwd=ROOT,
+    )
+    if result.returncode != 0:
+        sys.exit("tse: `git ls-files` failed, so there is nothing to scan.")
+    return [line for line in result.stdout.splitlines() if line]
+
+
 def foreign_projects() -> set[str]:
     """Compose projects on this machine that are not part of the course.
 
@@ -987,6 +1077,107 @@ def private_leaks(output: str, foreign: set[str]) -> list[str]:
     return sorted(set(found))
 
 
+def history_leaks() -> list[str]:
+    """Leaks in lines this repository has ever added, not just the ones it kept.
+
+    Deleting a secret in a later commit does not remove it from a clone, so the
+    published history has to be clean too, not only the published tree. Only
+    added lines are examined: a removed line was already present as an added one
+    in the commit that introduced it, so scanning both would double every
+    finding and make the report harder to act on.
+    """
+    # A shallow clone holds one commit, so this would sweep almost nothing and
+    # report it as clean. actions/checkout is shallow by default, which makes
+    # that the likeliest way to run it, and a vacuous pass here is worse than no
+    # scan at all: it is the one result somebody would trust before going public.
+    shallow = subprocess.run(
+        ["git", "rev-parse", "--is-shallow-repository"],
+        capture_output=True, text=True, cwd=ROOT,
+    )
+    if shallow.stdout.strip() == "true":
+        sys.exit(
+            "tse: this is a shallow clone, so scanning its history would prove nothing.\n"
+            "     Run `git fetch --unshallow` first, or drop --history."
+        )
+
+    result = subprocess.run(
+        ["git", "log", "-p", "--no-color", "--no-merges", "--format=commit %h"],
+        capture_output=True, text=True, cwd=ROOT,
+    )
+    if result.returncode != 0:
+        sys.exit("tse: `git log -p` failed, so the history could not be scanned.")
+
+    findings: list[str] = []
+    commit = ""
+    path = ""
+    for line in result.stdout.splitlines():
+        if line.startswith("commit "):
+            commit = line.split(maxsplit=1)[1]
+        elif line.startswith("diff --git a/"):
+            path = line.split(" b/", 1)[-1]
+        elif line.startswith("+") and not line.startswith("+++"):
+            if path in LEAK_EXEMPT:
+                continue
+            for _, description, matched in scan_for_leaks(line[1:], leak_patterns_for(path)):
+                findings.append(f"{commit} {path}: {description}: {matched!r}")
+    return findings
+
+
+def cmd_leaks(args: argparse.Namespace) -> None:
+    """Refuse to publish anything that describes the machine it was written on.
+
+    The recordings have been held to this bar since they were introduced, and
+    every other committed file was unchecked. This closes that half, and it runs
+    on every push rather than once before the flip, because the file that leaks
+    something is rarely the one anybody thought to look at.
+    """
+    # An exemption that outlives the file it was written for is a hole nobody
+    # argued for, so renaming an exempt file has to fail rather than silently
+    # exempt nothing.
+    missing = [path for path in LEAK_EXEMPT if not (ROOT / path).is_file()]
+    if missing:
+        sys.exit(
+            "tse: these paths are exempt from the leak scan but no longer exist.\n"
+            "     Either restore them or remove the exemption:\n"
+            + "\n".join(f"       {path}  ({LEAK_EXEMPT[path]})" for path in missing)
+        )
+
+    findings: list[str] = []
+    scanned = 0
+    for path in tracked_files():
+        if path in LEAK_EXEMPT:
+            continue
+        try:
+            text = (ROOT / path).read_text()
+        except (UnicodeDecodeError, OSError):
+            continue  # Binary or unreadable: no pattern here can read it anyway.
+        scanned += 1
+        for number, description, matched in scan_for_leaks(text, leak_patterns_for(path)):
+            findings.append(f"{path}:{number}: {description}: {matched!r}")
+
+    scope = f"{scanned} files"
+    if args.history:
+        findings += history_leaks()
+        scope += " and the full history"
+
+    if findings:
+        print(f"{RED}tse: {len(findings)} things that should not be published:{OFF}\n")
+        for finding in findings:
+            print(f"  {finding}")
+        print(
+            f"\n{DIM}Each of these describes a real machine or a real credential. "
+            f"Remove it, or narrow the rule if it is a false positive.{OFF}"
+        )
+        sys.exit(1)
+
+    print(
+        f"{GREEN}Leak scan clean.{OFF} {scope}, "
+        f"{len(REPO_LEAK_PATTERNS)} patterns everywhere and "
+        f"{len(TRANSCRIPT_LEAK_PATTERNS)} in recordings, "
+        f"{len(LEAK_EXEMPT)} files exempt."
+    )
+
+
 def cmd_record(args: argparse.Namespace) -> None:
     """Capture real output for the site's terminal, or check a recording still holds.
 
@@ -1421,6 +1612,11 @@ def main() -> None:
     p.add_argument("--check", action="store_true",
                    help="re-run and assert the recording still matches the system")
     p.set_defaults(func=cmd_record)
+
+    p = sub.add_parser("leaks", help="scan committed files for anything from a real machine")
+    p.add_argument("--history", action="store_true",
+                   help="also scan every line this repository has ever added")
+    p.set_defaults(func=cmd_leaks)
 
     p = sub.add_parser("apply", help="recreate the services after you edit the configuration")
     p.set_defaults(func=cmd_apply)
