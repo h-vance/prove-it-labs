@@ -19,6 +19,28 @@ genuinely broken system, and no hint about which layer failed. You investigate.
 Every exercise page there is generated from the exercise itself, and carries a
 terminal replaying output captured by really running those commands.
 
+**You get the ticket, and nothing else.** No topic, no layer, no hint about
+where the fault is. That is the one thing a real ticket never gives you.
+
+![A customer ticket titled "dashboard unavailable since this morning", describing a slow page that times out, with no mention of any technology](docs/screenshots/ticket.png)
+
+**The terminal on the page replays real output.** These are not invented
+strings. Each one was captured by running that command against the broken
+system, and CI re-runs every one of them against a freshly provisioned stack on
+every push, so a byte of drift fails the build rather than quietly misleading
+somebody.
+
+![The site's terminal after running docker inspect on the postgres container, showing the output "healthy" and a footer reading "1 line of output, exit status 0"](docs/screenshots/terminal.png)
+
+That screenshot is worth a second look. The database is **healthy**, and the
+customer still cannot load anything. Learning to say what that proves, and just
+as importantly what it does not, is the whole course.
+
+Regenerate the images with `npm run screenshots`, which drives the built site in
+a real browser. They are scripted rather than captured by hand for the same
+reason the recordings are: a picture of a user interface is a claim about it,
+and one nothing can reproduce goes stale without telling anybody.
+
 Most infrastructure courses tell you the topic before the exercise, which is the
 one thing a real ticket never does. Every ticket here is a symptom in the
 customer's own words. Working out what to look at first is the skill.
