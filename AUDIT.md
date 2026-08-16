@@ -353,6 +353,82 @@ which is the part worth testing, and both directions are asserted.
 
 Fixed in `d8ef50e`: the leak scan reads the history, not only the working tree.
 
+### S6. The one binary this repository installs was never checked
+
+Found in the pre-flip pass. Two places fetched the `kind` binary over the
+network and handed it straight to `sudo install`:
+`.devcontainer/post-create.sh` and the Kubernetes job in
+`.github/workflows/verify.yml`. Whatever that URL served on the day ran as root,
+on CI runners and in every learner's Codespace.
+
+The inconsistency is as much the finding as the risk. Every GitHub action in
+both workflows is pinned to a commit SHA, with the version in a trailing
+comment, precisely so that a tag moving underneath cannot change what runs. The
+one thing being downloaded as an executable had no such pin.
+
+**The fix.** The published sha256 for each architecture, committed to git and
+verified before the install. Pinned rather than fetched on the grounds that a
+checksum downloaded next to the thing it checks only proves the two arrived
+together. Living in git is what makes it a control: changing the binary this
+installs now takes a commit. Both digests were confirmed against the binaries
+that URL actually serves, not merely confirmed to be well formed.
+
+**The gate.** In every tracked shell script and workflow, a download that names
+a target file must be verified before any line installs or marks that file
+executable. A download nothing ever runs is left alone, because several
+exercises curl into `/dev/null` on purpose and the rule is about what gets
+executed, not about what gets fetched. A second check refuses a truncated
+digest, which still reads as a pin and checks almost nothing.
+
+**Planted, three times.**
+
+```
+.github/workflows/verify.yml:243 installs /tmp/kind, downloaded at line 242,
+with nothing having verified it. Pin the published sha256 and check it first.
+
+.devcontainer/post-create.sh:25 installs /tmp/kind, downloaded at line 23,
+with nothing having verified it. Pin the published sha256 and check it first.
+
+.devcontainer/post-create.sh:17 pins a 33 character digest, and a sha256 is 64
+```
+
+The first version of this gate was wrong in the other direction: it required a
+checksum for every download anywhere, and failed twelve times on exercises that
+curl to `/dev/null` to demonstrate a connection failure. A gate that fires on
+correct code gets switched off, so the rule was narrowed to what it actually
+means.
+
+### S7. The link checker's own exemption could not expire
+
+`tools/tse links` skips links that point at this repository, because a private
+repository answers 404 to everybody and reporting all of them as broken would
+be wrong. The exemption was correct. Its expiry was a comment:
+
+> THE DAY THIS REPOSITORY GOES PUBLIC: these stop returning 404 and this
+> function stops being needed. Deleting it then is the check getting stronger.
+
+That is a gate that depends on somebody remembering, which is the same class of
+problem as the rest of this document. Six links were exempt, and one of them
+matters more than the others: `SECURITY.md` sends people reporting a
+vulnerability to the advisory form, and that form only exists once private
+vulnerability reporting is switched on. So "the security policy does not send
+reporters to a 404" was a claim nothing could check, and would have stayed
+unchecked until somebody read a comment.
+
+**The fix.** The exemption expires on its own. `own_urls()` asks whether the
+repository answers a stranger, and returns nothing as soon as it does, at which
+point every self-link is checked like any other. A probe that cannot reach
+GitHub keeps the exemption, matching how this command already treats an
+unreachable host: a bad minute on the network is a warning, never a failure.
+Offline runs never request an external address at all, so they skip the
+question entirely.
+
+**Proven in both directions**, since the branch that matters only ever runs
+after the flip. Probed live: this repository answers 404 and the exemption is
+kept, a public repository answers 200. With the probe forced to 200, `own_urls`
+returns `()`, and the advisory link's classification moves from `self`, which is
+skipped, to `external`, which is requested and fails the build on a 404.
+
 ---
 
 ## Accessibility
@@ -680,17 +756,40 @@ and the cold-start check keeps it true rather than letting it rot.
 Each of these becomes free or possible the moment the repository is public.
 None are blocked on anything else.
 
+**Written, not yet run.** `.github/workflows/security.yml` now holds CodeQL for
+`actions`, `javascript-typescript` and `python`, and `dependency-review-action`
+on pull requests. Both are free on a public repository and billed on a private
+one, so the file exists and has never executed. Writing a scanner and running it
+are different claims and this document should not confuse them. One thing to
+read on the first run: `tools/tse` is three thousand lines of Python in a file
+with no `.py` extension, and whether the extractor finds it on the shebang alone
+is not knowable from here. If the reported line count for Python is near zero,
+the largest file in the repository is not being scanned.
+
 | | Why it waits |
 |---|---|
-| CodeQL | Free on public repositories, requires paid Advanced Security on private |
-| `dependency-review-action` | Needs the dependency graph, same licensing |
+| Running CodeQL and dependency review | Written and committed. Needs the flip, plus the dependency graph switched on |
 | macOS matrix | Standard runners are free and unmetered on public repositories |
 | Docker layer caching (`type=gha`) | Cannot be measured without a run, and an unmeasured gate is what this audit exists to find |
 | Re-enabling both workflows | The allowance is spent until it resets |
+| Branch protection on `main` | Returns HTTP 403 on a private repository on the free plan. `CODEOWNERS` does nothing until it exists |
+| Fork pull request approval | Not configurable while private. Matters because removing the `workflow_dispatch` gate lets a stranger's exercise files run in Docker on a runner |
+| Secret scanning, push protection, private vulnerability reporting | The whole `security_and_analysis` block is unavailable, and reads as null today |
 
 Both workflows are currently disabled. The GitHub Pages publish step is already
 gated on `github.event.repository.private == false`, so it skips cleanly now and
-starts working at the flip with nothing to remember.
+starts working at the flip with nothing to remember. The link checker's
+self-exemption expires the same way, on its own, and is described in S7.
+
+**The one thing that cannot be checked before the flip.** The last five `verify`
+runs failed, on `tests`, `shellcheck` and `discover exercises`, and their logs
+have since expired. Everything they covered now passes locally, and
+`preflight.sh --all` is green, so they are very probably already fixed by the
+audit itself. Probably is not proof. Confirming it needs a CI run, a CI run
+needs the allowance, and the allowance is what the flip is for. So this one is
+honestly circular: the repository goes public with a badge whose last known
+state was red, and the first action after flipping is to run `verify` by hand
+and find out. It is written down here rather than smoothed over.
 
 ---
 
