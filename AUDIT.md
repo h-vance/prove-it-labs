@@ -84,6 +84,37 @@ kept as a test. One of them found a real hole during development: `services:
 {app: {privileged: true}}` on a single line, whose first word is the expected
 key, was waved through by an earlier version that only looked at line starts.
 
+**Proven again after the flip, this time where it actually runs.** Everything
+above was established on one machine, by one person, on a repository nobody
+else could open a pull request against. That is a weaker claim than it sounds:
+the thing this guard defends against is a stranger's file being executed by CI
+before a human reads it, and that path did not exist yet.
+
+It exists now, and removing the `workflow_dispatch` gate is what switched it on.
+So the guard was tested as a real pull request, [#1](https://github.com/h-vance/prove-it-labs/pull/1),
+carrying an override asking for `privileged`, `SYS_ADMIN`, an unconfined seccomp
+profile, the host PID namespace, and a read-write bind mount of `/` into the
+container. CI refused it in thirteen seconds:
+
+```
+tse: labs/docker/01-service-unavailable-after-deploy/setup/compose.override.yaml:5:
+     an override may not set 'privileged'.
+     Allowed: environment, group_add, ports, user.
+     The stack declares how its containers are confined and an
+     exercise does not get to change that.
+```
+
+**The ordering held too, which is the part that was only ever a claim.** The
+matrix job declares `needs: [discover, tests]` specifically so the cheap scan
+refuses a bad file before anything is provisioned. With `tests` red, the nine
+stack jobs and the learner loop skipped rather than ran. A hostile pull request
+costs one job and thirteen seconds, not a full matrix, and no container is ever
+started from the contributed file.
+
+The pull request was closed and its branch deleted. It is left open to reading
+rather than squashed out of the history, because a guard nobody has watched fail
+is the thing this document exists to distrust.
+
 ### B2. The leak gate missed 12 of 17 credential formats
 
 **What was wrong.** The scan that exists to stop a real credential reaching a
