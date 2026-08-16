@@ -40,9 +40,23 @@ wait
 
 echo
 echo "Checking the environment ..."
-tools/tse doctor || true
+# `|| true` used to be the whole story here, which meant a container that came
+# up unable to run a single exercise still finished with "Prove It is ready."
+# The intent was only that a failed check should not abandon the build halfway,
+# leaving a half configured container behind. It still does not, but it now
+# says so loudly and the banner tells the truth about which case this is.
+if tools/tse doctor; then
+    ready=1
+else
+    ready=0
+    echo
+    echo "  tse doctor failed. The container is built, and the labs will not run"
+    echo "  until the problems above are fixed. Re-run \`tse doctor\` after each"
+    echo "  change to see what is left."
+fi
 
-cat <<'BANNER'
+if [ "$ready" -eq 1 ]; then
+    cat <<'BANNER'
 
   Prove It is ready.
 
@@ -50,3 +64,4 @@ cat <<'BANNER'
     tse start docker/01      pick up your first ticket
 
 BANNER
+fi

@@ -632,6 +632,59 @@ class RenderedMarkdown(unittest.TestCase):
                       HTML_TAG.findall(prose_only("<img src=x onerror=alert(1)>")))
 
 
+class Devcontainer(unittest.TestCase):
+    """The Codespace definition, which nothing builds and nothing else checks.
+
+    Building it in CI needs Docker in Docker on a runner and is recorded in
+    AUDIT.md as accepted rather than done. These are the parts that can be
+    checked without building anything, and both were wrong: two features were
+    pinned to "latest", so two Codespaces a month apart are two different
+    machines, and `tse doctor || true` meant an environment that could not run
+    a single exercise still printed "Prove It is ready."
+    """
+
+    def definition(self) -> dict:
+        text = (ROOT / ".devcontainer" / "devcontainer.json").read_text()
+        # devcontainer.json permits comments. None are in this one, and if one
+        # is added this will say so rather than guessing.
+        self.assertNotIn("//", text, "devcontainer.json now has comments to strip")
+        return json.loads(text)
+
+    def test_no_feature_floats(self):
+        for feature, options in self.definition()["features"].items():
+            for key, value in options.items():
+                if not isinstance(value, str):
+                    continue
+                with self.subTest(f"{feature}:{key}"):
+                    self.assertNotEqual(
+                        value, "latest",
+                        f"{feature} pins {key} to latest, so two Codespaces "
+                        f"built a month apart are two different machines",
+                    )
+
+    def test_the_post_create_script_reports_a_failed_check(self):
+        """A container that cannot run an exercise must not say it is ready."""
+        script = (ROOT / ".devcontainer" / "post-create.sh").read_text()
+        # By line, so the failure names the line rather than reprinting the
+        # script it was found in.
+        swallowed = [i for i, line in enumerate(script.splitlines(), 1)
+                     if "tse doctor" in line and "|| true" in line]
+        self.assertEqual(
+            swallowed, [],
+            f"post-create.sh line {swallowed} swallows the environment check",
+        )
+        self.assertIn("if tools/tse doctor;", script)
+
+    def test_the_banner_is_conditional(self):
+        # Anchored on the heredoc rather than on the banner's words, which also
+        # appear in the comment explaining why this check exists. That is what
+        # the first version of this test matched, and it failed for it.
+        script = (ROOT / ".devcontainer" / "post-create.sh").read_text()
+        self.assertIn("<<'BANNER'", script)
+        guard = script.find('if [ "$ready" -eq 1 ]')
+        self.assertNotEqual(guard, -1, "the ready banner prints unconditionally")
+        self.assertLess(guard, script.index("<<'BANNER'"),
+                        "the guard comes after the banner it is meant to guard")
 
 
 class ClusterHelpers(unittest.TestCase):
