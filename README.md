@@ -70,9 +70,23 @@ FAIL  Customer workflow returns their data
       Expected: {"status": "ok", "customer_count": 10} from /customers
 ```
 
-Running locally instead of in a Codespace needs Docker and Python 3.9 or newer,
-which on a Mac means the one already there. There is nothing to install:
-`tse doctor` will tell you what is missing.
+Running locally instead of in a Codespace needs Docker, `curl`, and
+Python 3.9 or newer, which on a Mac means the one already there. Two tracks
+want a little more: Kubernetes needs `kubectl` and `kind`, and the API and
+observability tracks need `jq`. Nothing else, and nothing to build.
+
+`tse doctor` is the list, grouped by what needs what, so a gap costs you one
+track rather than leaving you guessing:
+
+```bash
+tse doctor
+```
+
+That is deliberately the only copy of the list. A requirements table written
+out here as well would be a second thing to keep true, and this README has
+already claimed a Python version it did not need and an exercise count nobody
+checked. A test fails the build if `tse doctor` learns to require something
+these paragraphs never mention.
 
 ## The commands
 
