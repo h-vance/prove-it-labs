@@ -543,6 +543,11 @@ UNTIL_DELAY_S = 1.0
 # there. The whole `# until:` deadline fits inside this, on purpose.
 RECORD_TIMEOUT_S = 300.0
 
+# How long to wait on one external link. Short: a slow server is reported as
+# unreachable, which is a warning here rather than a failure, and a link check
+# that takes minutes is one nobody runs.
+LINK_TIMEOUT_S = 10.0
+
 # Fragments of genuine output that differ between two runs of the same broken
 # system. Recording exists so the site can replay real output, and comparing a
 # recording against a fresh run then needs a way to tell "the system changed"
@@ -1844,6 +1849,317 @@ def history_leaks() -> list[str]:
     return findings
 
 
+# --------------------------------------------------------------------------- #
+# Links
+# --------------------------------------------------------------------------- #
+
+# Where a link can be written in this repository. Collected together rather
+# than one regex, because a markdown link, an HTML attribute and a bare URL in
+# a comment are three different shapes and the last of those is where the two
+# stale references in this repository were actually hiding.
+LINK_PATTERNS: list["re.Pattern[str]"] = [
+    # [text](target) and [text](target "title"), with optional angle brackets.
+    re.compile(r"\[[^\]]*\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\s*\)"),
+    re.compile(r"href=\"([^\"]+)\""),
+    # A bare URL in prose, a comment, or a YAML value. Trailing punctuation is
+    # excluded so a sentence ending in a link does not report the full stop as
+    # part of the address.
+    re.compile(r"(https?://[^\s\"'<>)\]}`,]+)"),
+]
+
+# Addresses a learner types into their own terminal. They are instructions, not
+# links, and nothing on the internet answers them. Counted in the summary so
+# that skipping them is visible rather than an unexplained gap.
+#
+# A host with no dot in it belongs here too, and finding that out is what this
+# check is for. `https://gateway:8443` and `http://orders-api:8080` are service
+# names on a Compose or Kubernetes network, and they look exactly like public
+# addresses. A public host always has a dot; a bare label never resolves off
+# the lab network.
+LAB_HOSTS = ("127.0.0.1", "localhost", "0.0.0.0", "[::1]")
+
+# A URL with a variable in it is a template, not an address. `.devcontainer`
+# builds a download URL from `${KIND_VERSION}`, and requesting the literal text
+# gets a 404 that says nothing about whether the real URL works.
+INTERPOLATION = ("${", "$(", "{{", "`", "%s", "{version")
+
+# Files worth reading for links at all. A transcript is recorded output, and a
+# URL inside it is something a lab printed rather than something anybody wrote.
+LINK_SUFFIXES = (".md", ".mdx", ".astro", ".ts", ".tsx", ".yml", ".yaml", ".txt", ".sh")
+
+
+def site_base_path() -> str:
+    """
+    The site's base path, read from the Astro config rather than repeated here.
+
+    A site-absolute link has to start with this, and the repository already got
+    that wrong: `how-it-works.mdx` still pointed at
+    `/technical-support-engineering/...` after the rename, so the link to the
+    spoken answer template was a 404 on the published site. Hard-coding the
+    base in this file would have made this check agree with the bug.
+    """
+    config = ROOT / "site" / "astro.config.ts"
+    if not config.is_file():
+        return ""
+    found = re.search(r"""base:\s*["']([^"']+)["']""", config.read_text(encoding="utf-8"))
+    return found.group(1) if found else ""
+
+
+def extract_links(text: str) -> list[tuple[int, str]]:
+    """Every link in this text, as (line number, target), deduplicated."""
+    found: list[tuple[int, str]] = []
+    seen: set[tuple[int, str]] = set()
+    for number, line in enumerate(text.splitlines(), start=1):
+        for pattern in LINK_PATTERNS:
+            for match in pattern.finditer(line):
+                target = match.group(1).strip()
+                if not target or (number, target) in seen:
+                    continue
+                seen.add((number, target))
+                found.append((number, target))
+    return found
+
+
+def classify_link(target: str, own: tuple[str, ...] = ()) -> str:
+    """
+    What kind of link this is, which decides what checking it even means.
+
+    `lab` is the interesting one. Those addresses look exactly like external
+    links and must never be requested: they are what the exercise tells a
+    learner to curl, and on the machine running this check they are either
+    nothing or, worse, somebody else's service.
+
+    `self` is the awkward one. This repository links to itself in the README
+    badge, in SECURITY.md and from the site, and every one of those returns 404
+    while the repository is private, because that is what GitHub shows a
+    stranger. Reporting them as broken would be wrong, and skipping every
+    github.com/<owner>/ link would have hidden the genuinely stale one this
+    check was written to find. So `own` is the repository's real address, read
+    from the git remote, and only an exact match on it is skipped. A link to
+    the name this repository used to have is a different string and still fails.
+    """
+    lowered = target.lower()
+    if lowered.startswith(("mailto:", "tel:", "data:", "javascript:")):
+        return "ignored"
+    if any(marker in target for marker in INTERPOLATION):
+        return "ignored"
+    if lowered.startswith(("http://", "https://")):
+        host = lowered.split("://", 1)[1].split("/", 1)[0].split(":")[0]
+        if host in LAB_HOSTS or "." not in host:
+            return "lab"
+        if own and lowered.startswith(own):
+            return "self"
+        return "external"
+    if target.startswith("#"):
+        return "anchor"
+    if target.startswith("/"):
+        return "site-absolute"
+    return "relative"
+
+
+def own_urls() -> tuple[str, ...]:
+    """
+    The addresses this repository uses to refer to itself.
+
+    Derived rather than written down, so renaming the repository cannot leave a
+    stale exemption behind that quietly stops checking the very links the
+    rename broke. That is not hypothetical: the rename to prove-it-labs left
+    two dead self-references, and both are what this check found first.
+
+    THE DAY THIS REPOSITORY GOES PUBLIC: these stop returning 404 and this
+    function stops being needed. Deleting it then is the check getting stronger.
+    """
+    found: list[str] = []
+    result = subprocess.run(
+        ["git", "remote", "get-url", "origin"],
+        capture_output=True, text=True, encoding="utf-8", cwd=ROOT,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        remote = result.stdout.strip().removesuffix(".git")
+        if remote.startswith("http"):
+            found.append(remote.lower())
+        elif remote.startswith("git@github.com:"):
+            found.append("https://github.com/" + remote.split(":", 1)[1].lower())
+
+    config = ROOT / "site" / "astro.config.ts"
+    if config.is_file():
+        site = re.search(r"""site:\s*["']([^"']+)["']""", config.read_text(encoding="utf-8"))
+        if site:
+            found.append(site.group(1).rstrip("/").lower())
+    return tuple(found)
+
+
+def heading_slugs(text: str) -> set[str]:
+    """The anchors a markdown file offers, slugified the way the site does."""
+    slugs = set()
+    for line in text.splitlines():
+        if line.startswith("#"):
+            title = line.lstrip("#").strip()
+            slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+            if slug:
+                slugs.add(slug)
+    return slugs
+
+
+def check_local_link(target: str, source: str, base: str) -> str | None:
+    """
+    Why this link is broken, or None if it resolves.
+
+    Local only. Nothing here touches the network, which is what lets the whole
+    of it be tested without one.
+    """
+    kind = classify_link(target)
+    path, _, fragment = target.partition("#")
+
+    if kind == "anchor":
+        text = read_link_source(ROOT / source)
+        if text is None:
+            return None
+        if fragment not in heading_slugs(text):
+            return f"no heading on this page makes the anchor #{fragment}"
+        return None
+
+    if kind == "site-absolute":
+        if base and not target.startswith(base + "/") and target != base:
+            return f"a site link that does not start with the site's base path {base!r}"
+        return None
+
+    if kind != "relative":
+        return None
+
+    resolved = (ROOT / source).parent / path
+    if resolved.exists():
+        if fragment and resolved.is_file() and resolved.suffix in (".md", ".mdx"):
+            text = read_link_source(resolved)
+            if text is not None and fragment not in heading_slugs(text):
+                return f"{path} exists but has no heading making the anchor #{fragment}"
+        return None
+    return f"no such file: {path}"
+
+
+def read_link_source(path: Path) -> str | None:
+    """The text of a file, or None if it is not readable as text."""
+    try:
+        return decode_for_scanning(path.read_bytes())
+    except OSError:
+        return None
+
+
+def cmd_links(args: argparse.Namespace) -> None:
+    """
+    Refuse to publish a link that goes nowhere.
+
+    Twenty five exercise pages, a README, a contributing guide and a set of
+    reference sheets, and nothing had ever confirmed that a single link in any
+    of them resolved. Two were already broken when this was written, both left
+    over from renaming the repository: a GitHub link in the site's front page
+    and, worse, a site-internal link in `how-it-works.mdx` that still carried
+    the old base path and returned 404 to anybody who clicked it.
+
+    A 404 or a 410 fails. Everything else is a warning, deliberately. A timeout
+    or a 503 is the network having a bad minute, and a gate that goes red for
+    that is a gate people learn to ignore, which costs more than it catches.
+    """
+    import urllib.error
+    import urllib.request
+
+    base = site_base_path()
+    own = own_urls()
+    problems: list[str] = []
+    warnings: list[str] = []
+    external: dict[str, list[str]] = {}
+    counted = {"checked": 0, "lab": 0, "files": 0, "self": 0}
+
+    for name in tracked_files():
+        if not name.endswith(LINK_SUFFIXES) or name in LEAK_EXEMPT:
+            continue
+        text = read_link_source(ROOT / name)
+        if text is None:
+            continue
+        counted["files"] += 1
+        for number, target in extract_links(text):
+            kind = classify_link(target, own)
+            if kind == "ignored":
+                continue
+            if kind == "lab":
+                counted["lab"] += 1
+                continue
+            if kind == "self":
+                counted["self"] += 1
+                continue
+            counted["checked"] += 1
+            if kind == "external":
+                external.setdefault(target, []).append(f"{name}:{number}")
+                continue
+            problem = check_local_link(target, name, base)
+            if problem:
+                problems.append(f"{name}:{number}: {target}\n      {problem}")
+
+    if args.offline:
+        print(f"{DIM}Skipping {len(external)} external links (--offline).{OFF}")
+    else:
+        for url, where in sorted(external.items()):
+            status, detail = probe_url(url)
+            if status in (404, 410):
+                problems.append(f"{where[0]}: {url}\n      the server said {status}")
+            elif detail:
+                warnings.append(f"{where[0]}: {url}\n      {detail}")
+
+    if warnings:
+        print(f"{YELLOW}{len(warnings)} links could not be reached:{OFF}\n")
+        for warning in warnings:
+            print(f"  {warning}")
+        print(f"\n{DIM}Not failures. A link is only called broken here when the "
+              f"server answers 404 or 410.{OFF}\n")
+
+    if problems:
+        print(f"{RED}tse: {len(problems)} links go nowhere:{OFF}\n")
+        for problem in problems:
+            print(f"  {problem}")
+        sys.exit(1)
+
+    scope = (f"{counted['checked']} links across {counted['files']} files, "
+             f"{counted['lab']} lab addresses skipped")
+    if counted["self"]:
+        # Named rather than absorbed into the skip count, because these are the
+        # links that will start being checkable the day this goes public, and a
+        # number nobody can see is a number nobody revisits.
+        scope += (f", {counted['self']} pointing at this repository "
+                  f"(404 to a stranger while it is private)")
+    if not args.offline:
+        scope += f", {len(external)} of them external"
+    print(f"{GREEN}Every link resolves.{OFF} {scope}.")
+
+
+def probe_url(url: str) -> tuple[int | None, str]:
+    """
+    Ask what is at a URL, as cheaply as the server allows.
+
+    HEAD first, then GET, because a surprising number of servers answer HEAD
+    with 403 or 405 while serving the page perfectly well. A browser-shaped
+    user agent for the same reason: the default `Python-urllib` gets a 403 from
+    several large sites, and reporting somebody's own README link as broken
+    because of that would make this check worse than nothing.
+    """
+    import urllib.error
+    import urllib.request
+
+    for method in ("HEAD", "GET"):
+        request = urllib.request.Request(url, method=method, headers={
+            "User-Agent": "Mozilla/5.0 (compatible; prove-it-labs link check)",
+        })
+        try:
+            with urllib.request.urlopen(request, timeout=LINK_TIMEOUT_S) as response:
+                return response.status, ""
+        except urllib.error.HTTPError as error:
+            if error.code in (403, 405) and method == "HEAD":
+                continue
+            return error.code, "" if error.code in (404, 410) else f"the server said {error.code}"
+        except Exception as error:  # noqa: BLE001 - any transport failure is a warning
+            return None, f"could not be reached: {type(error).__name__}"
+    return None, "could not be reached"
+
+
 def cmd_leaks(args: argparse.Namespace) -> None:
     """Refuse to publish anything that describes the machine it was written on.
 
@@ -2402,6 +2718,11 @@ def main() -> None:
     p.add_argument("--check", action="store_true",
                    help="re-run and assert the recording still matches the system")
     p.set_defaults(func=cmd_record)
+
+    p = sub.add_parser("links", help="check that every link in the repository resolves")
+    p.add_argument("--offline", action="store_true",
+                   help="skip external links and check only what is on disk")
+    p.set_defaults(func=cmd_links)
 
     p = sub.add_parser("leaks", help="scan committed files for anything from a real machine")
     p.add_argument("--history", action="store_true",

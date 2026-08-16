@@ -67,6 +67,12 @@ jobs:
       - name: Nothing from a real machine is committed
         run: tools/tse leaks
 
+      # Only a 404 or a 410 fails here. A timeout or a 503 is the network
+      # having a bad minute, and a link gate that goes red for that is one
+      # people learn to ignore, which costs more than it catches.
+      - name: Every link resolves
+        run: tools/tse links
+
       - name: Parser and content tests
         run: |
           python3 tools/tests/test_meta.py

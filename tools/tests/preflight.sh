@@ -62,6 +62,7 @@ run "the meta parser"                   python3 tools/tests/test_meta.py
 run "the output scrubber"               python3 tools/tests/test_scrub.py
 run "the communication rubric"          python3 tools/tests/test_rubric.py
 run "the leak scan over every file"     "$TSE" leaks
+run "every link resolves"               "$TSE" links
 run "the CLI smoke test"                tools/tests/smoke.sh --fast
 
 # --------------------------------------------------------------------------- #

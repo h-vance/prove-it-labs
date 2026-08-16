@@ -1044,6 +1044,132 @@ class LeakGate(unittest.TestCase):
         self.assertEqual(unreadable, [], "tracked files the leak scan cannot read")
 
 
+class Links(unittest.TestCase):
+    """Every part of the link check that can be tested without a network.
+
+    Extraction and classification are the whole of the logic; the HTTP request
+    is four lines around them. So all of it is covered here, offline, and runs
+    in CI where reaching the internet would make the suite flaky.
+    """
+
+    def test_every_shape_a_link_is_written_in_is_found(self):
+        text = "\n".join([
+            "See [the guide](CONTRIBUTING.md) first.",
+            'A tag: <a href="/prove-it-labs/start">start</a>',
+            "Bare in prose: https://example.com/a and nothing else.",
+            '[titled](https://example.com/b "why")',
+            "[angled](<https://example.com/c>)",
+        ])
+        found = {target for _, target in tse.extract_links(text)}
+        self.assertIn("CONTRIBUTING.md", found)
+        self.assertIn("/prove-it-labs/start", found)
+        self.assertIn("https://example.com/a", found)
+        self.assertIn("https://example.com/b", found)
+        self.assertIn("https://example.com/c", found)
+
+    def test_trailing_punctuation_is_not_part_of_the_address(self):
+        found = {t for _, t in tse.extract_links("Read https://example.com/page, then stop.")}
+        self.assertIn("https://example.com/page", found)
+        self.assertNotIn("https://example.com/page,", found)
+
+    def test_a_lab_address_is_never_requested(self):
+        """These are what the exercise tells a learner to curl.
+
+        Requesting them from the machine running this check reaches nothing, or
+        reaches something of somebody else's, and neither says anything about
+        the course.
+        """
+        for target in [
+            "http://127.0.0.1:8100/customers",
+            "http://localhost:4321/prove-it-labs",
+            "https://gateway:8443",
+            "http://orders-api:8080/customers",
+            "https://reports:8443",
+            "http://postgres:5432",
+        ]:
+            with self.subTest(target):
+                self.assertEqual(tse.classify_link(target), "lab")
+
+    def test_a_url_built_from_a_variable_is_not_an_address(self):
+        for target in [
+            "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-${ARCH}",
+            "https://example.com/$(whoami)",
+            "https://example.com/{{ version }}",
+        ]:
+            with self.subTest(target):
+                self.assertEqual(tse.classify_link(target), "ignored")
+
+    def test_a_public_host_is_external(self):
+        self.assertEqual(tse.classify_link("https://kind.sigs.k8s.io/dl/v0.30.0"), "external")
+
+    def test_the_self_exemption_covers_only_this_repository(self):
+        """The exemption that could have hidden the bug it was written beside.
+
+        Links to this repository return 404 while it is private, so they cannot
+        be checked. Exempting every github.com/<owner>/ link would also have
+        exempted the stale one left behind by the rename, which is exactly the
+        link this whole check found. Only the current address is skipped.
+        """
+        own = ("https://github.com/h-vance/prove-it-labs", "https://h-vance.github.io")
+        self.assertEqual(
+            tse.classify_link("https://github.com/h-vance/prove-it-labs/actions", own), "self")
+        self.assertEqual(
+            tse.classify_link("https://github.com/h-vance/technical-support-engineering", own),
+            "external",
+            "a link to the name this repository used to have must still be checked",
+        )
+
+    def test_the_self_exemption_is_derived_and_not_written_down(self):
+        """A hard-coded name would go stale on the next rename, silently."""
+        own = tse.own_urls()
+        self.assertTrue(own, "no address for this repository could be derived")
+        for url in own:
+            self.assertEqual(url, url.lower())
+            self.assertFalse(url.endswith(("/", ".git")))
+
+    def test_a_site_link_must_carry_the_configured_base(self):
+        """The bug this found: an internal link left on the old base path.
+
+        `/technical-support-engineering/reference/spoken-answer-template` was a
+        404 on the published site for anybody who clicked it.
+        """
+        base = tse.site_base_path()
+        self.assertTrue(base.startswith("/"), f"no base path found, got {base!r}")
+        self.assertIsNone(
+            tse.check_local_link(f"{base}/reference/spoken-answer-template", "README.md", base))
+        self.assertIsNotNone(
+            tse.check_local_link("/some-other-name/reference/x", "README.md", base))
+
+    def test_a_relative_link_has_to_resolve_on_disk(self):
+        self.assertIsNone(tse.check_local_link("CONTRIBUTING.md", "README.md", "/x"))
+        problem = tse.check_local_link("no-such-file.md", "README.md", "/x")
+        self.assertIsNotNone(problem)
+        self.assertIn("no such file", problem)
+
+    def test_an_anchor_has_to_name_a_heading_that_exists(self):
+        slugs = tse.heading_slugs("# The Ticket\n\n## Why This One Exists\n\ntext\n")
+        self.assertEqual(slugs, {"the-ticket", "why-this-one-exists"})
+
+    def test_the_whole_repository_currently_passes_offline(self):
+        """The check, run for real, with no network involved."""
+        base = tse.site_base_path()
+        own = tse.own_urls()
+        broken = []
+        for name in tse.tracked_files():
+            if not name.endswith(tse.LINK_SUFFIXES) or name in tse.LEAK_EXEMPT:
+                continue
+            text = tse.read_link_source(ROOT / name)
+            if text is None:
+                continue
+            for number, target in tse.extract_links(text):
+                if tse.classify_link(target, own) in ("ignored", "lab", "self", "external"):
+                    continue
+                problem = tse.check_local_link(target, name, base)
+                if problem:
+                    broken.append(f"{name}:{number}: {target} -- {problem}")
+        self.assertEqual(broken, [])
+
+
 class AffectedExercises(unittest.TestCase):
     """Which exercises a change can break, and what it must never miss.
 
