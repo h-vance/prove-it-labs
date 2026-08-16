@@ -302,7 +302,7 @@ for (const theme of ["dark", "light"]) {
 //
 // A wide block is allowed to scroll inside its own container. What is not
 // allowed is the whole page scrolling sideways, which is what this measures.
-// One theme: reflow is a layout property and does not change with colour.
+// One theme: reflow is a layout property and does not change with color.
 {
   const context = await browser.newContext({ viewport: { width: 320, height: 720 } });
   const page = await context.newPage();

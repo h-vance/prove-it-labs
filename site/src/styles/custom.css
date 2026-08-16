@@ -216,7 +216,7 @@ html[data-stretch="hidden"] [data-tier="stretch"] {
  *
  * `<details>` is used rather than a scripted button so the hints and the
  * solution are readable with no JavaScript at all. Everything below is
- * appearance; the open and close behaviour, the keyboard handling and the
+ * appearance; the open and close behavior, the keyboard handling and the
  * accessibility tree come from the browser. Same accent pairing as
  * .reveal__button above, and for the same contrast reason. */
 .reveal__disclosure {
