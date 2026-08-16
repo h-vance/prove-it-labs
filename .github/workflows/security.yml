@@ -1,0 +1,108 @@
+name: security
+
+# Both of these are free on a public repository and cost money on a private
+# one, which is why neither existed before the flip. They are written here
+# rather than added later because the point of turning them on is to find
+# something, and a scanner nobody enabled finds nothing.
+#
+# What this does not replace: `tse leaks` scans every tracked file and the full
+# history for credentials and machine identity, and it runs in `verify`. CodeQL
+# looks for vulnerable code, not for committed secrets. They overlap nowhere.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # CodeQL's rules change under a tree that is not changing, so a repository
+  # that goes quiet stops being scanned exactly when nobody is watching it.
+  # Weekly, on a public repository, is free.
+  #
+  # GitHub disables scheduled workflows on a repository with no activity for
+  # sixty days. That is a feature here rather than a problem: a course nobody
+  # has touched in two months does not need a Tuesday scan.
+  schedule:
+    - cron: "17 6 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codeql:
+    name: codeql (${{ matrix.language }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      # Writing the results back is the whole point. Without this the analysis
+      # runs and reports into nothing.
+      security-events: write
+      # Required by the `actions` extractor to read workflow definitions.
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # `actions` analyzes the workflow files themselves, which is worth more
+        # here than it looks: this repository runs contributed exercise code on
+        # a runner, so the workflows are part of the attack surface rather than
+        # just the thing that tests it.
+        language: [actions, javascript-typescript, python]
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Initialize
+        uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
+        with:
+          languages: ${{ matrix.language }}
+          # Both the default rules and the extra ones. This repository is
+          # small, so the slower, noisier set is affordable, and a course about
+          # reading evidence should not run the scanner on its quiet setting.
+          queries: security-and-quality
+
+      # No build step. Neither language here compiles: the site is TypeScript
+      # that Astro builds separately in `site.yml`, and the CLI is a script.
+      #
+      # UNVERIFIED UNTIL THE FIRST RUN: `tools/tse` is about three thousand
+      # lines of Python in a file with no `.py` extension, because it is a
+      # command. Whether the extractor picks it up on the shebang alone is not
+      # something this can assert from here. Read the lines-of-code figure the
+      # first Python analysis reports: if it is near zero, the largest file in
+      # the repository is not being scanned and this job is decorative.
+      - name: Analyze
+        uses: github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
+        with:
+          category: /language:${{ matrix.language }}
+
+  dependency-review:
+    name: dependency review
+    # Only meaningful on a pull request, where there is a before and an after
+    # to compare. On a push there is nothing to diff against.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The CLI and the labs have no dependencies at all, deliberately, so the
+      # only things this can see are the site's npm tree and the actions these
+      # workflows use. That is the whole third party surface, which is the
+      # point: it is small enough that any addition deserves a second look.
+      # Needs the dependency graph switched on for the repository, which is a
+      # setting rather than a file. Without it this job reports nothing and
+      # says so, which is the failure mode worth knowing about: it does not go
+      # red, it goes empty.
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: moderate
+          # Course content is CC BY 4.0 and the code is MIT, and both promises
+          # are only as good as what they are built on. GPL and AGPL are
+          # refused here rather than argued about in a review.
+          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0
+          comment-summary-in-pr: on-failure
