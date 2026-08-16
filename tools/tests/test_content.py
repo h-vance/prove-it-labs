@@ -429,6 +429,91 @@ class Containment(unittest.TestCase):
                     f"{name}: no services were read out of it",
                 )
 
+    def test_a_shared_posture_is_resolved_rather_than_missed(self):
+        """observability defines its posture once and merges it into three services."""
+        got = tse.service_containment(
+            "x-service: &service\n"
+            "  read_only: true\n"
+            "  cap_drop:\n"
+            "    - ALL\n"
+            "\n"
+            "services:\n"
+            "  api:\n"
+            "    <<: *service\n"
+            "    command: [\"python\", \"/app/api.py\"]\n",
+            "probe",
+        )
+        self.assertEqual(got["api"]["read_only"], "true")
+        self.assertEqual(got["api"]["cap_drop"], "ALL")
+
+    def test_a_service_that_sets_nothing_is_seen_as_setting_nothing(self):
+        got = tse.service_containment(
+            "services:\n  postgres:\n    image: postgres:16-alpine\n", "probe")
+        self.assertEqual(list(got), ["postgres"])
+        self.assertNotIn("read_only", got["postgres"])
+
+
+class BaseImages(unittest.TestCase):
+    """One base per language, and the Codespace pre-pulls all of them.
+
+    Three stacks were on `python:3.12-alpine` and two on
+    `python:3.12-alpine3.24`. Both resolve to Alpine 3.24.1 today, which is
+    exactly why nothing noticed: they stop being the same image the day Alpine
+    3.25 ships, and then three stacks move operating system and two do not.
+
+    The Codespace pre-pull listed only the floating tag, so networking and
+    observability still waited on a download the pre-pull exists to avoid.
+    """
+
+    def bases(self) -> dict[str, list[str]]:
+        """Every image a stack builds FROM or runs directly, by file."""
+        found: dict[str, list[str]] = {}
+        for path in sorted(ROOT.glob("labs/*/_stack/Dockerfile")):
+            found[str(path.relative_to(ROOT))] = re.findall(
+                r"(?m)^FROM\s+(\S+)", path.read_text())
+        for path in STACKS:
+            found[str(path.relative_to(ROOT))] = re.findall(
+                r"(?m)^\s+image:\s*(\S+)", path.read_text())
+        return found
+
+    def test_every_stack_builds_on_the_same_python(self):
+        used = {image for images in self.bases().values() for image in images
+                if image.startswith("python:")}
+        self.assertEqual(
+            len(used), 1,
+            f"the course builds on more than one Python base: {sorted(used)}",
+        )
+
+    def test_every_base_names_its_operating_system(self):
+        """A floating tag moves under the course without anything saying so."""
+        for name, images in self.bases().items():
+            for image in images:
+                if not image.startswith("python:"):
+                    continue
+                with self.subTest(f"{name}:{image}"):
+                    self.assertRegex(
+                        image, r"alpine\d+\.\d+$",
+                        f"{name}: {image} does not pin the Alpine release",
+                    )
+
+    def test_the_codespace_pre_pulls_every_base(self):
+        script = (ROOT / ".devcontainer" / "post-create.sh").read_text()
+        pulled = set(re.findall(r"docker pull -q (\S+)", script))
+        needed = {image for images in self.bases().values() for image in images}
+        missing = sorted(needed - pulled)
+        self.assertEqual(
+            missing, [],
+            f"post-create.sh does not pre-pull {missing}, so a Codespace stops "
+            f"to download on first use",
+        )
+
+    def test_nothing_is_pre_pulled_that_no_stack_uses(self):
+        script = (ROOT / ".devcontainer" / "post-create.sh").read_text()
+        pulled = set(re.findall(r"docker pull -q (\S+)", script))
+        needed = {image for images in self.bases().values() for image in images}
+        self.assertEqual(sorted(pulled - needed), [],
+                         "post-create.sh pulls an image no stack builds on")
+
 
 class ClusterHelpers(unittest.TestCase):
     """Guards on the Kubernetes preload path.

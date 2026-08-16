@@ -29,9 +29,13 @@ sudo apt-get install -y -qq jq postgresql-client dnsutils netcat-openbsd shellch
 chmod +x tools/tse
 chmod +x labs/*/*/check.sh 2>/dev/null || true
 
+# Every base image any stack builds on. This list is checked against the
+# Dockerfiles by test_content.py, because a pre-pull that misses one is worse
+# than no pre-pull: it looks like the wait was handled and two tracks still
+# stop to download on first use.
 echo "Pre-pulling lab images ..."
 docker pull -q postgres:16-alpine &
-docker pull -q python:3.12-alpine &
+docker pull -q python:3.12-alpine3.24 &
 wait
 
 echo

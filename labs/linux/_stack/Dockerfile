@@ -1,4 +1,4 @@
-FROM python:3.12-alpine
+FROM python:3.12-alpine3.24
 
 # Every id is pinned so the exercises can talk about them by number, and so
 # `id` inside the container says the same thing on every machine.
