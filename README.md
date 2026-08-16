@@ -34,8 +34,9 @@ FAIL  Customer workflow returns their data
       Expected: {"status": "ok", "customer_count": 10} from /customers
 ```
 
-Running locally instead of in a Codespace needs Docker and Python 3.11 or
-newer. There is nothing to install: `tse doctor` will tell you what is missing.
+Running locally instead of in a Codespace needs Docker and Python 3.9 or newer,
+which on a Mac means the one already there. There is nothing to install:
+`tse doctor` will tell you what is missing.
 
 ## The commands
 

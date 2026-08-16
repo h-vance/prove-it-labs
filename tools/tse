@@ -23,6 +23,24 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
+# The oldest Python this runs on, stated rather than assumed.
+#
+# The README used to say 3.11 or newer. Nothing had checked, and it was wrong:
+# every suite and all forty-two smoke assertions pass on 3.9.6, which is what
+# macOS ships with the Xcode command line tools. That matters more than it
+# looks, because it means somebody on a Mac can clone this and start without
+# installing a Python at all, and a requirement nobody verified would have sent
+# them away to do it for no reason.
+#
+# preflight.sh runs the whole CLI under the system interpreter with a stripped
+# environment, so this floor stays true rather than rotting into a comment.
+MINIMUM_PYTHON = (3, 9)
+
+if sys.version_info < MINIMUM_PYTHON:
+    have = ".".join(str(part) for part in sys.version_info[:3])
+    want = ".".join(str(part) for part in MINIMUM_PYTHON)
+    sys.exit(f"tse: needs Python {want} or newer. This is {have}.")
+
 STATE_FILENAME = ".tse-state.json"
 TRACK_ORDER = [
     "linux",

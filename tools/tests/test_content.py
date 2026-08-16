@@ -668,6 +668,29 @@ class RenderedMarkdown(unittest.TestCase):
                       HTML_TAG.findall(prose_only("<img src=x onerror=alert(1)>")))
 
 
+class PythonFloor(unittest.TestCase):
+    """The oldest Python this runs on is stated in one place and checked.
+
+    The README said 3.11 or newer and nothing had ever checked. It was wrong in
+    the direction that costs a reader something: every suite and all forty-two
+    smoke assertions pass on 3.9.6, which is the interpreter macOS already has,
+    so the requirement was sending people to install a Python they did not need.
+    """
+
+    def test_the_readme_agrees_with_the_cli(self):
+        said = re.search(r"Python (\d+)\.(\d+) or newer", (ROOT / "README.md").read_text())
+        self.assertIsNotNone(said, "the README no longer states a Python version")
+        self.assertEqual((int(said.group(1)), int(said.group(2))), tse.MINIMUM_PYTHON)
+
+    def test_the_floor_is_enforced_rather_than_documented(self):
+        source = (ROOT / "tools" / "tse").read_text()
+        self.assertIn("if sys.version_info < MINIMUM_PYTHON:", source)
+
+    def test_preflight_runs_the_cli_on_a_stripped_environment(self):
+        """The floor only stays true because something keeps proving it."""
+        script = (ROOT / "tools" / "tests" / "preflight.sh").read_text()
+        self.assertIn("env -i", script)
+        self.assertIn("LANG=C", script)
 
 
 class Devcontainer(unittest.TestCase):
