@@ -234,6 +234,20 @@ could grow every page indefinitely and nothing would say so.
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## How this was built
+
+Written by Harrison Vance, with Claude (Anthropic) as a working partner across
+the exercises, the CLI, the site and the audit.
+
+Worth saying plainly rather than leaving to be guessed at, and worth saying with
+the same standard the rest of this repository holds to: the claims here are the
+ones that are checked. Every exercise is asserted to fail broken and pass fixed
+against real containers. Every gate in [AUDIT.md](AUDIT.md) was made to fail on
+purpose before it was trusted, and the four places that review reached the wrong
+conclusion are written up alongside the rest. What a tool did or did not
+contribute is a much less interesting question than whether the thing works, and
+the answer to the second one is in `tools/tests/preflight.sh`.
+
 ## License
 
 Code is MIT. Course content, meaning lessons, tickets, solutions, and

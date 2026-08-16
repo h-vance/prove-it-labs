@@ -29,6 +29,14 @@ working and was then shown wrong by its own test. Those are written up in full
 rather than quietly corrected, because a review that only records the things it
 got right is not evidence of anything.
 
+**Who the auditor was.** This review was carried out by Harrison Vance working
+with Claude (Anthropic). That is worth stating because this document refers to
+"the auditor" throughout and because the same standard applies either way: none
+of the findings below rest on anybody's judgment. Each one names the defect that
+was planted, the check that caught it, and the message it printed. Where the
+review reached a wrong conclusion, the test is what corrected it, which is the
+argument for building the gates in the first place.
+
 ## Contents
 
 - [Blockers](#blockers), two, both closed
