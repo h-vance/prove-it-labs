@@ -48,10 +48,15 @@ the only place the expensive half happens. It is still the faster place: your
 machine has the images cached and does not spend a minute booting a runner.
 
 It is also how this course gets tested on macOS, and that is not something CI
-can take over. Hosted macOS runners have no Docker daemon, so a macOS job can
-run the Python suites, the scans and the site build, but not a single exercise.
-Running `preflight.sh` on the machine you actually work on is the only thing
-that proves the course itself works on macOS.
+can take over. There is a `macOS` job in `verify.yml`, and it runs the CLI, the
+four test suites, the leak scan and the fast smoke test. It does not run a
+single exercise, because hosted macOS runners have no Docker daemon. The job
+prints what the runner actually has as its first step, so that stays a measured
+claim rather than a remembered one.
+
+That split is worth being plain about: CI covers the CLI on macOS, and running
+`preflight.sh` on the machine you work on is the only thing that covers the
+course on macOS.
 
 The individual pieces, if you want to run one on its own:
 
