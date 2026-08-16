@@ -251,8 +251,9 @@ const headings = [
   if (solution) remember(solution);
 
   const hints = [...document.querySelectorAll<HTMLDetailsElement>("details[data-hint]")];
-  if (hints.length > 0) {
-    const progressKey = hints[0].dataset.progressKey ?? "";
+  const first = hints[0];
+  if (first) {
+    const progressKey = first.dataset.progressKey ?? "";
 
     // How far the learner has already got, so returning to a page does not
     // fold away hints they have already read.

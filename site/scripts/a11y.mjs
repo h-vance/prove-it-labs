@@ -37,6 +37,11 @@ if (!existsSync(DIST)) {
 }
 
 /** Every built page, discovered rather than listed, so new ones cannot be missed. */
+// Every page a visitor can land on, which is not the same as every directory
+// with an index.html in it. Astro emits the not-found page as a bare 404.html,
+// so it matched neither branch and thirty of the thirty-one built pages were
+// checked. A 404 is a page people reach, and on this site it carries the site
+// navigation and the search box like any other.
 function findPages(dir = DIST, prefix = "") {
   const found = [];
   for (const entry of readdirSync(dir)) {
@@ -45,6 +50,8 @@ function findPages(dir = DIST, prefix = "") {
       found.push(...findPages(full, `${prefix}/${entry}`));
     } else if (entry === "index.html") {
       found.push(prefix === "" ? "/" : `${prefix}/`);
+    } else if (entry.endsWith(".html")) {
+      found.push(`${prefix}/${entry}`);
     }
   }
   return found.sort();
@@ -89,6 +96,18 @@ const scan = (page) =>
     .withRules(["heading-order", "page-has-heading-one"])
     .analyze();
 
+// The Content-Security-Policy is checked here rather than in a pass of its own,
+// because this loop already visits every page in both themes and opens the
+// hints, the solution, the quiz and the terminal. A policy that only holds on a
+// page nobody touched is not worth having, and search and the quiz are exactly
+// where a policy usually breaks.
+//
+// A policy is not proved by reading it out of the HTML. It is proved by a
+// browser enforcing it and having nothing to complain about.
+const CSP_COMPLAINT = /Content Security Policy|Refused to (load|execute|apply|connect)/i;
+let visiting = "";
+const cspFailures = [];
+
 for (const theme of ["dark", "light"]) {
   const context = await browser.newContext({
     viewport: { width: 1280, height: 900 },
@@ -96,8 +115,26 @@ for (const theme of ["dark", "light"]) {
   });
   const page = await context.newPage();
 
+  page.on("console", (message) => {
+    if (CSP_COMPLAINT.test(message.text())) {
+      cspFailures.push({ theme, path: visiting, detail: message.text() });
+    }
+  });
+
   for (const path of pages) {
+    visiting = path;
     await page.goto(`http://127.0.0.1:${PORT}${BASE}${path}`, { waitUntil: "networkidle" });
+
+    const policies = await page.locator(
+      'meta[http-equiv="Content-Security-Policy"]').count();
+    if (policies !== 1) {
+      cspFailures.push({
+        theme,
+        path,
+        detail: `the page carries ${policies} policies, not one. `
+          + `Did the build skip scripts/csp.mjs?`,
+      });
+    }
     // Pin the theme explicitly: Starlight's own toggle writes this attribute,
     // and colorScheme alone would leave "auto" pages in the system default.
     await page.evaluate((value) => {
@@ -479,12 +516,29 @@ for (const [state, described] of [
   }
 }
 
+if (cspFailures.length > 0) {
+  console.error(
+    `csp: ${cspFailures.length} Content-Security-Policy problem(s). The policy ` +
+      `is generated from the built pages by scripts/csp.mjs, so this means the ` +
+      `page loads something the policy does not cover rather than a stale hash.\n`,
+  );
+  for (const failure of cspFailures.slice(0, 20)) {
+    console.error(`  ${failure.theme.padEnd(5)} ${failure.path}`);
+    console.error(`    ${failure.detail.slice(0, 200)}`);
+  }
+  process.exit(1);
+}
+
 if (failures.length === 0) {
   console.log(
     `axe: ${checks} checks across ${pages.length} pages in 2 themes, ` +
       `including both quiz verdicts, the terminal showing output and a refusal, ` +
       `every hint and solution opened, reflow at 320px, and every exercise ` +
       `read with JavaScript turned off. No violations.`,
+  );
+  console.log(
+    `csp: enforced on all ${pages.length} pages in both themes with every ` +
+      `disclosure, the quiz and the terminal exercised. Nothing refused.`,
   );
   process.exit(0);
 }

@@ -5,12 +5,13 @@
   "private": true,
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "astro build && node scripts/csp.mjs",
     "preview": "astro preview",
     "check": "astro check",
     "a11y": "node scripts/a11y.mjs",
     "check:pages": "node scripts/check-pages.mjs",
-    "check:terminal": "node scripts/check-terminal.mjs"
+    "check:terminal": "node scripts/check-terminal.mjs",
+    "csp": "node scripts/csp.mjs"
   },
   "dependencies": {
     "@astrojs/preact": "^6.0.2",
