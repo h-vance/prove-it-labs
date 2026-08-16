@@ -791,6 +791,64 @@ class PythonFloor(unittest.TestCase):
         self.assertIn("LANG=C", script)
 
 
+class Requirements(unittest.TestCase):
+    """`tse doctor` is the requirements list. The docs must not understate it.
+
+    Writing the list down in prose as well would be a second source of truth,
+    and this repository has been caught by that three times: a Python floor
+    that was wrong, an exercise count nobody checked, and a dozen sentences
+    calling it private after it went public. So the list lives in `tse` and
+    this asserts the docs mention everything in it.
+
+    Measured when this was written: kubectl, kind and jq were all required and
+    named in neither README.md nor CONTRIBUTING.md. A reader following the
+    README would have installed Docker, started the Kubernetes track, and hit
+    a wall the docs never mentioned.
+    """
+
+    def tools(self) -> list[str]:
+        """The binary each requirement probes, deduplicated, in order."""
+        seen, out = set(), []
+        for _, entries in tse.REQUIREMENTS:
+            for _, command, _ in entries:
+                if command[0] not in seen:
+                    seen.add(command[0])
+                    out.append(command[0])
+        return out
+
+    def docs(self) -> dict[str, str]:
+        return {name: (ROOT / name).read_text(encoding="utf-8")
+                for name in ("README.md", "CONTRIBUTING.md")}
+
+    def test_every_required_tool_is_named_in_the_docs(self):
+        docs = self.docs()
+        for tool in self.tools():
+            with self.subTest(tool):
+                where = [name for name, text in docs.items()
+                         if re.search(rf"\b{re.escape(tool)}\b", text, re.IGNORECASE)]
+                self.assertTrue(
+                    where,
+                    f"`tse doctor` requires {tool} and neither README.md nor "
+                    f"CONTRIBUTING.md names it. A reader cannot install what "
+                    f"nothing tells them about.",
+                )
+
+    def test_every_requirement_states_which_track_needs_it(self):
+        """A missing tool should cost you one track, not leave you guessing."""
+        for group, entries in tse.REQUIREMENTS:
+            for label, _, remedy in entries:
+                with self.subTest(f"{group}: {label}"):
+                    self.assertTrue(remedy.strip(), f"{label} has no remedy text")
+                    self.assertTrue(remedy.rstrip().endswith("."),
+                                    f"{label}'s remedy is not a sentence: {remedy!r}")
+
+    def test_the_groups_are_ordered_widest_first(self):
+        """Somebody reading top to bottom should hit the universal ones first."""
+        sizes = [len(entries) for _, entries in tse.REQUIREMENTS]
+        self.assertEqual(tse.REQUIREMENTS[0][0], "Everything needs these")
+        self.assertGreater(sizes[0], 1, "the universal group should not be a single tool")
+
+
 class Devcontainer(unittest.TestCase):
     """The Codespace definition, which nothing builds and nothing else checks.
 
