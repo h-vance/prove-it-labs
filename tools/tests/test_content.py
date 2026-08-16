@@ -668,6 +668,43 @@ class RenderedMarkdown(unittest.TestCase):
                       HTML_TAG.findall(prose_only("<img src=x onerror=alert(1)>")))
 
 
+class MachineLocalFiles(unittest.TestCase):
+    """Nothing personal to one machine can be committed by accident.
+
+    `.claude/settings.local.json` was ignored only by the author's *global*
+    gitignore, which is not a property of this repository. Anybody else cloning
+    it would have seen their own local settings as untracked and one `git add
+    -A` away from published.
+    """
+
+    LOCAL_ONLY = (
+        ".claude/settings.local.json",
+        ".vscode/settings.json",
+        ".idea/",
+        ".tse-state.json",
+    )
+
+    def test_this_repository_ignores_them_itself(self):
+        # By line rather than assertIn, which prints the whole .gitignore to
+        # tell you one line is missing from it.
+        lines = {line.strip() for line in (ROOT / ".gitignore").read_text().splitlines()}
+        missing = [name for name in self.LOCAL_ONLY if name not in lines]
+        self.assertEqual(
+            missing, [],
+            f".gitignore does not list {missing}, so they are only ignored if "
+            f"whoever cloned this happens to have them in a global gitignore",
+        )
+
+    def test_none_of_them_are_tracked(self):
+        tracked = set(tse.tracked_files())
+        for name in self.LOCAL_ONLY:
+            with self.subTest(name):
+                self.assertFalse(
+                    any(path == name or path.startswith(name) for path in tracked),
+                    f"{name} is committed",
+                )
+
+
 class PythonFloor(unittest.TestCase):
     """The oldest Python this runs on is stated in one place and checked.
 
