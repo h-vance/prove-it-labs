@@ -304,6 +304,42 @@ class Editorial(unittest.TestCase):
                 self.assertNotIn("```", first.read_text(),
                                  f"{exercise.id}: hint 1 contains a code block")
 
+    # What escalates is how much of the work is done for the reader, not how
+    # many commands appear. An audit first measured this by counting code
+    # fences and concluded six exercises had drifted. Reading them showed the
+    # opposite: hint 2 gives the commands that gather evidence and hint 3
+    # interprets it and gives the fix, which is a real escalation and a better
+    # one. The measurement was wrong, not the hints.
+    #
+    # `tse apply` and `tse check` are what a reader runs after changing
+    # something, so they mark the point where a hint stops asking and starts
+    # answering. Across all twenty-five exercises they appear in hint 3
+    # fifteen times and in hint 2 never.
+    APPLYING_THE_FIX = re.compile(r"\btse (?:apply|check)\b")
+
+    def test_the_second_hint_does_not_hand_over_the_fix(self):
+        """Hint 2 shows how to look. Hint 3 is where the answer lives."""
+        for exercise in EXERCISES:
+            second = exercise.path / "hints" / "2.md"
+            if not second.is_file():
+                continue
+            with self.subTest(exercise.id):
+                self.assertIsNone(
+                    self.APPLYING_THE_FIX.search(second.read_text()),
+                    f"{exercise.id}: hint 2 tells the reader to apply a change. "
+                    f"Gathering evidence belongs in hint 2, the fix in hint 3.",
+                )
+
+    def test_a_later_hint_is_where_the_fix_actually_is(self):
+        """Otherwise the rule above passes on a course with no answers in it."""
+        answered = [
+            exercise.id for exercise in EXERCISES
+            if self.APPLYING_THE_FIX.search(
+                (exercise.path / "hints" / "3.md").read_text())
+        ]
+        self.assertGreater(len(answered), len(EXERCISES) // 2,
+                           "hint 3 has stopped telling anybody what to do")
+
     def test_no_em_dashes(self):
         for name, text in STYLE_SOURCES:
             # Report the line, not the file. assertNotIn prints the haystack,

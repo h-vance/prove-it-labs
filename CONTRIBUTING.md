@@ -158,9 +158,22 @@ fixed workload, over numbers that are measured, such as an average. When you
 do need a measured one, make the gap between pass and fail an order of
 magnitude rather than a margin.
 
-**Hints escalate, they do not dump.** Hint 1 reframes the symptom into a
-provable question and names no command. Hint 2 points at the layer and the kind
-of evidence. Hint 3 gives the commands. `solution.md` gives the reasoning.
+**Hints escalate, they do not dump.** What escalates is how much of the work is
+done for the reader, not how many commands appear.
+
+| | What it does | What it must not do |
+|---|---|---|
+| Hint 1 | Reframes the symptom into a provable question | Name a command |
+| Hint 2 | Names the layer and shows how to gather the evidence | Interpret it, or give the fix |
+| Hint 3 | Shows what the evidence says and what to change | |
+
+Hint 2 may carry commands, and in the harder exercises it should: knowing which
+question to ask a system is most of the skill, and withholding `df -i` teaches
+nothing that withholding it does not also hide. What hint 2 must never contain
+is the change to make. `test_content.py` checks that, and it holds across all
+twenty-five exercises with no exceptions.
+
+`solution.md` gives the reasoning.
 
 **Every solution ends in words.** Root cause, scoped fix, customer update, and
 an escalation note. The writing is graded work, not decoration.
