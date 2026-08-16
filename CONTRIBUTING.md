@@ -29,11 +29,18 @@ tools/tests/preflight.sh
 ```
 
 Every test suite, the leak scan, the link check, shellcheck, the site build with
-its type, page, terminal and accessibility checks, and then `tse verify` and
-`tse record --check` for every exercise your branch can reach. It picks those
-with the same rule the workflow uses, so it cannot check less than CI would.
-`--all` does all 25 rather than the ones you touched, and `--fast` skips Docker
-entirely and takes about twenty seconds.
+its type, page, terminal, accessibility and Content-Security-Policy checks, and
+then `tse verify` and `tse record --check` for every exercise your branch can
+reach. It picks those with the same rule the workflow uses, so it cannot check
+less than CI would. `--all` does all 25 rather than the ones you touched, and
+`--fast` skips Docker entirely and takes about twenty seconds.
+
+One section is worth knowing about because it will fail for reasons the others
+cannot. **A machine that is not this one** re-runs the CLI under `env -i` with a
+stripped PATH and `LANG=C`, so nothing you have exported can make it pass. That
+is where a locale-dependent decode shows up, and it is also what keeps the
+Python floor honest: the stripped PATH finds the system interpreter rather than
+whichever one you installed.
 
 This is deliberately where the expensive checking lives rather than in CI. The
 Docker half of the workflow costs 73 of its 81 billable minutes, which is a

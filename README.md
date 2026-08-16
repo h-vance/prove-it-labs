@@ -196,6 +196,19 @@ python3 tools/tests/test_content.py
 `test_content.py` enforces the editorial rules mechanically, including the one
 that matters most: a ticket that names the failing layer fails the build.
 
+One command runs all of it, and it is the one to run before opening a pull
+request:
+
+```bash
+tools/tests/preflight.sh
+```
+
+**[AUDIT.md](AUDIT.md) is the end-to-end review of this repository**: what was
+found, how each finding was proven, the gate that now holds it, and the defect
+that gate was planted against before it was trusted. It also records the four
+places the audit itself was wrong, because the method is that a gate nobody has
+seen fail is not a gate, and that applies to the person applying it.
+
 ## The site
 
 The course site is an Astro Starlight build in [`site/`](site). Exercise pages
