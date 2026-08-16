@@ -2,10 +2,17 @@
 
 An end-to-end review of this repository against current practice, covering
 correctness, security, accessibility, portability, content, operability and
-cost. Twenty-six commits over two days.
+cost. Twenty-nine commits over two days, finishing 16 August 2026.
 
 Everything below is either fixed and gated, accepted with a reason and a
 number, or listed as not covered. There is no fourth category.
+
+This is a record of one review, not a living document. The counts in it were
+true when it was written and the next exercise added will move some of them. The
+gates it describes are the part that stays current, and they are in
+`tools/tests/` and `site/scripts/` rather than here. The one thing checked
+mechanically is that every cross-reference below still resolves, because a
+document nobody can navigate is not a deliverable.
 
 ## Method
 
@@ -78,7 +85,7 @@ for.
 **How it was proven.** A sample of each format was planted and the scan was run.
 
 **The gate.** Twenty-four patterns everywhere and twenty-six more inside
-recordings, over 393 tracked files, with three named exemptions. Four tests
+recordings, over 394 tracked files, with three named exemptions. Four tests
 hold it honest: every planted sample must be caught, every rule must have a
 planted sample, no rule may fire on what it must tolerate, and every exemption
 must still exist.
@@ -712,12 +719,12 @@ nothing installed beyond Docker and Python.
 
 | Gate | Scale |
 |---|---|
-| `test_content.py` | 123 tests |
+| `test_content.py` | 125 tests |
 | `test_scrub.py` | 53 tests |
 | `test_rubric.py` | 20 tests |
 | `test_meta.py` | 18 tests, incl. parity against real PyYAML |
 | `smoke.sh` | 42 assertions |
-| `tse leaks` | 393 files, 24 patterns everywhere and 26 in recordings |
+| `tse leaks` | 394 files, 24 patterns everywhere and 26 in recordings |
 | `tse links` | every link in the tree |
 | Cold start | 4 commands under `env -i` with `LANG=C` |
 | shellcheck | every shell script, `--severity=info` |
