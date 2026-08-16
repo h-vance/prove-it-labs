@@ -20,7 +20,35 @@ against `setup/` and **passes** against `solution/`. An exercise that passes in
 its broken state is not broken, and one that fails in its fixed state is not
 solvable.
 
-Then run the rest of the suite, which is fast:
+## Before you open a pull request
+
+Run this. It is the gate that matters:
+
+```bash
+tools/tests/preflight.sh
+```
+
+Every test suite, the leak scan, the link check, shellcheck, the site build with
+its type, page, terminal and accessibility checks, and then `tse verify` and
+`tse record --check` for every exercise your branch can reach. It picks those
+with the same rule the workflow uses, so it cannot check less than CI would.
+`--all` does all 25 rather than the ones you touched, and `--fast` skips Docker
+entirely and takes about twenty seconds.
+
+This is deliberately where the expensive checking lives rather than in CI. The
+Docker half of the workflow costs 73 of its 81 billable minutes, which is a
+private repository's entire monthly allowance in 27 pushes, so it runs on
+request. Your machine runs it for nothing.
+
+It is also how this course gets tested on macOS. Hosted macOS runners bill at
+ten times the Linux rate, so a macOS matrix would be roughly 730 minutes per
+push against an allowance of 2,000 and would not survive a week. Running
+`preflight.sh` on the machine you actually work on is real coverage on a real
+platform, which is worth more than a job nobody could afford to keep. When this
+repository is public, standard runners are free and unmetered on every platform
+including macOS, and a macOS job becomes worth adding.
+
+The individual pieces, if you want to run one on its own:
 
 ```bash
 python3 tools/tests/test_content.py   # structure and the editorial rules below
@@ -28,6 +56,8 @@ python3 tools/tests/test_meta.py      # the meta.yaml subset parser
 python3 tools/tests/test_scrub.py     # the output scrubber and commands.txt
 python3 tools/tests/test_rubric.py    # the communication track's grading
 tools/tests/smoke.sh --fast           # the CLI surface
+tools/tse leaks                       # nothing from a real machine is committed
+tools/tse links                       # every link resolves
 ```
 
 CI also lints every shell script in the repository, which is the one check with
