@@ -584,10 +584,52 @@ class ReadmeCounts(unittest.TestCase):
 # `<placeholder>` a contributor might write in prose, because markdown treats
 # that as an unknown tag and renders nothing where the word should be. Telling
 # somebody that up front is better than the word silently vanishing.
+HTML_TAG = re.compile(r"</?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?/?>")
 
 
+def prose_only(text: str) -> str:
+    """The parts of a markdown file that are not code."""
+    text = re.sub(r"(?ms)^```.*?^```", "", text)
+    return re.sub(r"`[^`\n]*`", "", text)
 
 
+class RenderedMarkdown(unittest.TestCase):
+    """Nothing contributed reaches the page as live HTML.
+
+    `md()` in site/src/lib/labs.ts renders with marked and no sanitizer, and
+    the page inserts the result with `set:html`. Every ticket, hint, solution
+    and reference document goes through that path, so a tag written into one is
+    a tag on the published site.
+
+    Adding a sanitizer would mean adding a dependency to a project whose lack
+    of them is a stated design property, and it would strip the markup quietly
+    rather than telling the author. Refusing raw HTML at the source closes the
+    same hole one step earlier and gives a contributor an error they can act on.
+    """
+
+    def sources(self):
+        return sorted(ROOT.glob("labs/*/*/**/*.md")) + sorted(ROOT.glob("reference/*.md"))
+
+    def test_no_contributed_markdown_carries_raw_html(self):
+        for path in self.sources():
+            found = HTML_TAG.findall(prose_only(path.read_text()))
+            with self.subTest(str(path.relative_to(ROOT))):
+                self.assertEqual(
+                    found, [],
+                    f"{path.relative_to(ROOT)} contains raw HTML: {found}. "
+                    f"It is rendered with set:html and reaches the page as markup.",
+                )
+
+    def test_there_is_something_to_check(self):
+        self.assertGreater(len(self.sources()), 100)
+
+    def test_the_detector_tells_markup_from_code(self):
+        """A tag inside a fence is an example, not markup."""
+        self.assertEqual(HTML_TAG.findall(prose_only("```\n<script>x</script>\n```\n")), [])
+        self.assertEqual(HTML_TAG.findall(prose_only("use `<div>` here")), [])
+        self.assertIn("<script>", HTML_TAG.findall(prose_only("a <script>alert(1)</script> b")))
+        self.assertIn("<img src=x onerror=alert(1)>",
+                      HTML_TAG.findall(prose_only("<img src=x onerror=alert(1)>")))
 
 
 
