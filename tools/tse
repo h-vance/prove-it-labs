@@ -2174,35 +2174,61 @@ def classify_link(target: str, own: tuple[str, ...] = ()) -> str:
     return "relative"
 
 
-def own_urls() -> tuple[str, ...]:
+def own_urls(offline: bool = True) -> tuple[str, ...]:
     """
-    The addresses this repository uses to refer to itself.
+    The addresses this repository uses to refer to itself, while nothing can check them.
 
     Derived rather than written down, so renaming the repository cannot leave a
     stale exemption behind that quietly stops checking the very links the
     rename broke. That is not hypothetical: the rename to prove-it-labs left
     two dead self-references, and both are what this check found first.
 
-    THE DAY THIS REPOSITORY GOES PUBLIC: these stop returning 404 and this
-    function stops being needed. Deleting it then is the check getting stronger.
+    The exemption exists for one reason: a private repository answers 404 to
+    everybody, so every self-link looks broken and none of them are. It expires
+    on its own. The moment the repository answers publicly this returns
+    nothing, and self-links are checked exactly like any other.
+
+    That was originally a note reading "delete this the day it goes public",
+    which is a gate that depends on somebody remembering. It matters for one
+    link especially: SECURITY.md sends reporters to the advisory form, and that
+    form only exists once private vulnerability reporting is switched on. So
+    "the security policy does not send people to a 404" is a check that can
+    only be made after the flip, and now nobody has to remember to make it.
     """
     found: list[str] = []
     result = subprocess.run(
         ["git", "remote", "get-url", "origin"],
         capture_output=True, text=True, encoding="utf-8", cwd=ROOT,
     )
+    repository = ""
     if result.returncode == 0 and result.stdout.strip():
         remote = result.stdout.strip().removesuffix(".git")
         if remote.startswith("http"):
-            found.append(remote.lower())
+            repository = remote.lower()
         elif remote.startswith("git@github.com:"):
-            found.append("https://github.com/" + remote.split(":", 1)[1].lower())
+            repository = "https://github.com/" + remote.split(":", 1)[1].lower()
+        if repository:
+            found.append(repository)
 
     config = ROOT / "site" / "astro.config.ts"
     if config.is_file():
         site = re.search(r"""site:\s*["']([^"']+)["']""", config.read_text(encoding="utf-8"))
         if site:
             found.append(site.group(1).rstrip("/").lower())
+
+    # Offline runs never request an external address at all, so there is
+    # nothing to decide and no call worth making.
+    if offline or not repository:
+        return tuple(found)
+
+    # A repository that answers a stranger is public, and from then on
+    # exempting its own links only hides real breakage. A probe that fails to
+    # reach GitHub keeps the exemption, matching how this command treats every
+    # other unreachable host: a bad minute on the network is a warning, never a
+    # failure.
+    status, _ = probe_url(repository)
+    if status == 200:
+        return ()
     return tuple(found)
 
 
@@ -2290,7 +2316,7 @@ def cmd_links(args: argparse.Namespace) -> None:
     import urllib.request
 
     base = site_base_path()
-    own = own_urls()
+    own = own_urls(args.offline)
     problems: list[str] = []
     warnings: list[str] = []
     external: dict[str, list[str]] = {}
