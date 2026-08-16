@@ -195,6 +195,114 @@ def check_compose_override(text: str, source: str) -> None:
         sys.exit(f"tse: {source}: no `services` block, so there is nothing to apply.")
 
 
+# --------------------------------------------------------------------------- #
+# What a stack promises about its own containment
+# --------------------------------------------------------------------------- #
+
+# CONTRIBUTING tells a contributor to copy these from an existing stack. Nothing
+# checked that they did, and an audit found the answer: the one image in the
+# course that holds data, postgres, was running with full capabilities in both
+# stacks that use it while every Python service beside it was sealed.
+CONTAINMENT_KEYS = ("read_only", "cap_drop", "security_opt",
+                    "mem_limit", "cpus", "pids_limit")
+
+# A service that genuinely cannot take one of these says so here, in the compose
+# file, with the reason. Compose ignores any key starting with `x-`, so this
+# costs nothing at runtime and cannot be forgotten in a comment somewhere else.
+CONTAINMENT_EXCEPTION = "x-containment"
+
+
+def service_containment(text: str, source: str) -> dict[str, dict[str, str]]:
+    """Which containment keys each service in a compose file ends up with.
+
+    A scan rather than a YAML parse, matching `check_compose_override` above,
+    and strict for the same reason: what it cannot read confidently it refuses,
+    because a containment check that silently reads nothing reports a sealed
+    stack either way.
+
+    Merge keys are resolved, because the observability stack defines its
+    posture once in an anchor and shares it across three services. Values are
+    returned as text: a list becomes its items joined by commas, which is all
+    any caller here needs to ask about.
+    """
+    lines = text.splitlines()
+    blocks: dict[str, dict[str, str]] = {}   # anchor name or service -> keys
+    anchors: dict[str, str] = {}             # anchor name -> block name
+    merges: dict[str, list[str]] = {}        # service -> anchor names it merges
+    order: list[str] = []                    # service names, in file order
+
+    current: str | None = None
+    body_indent = 0
+    key: str | None = None
+    in_services = False
+
+    for number, raw in enumerate(lines, start=1):
+        where = f"{source}:{number}"
+        if "\t" in raw:
+            sys.exit(f"tse: {where}: tabs are not valid YAML indentation.")
+        line = raw.split("#", 1)[0].rstrip()
+        if not line.strip():
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        if indent % 2:
+            sys.exit(f"tse: {where}: indentation must be a multiple of two spaces.")
+        body = line.strip()
+
+        # A top level key ends whatever block was open.
+        if indent == 0:
+            current, key = None, None
+            in_services = body.startswith("services:")
+            name, _, rest = body.partition(":")
+            marker = rest.strip()
+            if marker.startswith("&"):
+                # An anchored mapping at the root, such as `x-service: &service`.
+                current = name.strip()
+                anchors[marker[1:].split()[0]] = current
+                blocks[current] = {}
+                body_indent = 2
+            continue
+
+        if in_services and indent == 2 and body.endswith(":"):
+            current = body[:-1].strip()
+            blocks.setdefault(current, {})
+            merges.setdefault(current, [])
+            order.append(current)
+            body_indent = 4
+            key = None
+            continue
+
+        if current is None:
+            continue
+
+        if indent == body_indent:
+            name, _, value = body.partition(":")
+            key = name.strip()
+            value = value.strip()
+            if key == "<<":
+                if not value.startswith("*"):
+                    sys.exit(f"tse: {where}: a merge key must name an anchor.")
+                merges.setdefault(current, []).append(value[1:].split()[0])
+                key = None
+                continue
+            blocks[current][key] = value
+        elif indent > body_indent and body.startswith("- ") and key:
+            # A list item belonging to the key above it.
+            item = body[2:].strip()
+            existing = blocks[current][key]
+            blocks[current][key] = f"{existing}, {item}" if existing else item
+
+    resolved: dict[str, dict[str, str]] = {}
+    for service in order:
+        merged: dict[str, str] = {}
+        for anchor in merges.get(service, []):
+            if anchor not in anchors:
+                sys.exit(f"tse: {source}: `{service}` merges *{anchor}, which is not defined.")
+            merged.update(blocks[anchors[anchor]])
+        merged.update(blocks[service])
+        resolved[service] = merged
+    return resolved
+
+
 def check_kubernetes_manifest(text: str, source: str) -> None:
     """Refuse a manifest that creates an unexpected kind or reaches the node."""
     kinds = re.findall(r"(?m)^\s*kind:\s*(\S+)", text)

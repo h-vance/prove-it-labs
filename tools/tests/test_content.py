@@ -319,23 +319,114 @@ class Editorial(unittest.TestCase):
 
     def test_us_spelling(self):
         """Every word a reader sees, not only the one somebody happened to notice."""
-        paths = (
-            sorted(ROOT.glob("labs/*/*/*.md"))
-            + sorted(ROOT.glob("labs/*/*/hints/*.md"))
-            + sorted(ROOT.glob("labs/*/*/meta.yaml"))
-            + sorted(ROOT.glob("labs/*/*/questions.json"))
-            + sorted(ROOT.glob("reference/*.md"))
-            + [ROOT / "README.md", ROOT / "CONTRIBUTING.md"]
-        )
-        for path in paths:
-            if not path.is_file():
+        for name, text in STYLE_SOURCES:
+            hits = []
+            for i, line in enumerate(text.splitlines(), 1):
+                found = BRITISH.search(SPELLED_BY_SPECIFICATION.sub("", line))
+                if found:
+                    hits.append(f"line {i}: {found.group(0)!r}")
+            with self.subTest(name):
+                self.assertEqual(hits, [], f"{name} uses British spelling, {'; '.join(hits)}")
+
+    def test_the_style_sweep_reaches_past_the_exercises(self):
+        """The scope is the point of this pair, so the scope is asserted.
+
+        Both rules used to read labs/ and a couple of files at the root, which
+        is the surface somebody thought of rather than the surface a reader
+        sees. Two British spellings sat in site/ comments the whole time
+        because nothing looked there.
+        """
+        covered = {name for name, _ in STYLE_SOURCES}
+        for name in ("SECURITY.md", "CODE_OF_CONDUCT.md",
+                     "site/src/content/docs/index.mdx",
+                     "site/src/styles/custom.css",
+                     "site/scripts/a11y.mjs",
+                     ".github/workflows/verify.yml"):
+            with self.subTest(name):
+                self.assertIn(name, covered, f"{name} is not being checked")
+
+    def test_every_style_exemption_still_exists_and_still_needs_it(self):
+        """An exemption that stopped being needed is an unchecked file."""
+        for name, reason in STYLE_EXEMPT.items():
+            with self.subTest(name):
+                self.assertTrue((ROOT / name).is_file(), f"{name} is exempt and gone")
+                text = (ROOT / name).read_text(encoding="utf-8")
+                self.assertTrue(
+                    "—" in text or BRITISH.search(SPELLED_BY_SPECIFICATION.sub("", text)),
+                    f"{name} no longer needs its exemption ({reason}); delete it",
+                )
+
+    def test_a_specification_spelling_is_not_mistaken_for_prose(self):
+        """`aria-labelledby` is an attribute name and cannot be spelled the US way."""
+        stripped = SPELLED_BY_SPECIFICATION.sub("", '<p aria-labelledby="x">')
+        self.assertIsNone(BRITISH.search(stripped))
+        self.assertIsNotNone(BRITISH.search("the labelled diagram"))
+
+
+STACKS = sorted(ROOT.glob("labs/*/_stack/compose.yaml"))
+
+
+class Containment(unittest.TestCase):
+    """Every service in every stack is confined, and says how.
+
+    CONTRIBUTING told a contributor to copy `read_only`, `cap_drop`,
+    `no-new-privileges` and the resource caps from an existing stack, and
+    nothing checked that they had. The answer, when something finally looked,
+    was that the only image in the course holding data was the one running with
+    full capabilities, in both stacks that use it, while every Python service
+    beside it was sealed.
+
+    A service that genuinely cannot take a setting declares `x-containment`
+    with the reason. Silence is not an option, which is the whole point:
+    postgres turned out to take all of it once it starts as the postgres user
+    instead of dropping to it, so no exception was needed after all.
+    """
+
+    def containment(self):
+        for path in STACKS:
+            name = str(path.relative_to(ROOT))
+            for service, keys in tse.service_containment(path.read_text(), name).items():
+                yield name, service, keys
+
+    def test_every_service_is_confined(self):
+        for name, service, keys in self.containment():
+            with self.subTest(f"{name}:{service}"):
+                if tse.CONTAINMENT_EXCEPTION in keys:
+                    self.assertTrue(
+                        len(keys[tse.CONTAINMENT_EXCEPTION]) > 20,
+                        f"{name}: {service} claims an exception without a reason",
+                    )
+                    continue
+                missing = [k for k in tse.CONTAINMENT_KEYS if k not in keys]
+                self.assertEqual(
+                    missing, [],
+                    f"{name}: {service} declares no {', '.join(missing)}. Copy the "
+                    f"posture from a service beside it, or add {tse.CONTAINMENT_EXCEPTION} "
+                    f"with the reason it cannot.",
+                )
+
+    def test_the_confinement_is_the_strong_form(self):
+        """Present is not enough. `cap_drop: [NET_RAW]` would pass a key check."""
+        for name, service, keys in self.containment():
+            if tse.CONTAINMENT_EXCEPTION in keys:
                 continue
-            found = self.BRITISH.search(path.read_text())
-            with self.subTest(str(path.relative_to(ROOT))):
-                self.assertIsNone(
-                    found,
-                    f"{path.relative_to(ROOT)} uses British spelling: "
-                    f"{found.group(0) if found else ''!r}",
+            with self.subTest(f"{name}:{service}"):
+                self.assertEqual(keys.get("read_only"), "true",
+                                 f"{name}: {service} is not read_only")
+                self.assertIn("ALL", keys.get("cap_drop", ""),
+                              f"{name}: {service} does not drop ALL capabilities")
+                self.assertIn("no-new-privileges:true", keys.get("security_opt", ""),
+                              f"{name}: {service} can still gain privileges")
+
+    def test_every_stack_was_actually_read(self):
+        """A scan that quietly found no services would pass everything above."""
+        self.assertGreaterEqual(len(STACKS), 6, "stacks have gone missing")
+        for path in STACKS:
+            name = str(path.relative_to(ROOT))
+            with self.subTest(name):
+                self.assertGreater(
+                    len(tse.service_containment(path.read_text(), name)), 0,
+                    f"{name}: no services were read out of it",
                 )
 
 

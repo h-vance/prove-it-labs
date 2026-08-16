@@ -3,6 +3,17 @@ name: proveit-docker
 services:
   postgres:
     image: postgres:16-alpine
+    # Same containment as the app beside it, and for the same reason. The
+    # entrypoint drops from root to postgres with gosu, which needs SETUID and
+    # is blocked by no-new-privileges, so it starts as postgres instead and
+    # never has anything to drop. The named volume stays writable; only the
+    # image's own layer is sealed.
+    user: postgres
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     environment:
       POSTGRES_DB: support_lab
       POSTGRES_USER: support
@@ -10,6 +21,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+    tmpfs:
+      # The socket directory and scratch space, which are the only paths
+      # postgres writes outside its data directory.
+      - /var/run/postgresql
+      - /tmp
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U support -d support_lab"]
       interval: 2s

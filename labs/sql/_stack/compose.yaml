@@ -2,21 +2,50 @@ name: proveit-sql
 
 # There is deliberately no named volume for the database.
 #
-# PGDATA lives in the container's writable layer, so `up --force-recreate`
-# destroys it and the seed runs again from scratch. That is what makes these
-# exercises idempotent: sql/03's solution creates an index, and with a
-# persistent volume that index would survive into the next run, the broken
-# state would quietly pass, and the exercise would verify as valid while
-# teaching nothing. Adding a volume here breaks that silently.
+# PGDATA lives on a tmpfs, so `up --force-recreate` destroys it and the seed
+# runs again from scratch. That is what makes these exercises idempotent:
+# sql/03's solution creates an index, and with a persistent volume that index
+# would survive into the next run, the broken state would quietly pass, and the
+# exercise would verify as valid while teaching nothing. Adding a volume here
+# breaks that silently.
+#
+# A tmpfs rather than the container's writable layer because the layer is now
+# read-only, see below. It also makes the guarantee stronger: the data never
+# reaches a disk at all. It costs memory, so it was measured rather than
+# assumed. The full 300,000-row seed is 122M of the 512M cap, and the container
+# sits at 166M in total, a third of what it is allowed.
 services:
   postgres:
     image: postgres:16-alpine
+    # Containment, matching every other service in this course.
+    #
+    # The official entrypoint starts as root and drops to postgres with gosu,
+    # which needs SETUID and SETGID and is blocked outright by
+    # no-new-privileges. Starting as the postgres user skips that branch, so
+    # all three settings hold and nothing about the exercise changes. Verified
+    # from outside: CapDrop=[ALL], ReadonlyRootfs=true, and the seed, the
+    # queries and sql/03's CREATE INDEX all still work.
+    user: postgres
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     environment:
       POSTGRES_DB: support_lab
       POSTGRES_USER: support
       POSTGRES_PASSWORD: demo-password
+      # Postgres refuses a data directory that is a mount point, so PGDATA is a
+      # directory inside the tmpfs rather than the tmpfs itself.
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+    tmpfs:
+      # uid 70 is postgres in the alpine image. Without it the tmpfs is owned
+      # by root and a container that cannot become root cannot write to it.
+      - /var/lib/postgresql/data:uid=70,gid=70
+      - /var/run/postgresql
+      - /tmp
     ports:
       - "127.0.0.1:5434:5432"
     healthcheck:
