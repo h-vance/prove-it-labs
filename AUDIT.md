@@ -782,14 +782,43 @@ starts working at the flip with nothing to remember. The link checker's
 self-exemption expires the same way, on its own, and is described in S7.
 
 **The one thing that cannot be checked before the flip.** The last five `verify`
-runs failed, on `tests`, `shellcheck` and `discover exercises`, and their logs
-have since expired. Everything they covered now passes locally, and
-`preflight.sh --all` is green, so they are very probably already fixed by the
-audit itself. Probably is not proof. Confirming it needs a CI run, a CI run
-needs the allowance, and the allowance is what the flip is for. So this one is
-honestly circular: the repository goes public with a badge whose last known
-state was red, and the first action after flipping is to run `verify` by hand
-and find out. It is written down here rather than smoothed over.
+runs failed and their logs have expired, so the first version of this paragraph
+recorded the cause as unknowable and moved on. That was giving up too early.
+The run logs expire; the check run annotations do not, and they name both the
+failing step and the reason.
+
+Read that way, the five runs are two different stories.
+
+| Run | What actually failed |
+|---|---|
+| 20:03 | Nothing ran. `The job was not started because recent account payments have failed or your spending limit needs to be increased` |
+| 19:49 | `sql/03` and `observability/02`, both on "fails broken and passes fixed" |
+| 19:17 | The same two, plus `docker/02` on "recorded output still matches the system" |
+| 19:01 | The same two again |
+| 18:44 | `networking/01` on "recorded output still matches the system" |
+
+So the red badge is not one failure, it is a billing wall in front of a real
+one. Two exercises failed on three consecutive runs, which is not flake.
+
+**Neither of them is timing dependent**, which was the first guess and was
+wrong. `sql/03` deliberately asserts on the query plan rather than on elapsed
+time, and says so in a comment: a wall clock threshold there would be flaky and
+misleading. `observability/02` asserts that one reference appears in each
+service's log. Both are deterministic, so both failed for a real reason on
+Linux while passing on the machine they were written on.
+
+What that reason is stays open. Both now pass here, in a full
+`preflight.sh --all`, and the stack under one of them changed after these runs:
+`sql/03` reads an `EXPLAIN` plan, and the audit moved that database onto a
+tmpfs `PGDATA` running as `postgres`, which changes the I/O costs a planner
+makes its choices from. That could have fixed it or moved it. Guessing which is
+exactly what this document is against.
+
+The honest statement is therefore narrower than "probably fixed": two exercises
+have a known, reproducible, unexplained difference between Linux CI and macOS,
+last seen before a change that could plausibly affect one of them. The first
+`verify` run after the flip is the experiment, and going in expecting green
+would be the wrong posture.
 
 ---
 
