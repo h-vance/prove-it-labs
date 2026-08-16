@@ -10,11 +10,15 @@ head:
 hero:
   tagline: You get a customer ticket, a genuinely broken system, and no hint about which layer failed. Working out what to look at first is the skill.
   actions:
+    # These carry the base path in full, because Starlight puts a hero action's
+    # link straight into an href without prefixing it, unlike sidebar entries
+    # in astro.config.ts, which it does prefix. Both were written as `/start`
+    # and both served a 404 on the published site for as long as it existed.
     - text: Where should I begin?
-      link: /start
+      link: /prove-it-labs/start
       icon: right-arrow
     - text: How this works
-      link: /how-it-works
+      link: /prove-it-labs/how-it-works
       variant: minimal
     - text: Repository
       link: https://github.com/h-vance/prove-it-labs

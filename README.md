@@ -1,9 +1,45 @@
 # Prove It
 
 [![verify](https://github.com/h-vance/prove-it-labs/actions/workflows/verify.yml/badge.svg)](https://github.com/h-vance/prove-it-labs/actions/workflows/verify.yml)
+[![site](https://github.com/h-vance/prove-it-labs/actions/workflows/site.yml/badge.svg)](https://github.com/h-vance/prove-it-labs/actions/workflows/site.yml)
+[![security](https://github.com/h-vance/prove-it-labs/actions/workflows/security.yml/badge.svg)](https://github.com/h-vance/prove-it-labs/actions/workflows/security.yml)
+[![license](https://img.shields.io/badge/license-MIT%20%2B%20CC%20BY%204.0-4a5568)](LICENSES/)
+
+![Docker](https://img.shields.io/badge/Docker-4a5568?logo=docker&logoColor=white)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-4a5568?logo=kubernetes&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4a5568?logo=postgresql&logoColor=white)
+![Python](https://img.shields.io/badge/Python%203.9+-4a5568?logo=python&logoColor=white)
+![OpenSSL](https://img.shields.io/badge/TLS-4a5568?logo=openssl&logoColor=white)
+![Astro](https://img.shields.io/badge/Astro-4a5568?logo=astro&logoColor=white)
 
 A hands-on Technical Support Engineering course. You get a customer ticket, a
 genuinely broken system, and no hint about which layer failed. You investigate.
+
+**The course site is at [h-vance.github.io/prove-it-labs](https://h-vance.github.io/prove-it-labs/).**
+Every exercise page there is generated from the exercise itself, and carries a
+terminal replaying output captured by really running those commands.
+
+**You get the ticket, and nothing else.** No topic, no layer, no hint about
+where the fault is. That is the one thing a real ticket never gives you.
+
+![A customer ticket titled "dashboard unavailable since this morning", describing a slow page that times out, with no mention of any technology](docs/screenshots/ticket.png)
+
+**The terminal on the page replays real output.** These are not invented
+strings. Each one was captured by running that command against the broken
+system, and CI re-runs every one of them against a freshly provisioned stack on
+every push, so a byte of drift fails the build rather than quietly misleading
+somebody.
+
+![The site's terminal after running docker inspect on the postgres container, showing the output "healthy" and a footer reading "1 line of output, exit status 0"](docs/screenshots/terminal.png)
+
+That screenshot is worth a second look. The database is **healthy**, and the
+customer still cannot load anything. Learning to say what that proves, and just
+as importantly what it does not, is the whole course.
+
+Regenerate the images with `npm run screenshots`, which drives the built site in
+a real browser. They are scripted rather than captured by hand for the same
+reason the recordings are: a picture of a user interface is a claim about it,
+and one nothing can reproduce goes stale without telling anybody.
 
 Most infrastructure courses tell you the topic before the exercise, which is the
 one thing a real ticket never does. Every ticket here is a symptom in the
