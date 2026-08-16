@@ -785,6 +785,78 @@ class Devcontainer(unittest.TestCase):
                         "the guard comes after the banner it is meant to guard")
 
 
+class DownloadedBinaries(unittest.TestCase):
+    """Anything fetched from the network and then run must be checksummed first.
+
+    Every GitHub action in this repository is pinned to a commit SHA. The kind
+    binary was not. Two places curled it and handed it straight to `sudo
+    install`, so whatever that URL served on the day ran as root, both on CI
+    runners and in every learner's Codespace. The fix is a checksum committed
+    to git, which is what makes it a control: a checksum fetched next to the
+    thing it checks only proves the two arrived together.
+    """
+
+    # A download that names the file it lands in. A download piped into
+    # something else is a different shape and is deliberately not matched here.
+    DOWNLOAD = re.compile(
+        r"\b(?:curl|wget)\b[^\n]*?\s(?:-[A-Za-z]*o|--output|--output-document)[= ]\s*(\S+)")
+    CHECKED = re.compile(r"\bsha256sum\s+-c\b|\bshasum\s+-a\s*256\s+-c\b")
+    # Handing the file to something that will run it, now or later.
+    RUNS_IT = re.compile(r"\b(?:install|chmod\s+\+x|exec)\b")
+
+    def scripts(self) -> list[tuple[str, str]]:
+        out = []
+        for name in tse.tracked_files():
+            if not name.endswith((".sh", ".bash", ".yml", ".yaml")):
+                continue
+            text = tse.decode_for_scanning((ROOT / name).read_bytes())
+            if text is not None:
+                out.append((name, text))
+        return out
+
+    def test_a_downloaded_file_is_verified_before_it_is_installed(self):
+        """Walk forward from each download. A checksum must come before the install."""
+        for name, text in self.scripts():
+            lines = text.splitlines()
+            for index, line in enumerate(lines):
+                match = self.DOWNLOAD.search(line)
+                if not match:
+                    continue
+                target = match.group(1).strip("\"'")
+                # Downloading is not the problem. Running what was downloaded
+                # without having checked it is, so a fetch that nothing ever
+                # installs or marks executable is left alone. Several exercises
+                # curl into /dev/null on purpose.
+                with self.subTest(f"{name}:{index + 1}"):
+                    for offset, later in enumerate(lines[index + 1:], index + 2):
+                        if self.CHECKED.search(later) and target in later:
+                            break
+                        if self.RUNS_IT.search(later) and target in later:
+                            self.fail(
+                                f"{name}:{offset} installs {target}, downloaded at "
+                                f"line {index + 1}, with nothing having verified it. "
+                                f"Pin the published sha256 and check it first."
+                            )
+
+    PINNED_DIGEST = re.compile(r"\b(?:KIND_SHA256=|echo\s+\")([0-9a-fA-F]+)\s")
+
+    def test_every_pinned_digest_is_a_full_sha256(self):
+        """A truncated digest still reads as a pin and checks almost nothing."""
+        for name, text in self.scripts():
+            for index, line in enumerate(text.splitlines(), 1):
+                if "sha256" not in line.lower() and "SHA256" not in line:
+                    continue
+                match = self.PINNED_DIGEST.search(line)
+                if not match:
+                    continue
+                with self.subTest(f"{name}:{index}"):
+                    self.assertEqual(
+                        len(match.group(1)), 64,
+                        f"{name}:{index} pins a {len(match.group(1))} character "
+                        f"digest, and a sha256 is 64",
+                    )
+
+
 class ClusterHelpers(unittest.TestCase):
     """Guards on the Kubernetes preload path.
 

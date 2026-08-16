@@ -9,8 +9,20 @@ echo "Installing kind ..."
 if ! command -v kind >/dev/null 2>&1; then
     KIND_VERSION=v0.30.0
     ARCH=$(dpkg --print-architecture)
+    # Published with the release as kind-linux-<arch>.sha256sum. Pinned here
+    # rather than fetched, because a checksum downloaded next to the thing it
+    # checks only proves the two arrived together. Living in git is what makes
+    # it a control: changing the binary this installs now takes a commit.
+    case "$ARCH" in
+        amd64) KIND_SHA256=517ab7fc89ddeed5fa65abf71530d90648d9638ef0c4cde22c2c11f8097b8889 ;;
+        arm64) KIND_SHA256=7ea2de9d2d190022ed4a8a4e3ac0636c8a455e460b9a13ccf19f15d07f4f00eb ;;
+        # Refusing is the point. Falling through to an unverified install on an
+        # architecture nobody pinned is the failure this whole block prevents.
+        *) echo "No pinned kind checksum for architecture '$ARCH'." >&2; exit 1 ;;
+    esac
     curl -fsSLo /tmp/kind \
         "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-${ARCH}"
+    echo "${KIND_SHA256}  /tmp/kind" | sha256sum -c -
     sudo install -m 0755 /tmp/kind /usr/local/bin/kind
     rm -f /tmp/kind
 fi

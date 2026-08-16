@@ -230,10 +230,17 @@ jobs:
 
       # tse creates and reuses its own cluster, so only the binary is needed.
       # The Kubernetes exercises are the only ones that touch it.
+      #
+      # The checksum is the one published with the release, pinned for the same
+      # reason every action in this file is pinned to a commit SHA. Without it
+      # this step installs whatever that URL serves on the day, at root, on a
+      # runner that also handles contributed pull request code.
       - name: Install kind
         if: matrix.group.stack == 'kubernetes'
         run: |
+          set -euo pipefail
           curl -fsSLo /tmp/kind https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64
+          echo "517ab7fc89ddeed5fa65abf71530d90648d9638ef0c4cde22c2c11f8097b8889  /tmp/kind" | sha256sum -c -
           sudo install -m 0755 /tmp/kind /usr/local/bin/kind
 
       # An exercise is only correct if it fails in its broken state and passes
