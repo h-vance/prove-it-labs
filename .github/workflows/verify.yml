@@ -97,6 +97,60 @@ jobs:
       - name: CLI smoke test
         run: tools/tests/smoke.sh --fast
 
+  # The same gates, on the other operating system this course is used from.
+  #
+  # Deliberately not the exercises. Hosted macOS runners have no Docker daemon,
+  # so this job cannot provision a single stack no matter how it is written, and
+  # a job named for a platform that silently covers a fraction of it is worse
+  # than no job. The first step below records what the runner actually has, so
+  # that claim stays evidence rather than folklore when Docker eventually lands.
+  #
+  # What this does cover is real: the CLI is a Python script that reads files,
+  # runs subprocesses and decodes text, and every one of those has already been
+  # a portability bug here. `tse record` crashed under a different locale, and
+  # the stated Python floor was wrong and only found by running on a stock
+  # interpreter. macOS ships a different Python and a different `sed`, `grep`
+  # and `date`, and this is what notices.
+  #
+  # The exercises on macOS are covered by `tools/tests/preflight.sh` on a real
+  # Mac, which is not a stopgap. It is the only thing that can do it.
+  macos:
+    name: macOS
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: What this runner actually has
+        run: |
+          echo "python3: $(python3 --version 2>&1), at $(command -v python3)"
+          if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+            echo "docker: present and running, so this job could be widened"
+          else
+            echo "docker: absent, which is why this job skips the exercises"
+          fi
+
+      # No install step, for the same reason as the Linux `tests` job: if tse
+      # ever grows a dependency, this fails.
+      - name: CLI runs on a stock interpreter
+        run: |
+          tools/tse list
+          tools/tse list --ids
+          tools/tse progress --json
+
+      - name: Parser and content tests
+        run: |
+          python3 tools/tests/test_meta.py
+          python3 tools/tests/test_content.py
+          python3 tools/tests/test_scrub.py
+          python3 tools/tests/test_rubric.py
+
+      - name: Nothing from a real machine is committed
+        run: tools/tse leaks
+
+      - name: CLI smoke test
+        run: tools/tests/smoke.sh --fast
+
   # Which exercises this change can actually break.
   #
   # Verifying all twenty five costs about eighty billable minutes. On a private
