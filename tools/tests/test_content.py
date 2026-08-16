@@ -515,6 +515,83 @@ class BaseImages(unittest.TestCase):
                          "post-create.sh pulls an image no stack builds on")
 
 
+NUMBER_WORDS = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
+    "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+    "twenty-five": 25, "fifty": 50, "one hundred": 100,
+}
+
+
+class ReadmeCounts(unittest.TestCase):
+    """The README's table is a claim about the repository, so it is checked.
+
+    Nothing kept it honest. It happens to be right, and it would have stayed
+    right-looking through the next exercise added, because a table nobody reads
+    against reality is just a paragraph.
+
+    Catching the README and the site calling one track two different names was
+    the first thing this found: the table said "Linux and CLI foundations" and
+    every page on the site said "Linux and CLI".
+    """
+
+    def rows(self) -> list[tuple[str, int]]:
+        text = (ROOT / "README.md").read_text()
+        block = re.search(r"(?ms)^\| Track \| Exercises \|.*?(?=\n\n)", text)
+        self.assertIsNotNone(block, "the README has no track table any more")
+        out = []
+        for line in block.group(0).splitlines()[2:]:
+            cells = [c.strip() for c in line.strip("|").split("|")]
+            out.append((cells[0], int(cells[1])))
+        return out
+
+    def site_labels(self) -> dict[str, str]:
+        """TRACK_LABELS out of the site, so the two cannot drift apart."""
+        text = (ROOT / "site" / "src" / "lib" / "labs.ts").read_text()
+        block = re.search(r"TRACK_LABELS[^{]*\{(.*?)\}", text, re.S)
+        self.assertIsNotNone(block, "TRACK_LABELS has moved or been renamed")
+        return dict(re.findall(r'(\w+):\s*"([^"]+)"', block.group(1)))
+
+    def test_every_track_has_a_row_with_the_right_count(self):
+        labels = self.site_labels()
+        real = {}
+        for exercise in EXERCISES:
+            real[labels.get(exercise.track, exercise.track)] = \
+                real.get(labels.get(exercise.track, exercise.track), 0) + 1
+        self.assertEqual(dict(self.rows()), real)
+
+    def test_the_table_names_tracks_the_way_the_site_does(self):
+        """A reader moving between the README and the site sees one name."""
+        self.assertEqual(
+            sorted(label for label, _ in self.rows()),
+            sorted(self.site_labels().values()),
+        )
+
+    def test_the_sentence_under_the_table_counts_the_same_things(self):
+        text = (ROOT / "README.md").read_text()
+        said = re.search(r"(?i)(\w+[\w-]*) exercises across all (\w+) tracks", text)
+        self.assertIsNotNone(said, "the sentence under the table has been reworded")
+        self.assertEqual(NUMBER_WORDS.get(said.group(1).lower()), len(EXERCISES),
+                         f"the README says {said.group(1)} exercises")
+        self.assertEqual(NUMBER_WORDS.get(said.group(2).lower()), len(self.rows()),
+                         f"the README says {said.group(2)} tracks")
+
+    def test_the_table_was_actually_found(self):
+        """Every assertion above passes trivially against an empty table."""
+        self.assertGreaterEqual(len(self.rows()), 9)
+
+
+# Anything shaped like an HTML tag. Deliberately broad, including the
+# `<placeholder>` a contributor might write in prose, because markdown treats
+# that as an unknown tag and renders nothing where the word should be. Telling
+# somebody that up front is better than the word silently vanishing.
+
+
+
+
+
+
+
+
 class ClusterHelpers(unittest.TestCase):
     """Guards on the Kubernetes preload path.
 

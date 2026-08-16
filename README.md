@@ -123,7 +123,7 @@ prose, which includes a lot of very good engineers.
 | SQL and PostgreSQL | 3 | Available |
 | Mixed incidents | 2 | Available |
 | Customer communication | 2 | Available |
-| Linux and CLI foundations | 2 | Available |
+| Linux and CLI | 2 | Available |
 | Networking, DNS, TLS | 2 | Available, both on TLS so far |
 | Observability | 2 | Available |
 
