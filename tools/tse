@@ -1216,10 +1216,7 @@ def foreign_projects() -> set[str]:
     those apart: the second one silently switches this protection off at
     exactly the moment something is wrong with the machine.
     """
-    result = subprocess.run(
-        ["docker", "compose", "ls", "--all", "--format", "json"],
-        capture_output=True, text=True, encoding="utf-8",
-    )
+    result = run_tool(["docker", "compose", "ls", "--all", "--format", "json"])
     if result.returncode != 0:
         sys.exit(
             "tse: could not ask Docker what else is running, so a recording "
@@ -1388,9 +1385,37 @@ def kubectl(*args: str) -> list[str]:
     return ["kubectl", "--context", KIND_CONTEXT, *args]
 
 
+def run_tool(command: list[str], **kwargs) -> subprocess.CompletedProcess:
+    """Run an external tool, treating "not installed" as "did not work".
+
+    `subprocess.run` raises FileNotFoundError when the binary does not exist.
+    That is a different shape from every other failure, so it gets forgotten,
+    and it was: three functions here promised to be safe on a machine without
+    Docker and were not, including one whose docstring says it must not blow
+    up. Each checked `returncode` and none of them ever saw one, because the
+    call raised before there was a result to check.
+
+    Found by running the suite on a macOS runner, which has no Docker daemon
+    and, more to the point, no `docker` binary at all. Every machine this had
+    ever run on had one.
+
+    127 is what a shell reports for a command it cannot find, so callers that
+    already test `returncode != 0` need no change to benefit from this.
+    """
+    kwargs.setdefault("capture_output", True)
+    kwargs.setdefault("text", True)
+    kwargs.setdefault("encoding", "utf-8")
+    try:
+        return subprocess.run(command, **kwargs)
+    except FileNotFoundError:
+        return subprocess.CompletedProcess(
+            command, 127, "" if kwargs.get("text", True) else b"",
+            f"{command[0]}: not installed" if kwargs.get("text", True) else b"",
+        )
+
+
 def cluster_exists() -> bool:
-    result = subprocess.run(["kind", "get", "clusters"], capture_output=True, text=True, encoding="utf-8")
-    return KIND_CLUSTER in result.stdout.split()
+    return KIND_CLUSTER in run_tool(["kind", "get", "clusters"]).stdout.split()
 
 
 def node_platform() -> str | None:
@@ -1405,9 +1430,7 @@ def node_platform() -> str | None:
     Returns None when it cannot be determined, in which case preloading is
     skipped rather than guessed at.
     """
-    result = subprocess.run(
-        ["docker", "version", "--format", "{{.Server.Arch}}"], capture_output=True, text=True, encoding="utf-8"
-    )
+    result = run_tool(["docker", "version", "--format", "{{.Server.Arch}}"])
     arch = result.stdout.strip()
     if result.returncode != 0 or not arch or "/" in arch or " " in arch:
         return None
@@ -1416,11 +1439,7 @@ def node_platform() -> str | None:
 
 def image_in_node(image: str) -> bool:
     """Whether the node actually has the image, rather than whether load exited 0."""
-    result = subprocess.run(
-        ["docker", "exec", f"{KIND_CLUSTER}-control-plane", "crictl", "images"],
-        capture_output=True,
-        text=True, encoding="utf-8",
-    )
+    result = run_tool(["docker", "exec", f"{KIND_CLUSTER}-control-plane", "crictl", "images"])
     repository, _, tag = image.rpartition(":")
     return any(
         repository in line and tag in line for line in result.stdout.splitlines()
@@ -1451,7 +1470,7 @@ def preload_images() -> None:
             ["kind", "load", "image-archive", str(archive), "--name", KIND_CLUSTER],
         ]
         for step in steps:
-            if subprocess.run(step, capture_output=True).returncode != 0:
+            if run_tool(step, text=False, encoding=None).returncode != 0:
                 break
         archive.unlink(missing_ok=True)
 
@@ -2545,9 +2564,7 @@ def cmd_record(args: argparse.Namespace) -> None:
     # something real. tse's own calls always pass --context and were never at
     # risk; the commands in commands.txt are.
     if exercise.stack == "kind":
-        current = subprocess.run(
-            ["kubectl", "config", "current-context"], capture_output=True, text=True, encoding="utf-8",
-        ).stdout.strip()
+        current = run_tool(["kubectl", "config", "current-context"]).stdout.strip()
         if current != KIND_CONTEXT:
             sys.exit(
                 f"tse: the current kubectl context is {current or 'unset'!r}, "
@@ -2767,6 +2784,24 @@ def cmd_stop(args: argparse.Namespace) -> None:
 
 
 def cmd_cluster(args: argparse.Namespace) -> None:
+    # Say which thing is missing, rather than reporting the consequence.
+    #
+    # Without this, a machine with no Docker and no kind answers `tse cluster
+    # status` with "Cluster proveit does not exist. Create it with `tse cluster
+    # up`", which is true, useless, and points at a command that cannot work
+    # either. That is exactly the shape of unhelpful output this course is
+    # about: an accurate signal answering a narrower question than the one
+    # being asked.
+    missing = [tool for tool in ("docker", "kind") if not shutil.which(tool)]
+    if missing:
+        sys.exit(
+            f"tse: {' and '.join(missing)} "
+            f"{'is' if len(missing) == 1 else 'are'} not installed, so there is "
+            f"no cluster to report on.\n"
+            f"     The Kubernetes track needs both. `tse doctor` lists "
+            f"everything this machine is missing."
+        )
+
     if args.action == "up":
         ensure_cluster()
         print(f"{GREEN}Cluster {KIND_CLUSTER} is ready.{OFF}")

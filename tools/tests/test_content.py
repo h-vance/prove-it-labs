@@ -13,6 +13,7 @@ import json
 import re
 import sys
 import unittest
+import unittest.mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -901,15 +902,35 @@ class ClusterHelpers(unittest.TestCase):
         self.assertRegex(platform, r"^linux/[a-z0-9]+$")
 
     def test_node_platform_matches_the_running_daemon(self):
-        import subprocess
-
-        probe = subprocess.run(
-            ["docker", "version", "--format", "{{.Server.Arch}}"],
-            capture_output=True, text=True,
-        )
+        # Through `run_tool` rather than `subprocess.run`, for the reason
+        # `run_tool` exists: this test asked for Docker directly and crashed
+        # with FileNotFoundError on a runner that has no `docker` binary, which
+        # is not the same as a machine where the daemon is stopped. It reported
+        # an error where it meant to report a skip.
+        probe = tse.run_tool(["docker", "version", "--format", "{{.Server.Arch}}"])
         if probe.returncode != 0 or not probe.stdout.strip():
             self.skipTest("Docker is not available on this machine")
         self.assertEqual(tse.node_platform(), f"linux/{probe.stdout.strip()}")
+
+    def test_the_docker_helpers_survive_a_machine_with_no_docker(self):
+        """Every one of these promised this and none of them delivered it.
+
+        `image_in_node` is called from `cluster status` and its docstring says
+        it must not blow up. `node_platform` says it returns None when it
+        cannot tell. Both raised on a machine without the binary, because both
+        checked a return code that a raised call never produced.
+        """
+        import shutil
+
+        original = shutil.which("docker")
+        with unittest.mock.patch.object(
+            tse.subprocess, "run", side_effect=FileNotFoundError(2, "No such file")
+        ):
+            self.assertIsNone(tse.node_platform())
+            self.assertIs(tse.image_in_node(tse.KIND_IMAGES[0]), False)
+            self.assertIs(tse.cluster_exists(), False)
+        # And the machine this ran on is unchanged by the test.
+        self.assertEqual(shutil.which("docker"), original)
 
     def test_lab_images_are_tagged(self):
         """image_in_node splits on the last colon, so an untagged entry breaks it."""
