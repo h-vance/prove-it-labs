@@ -2147,14 +2147,19 @@ def classify_link(target: str, own: tuple[str, ...] = ()) -> str:
     learner to curl, and on the machine running this check they are either
     nothing or, worse, somebody else's service.
 
-    `self` is the awkward one. This repository links to itself in the README
-    badge, in SECURITY.md and from the site, and every one of those returns 404
-    while the repository is private, because that is what GitHub shows a
-    stranger. Reporting them as broken would be wrong, and skipping every
-    github.com/<owner>/ link would have hidden the genuinely stale one this
-    check was written to find. So `own` is the repository's real address, read
-    from the git remote, and only an exact match on it is skipped. A link to
-    the name this repository used to have is a different string and still fails.
+    `self` is the awkward one, and it is now nearly empty. It existed because a
+    private repository answers 404 to everybody, so this repository's links to
+    itself all looked broken and none of them were. Reporting those as broken
+    would have been wrong, and skipping every github.com/<owner>/ link would
+    have hidden the genuinely stale one this check was written to find. So
+    `own` was never a pattern: it is the repository's real address, read from
+    the git remote, and only an exact match is skipped.
+
+    That reason expired when the repository went public, and `own_urls` drops
+    it by itself rather than waiting to be told. What is left is the Astro
+    `site` value, which is configuration and not a link: the pages live at
+    `site` joined to `base`, and the bare value names a user site that does not
+    exist. See `own_urls` for why that one does not expire.
     """
     lowered = target.lower()
     if lowered.startswith(("mailto:", "tel:", "data:", "javascript:")):

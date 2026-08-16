@@ -398,6 +398,34 @@ class Editorial(unittest.TestCase):
         self.assertIsNone(BRITISH.search(stripped))
         self.assertIsNotNone(BRITISH.search("the labelled diagram"))
 
+    # Present tense only. Saying a private repository *gets* 2,000 minutes is a
+    # fact about GitHub and stays true. Saying *this* repository is private is
+    # not, and several files said exactly that for a while after the flip.
+    STILL_PRIVATE = re.compile(
+        r"\b(?:this|the)\s+repositor(?:y|ies)\s+is\s+private\b"
+        r"|\bwhile\s+(?:it|this|the\s+repository)\s+is\s+private\b"
+        r"|\bthe\s+day\s+this\s+(?:goes|repository\s+goes)\s+public\b"
+        r"|\bTHE\s+DAY\s+THIS\s+REPOSITORY\s+GOES\s+PUBLIC\b",
+        re.IGNORECASE)
+
+    # AUDIT.md is the record of how this repository got here, so it describes
+    # the private period at length and correctly. It is the one file where the
+    # past tense is the whole point.
+    TENSE_EXEMPT = {"AUDIT.md"}
+
+    def test_nothing_still_claims_this_repository_is_private(self):
+        """It is public. A file that says otherwise is wrong, not merely stale."""
+        for name, text in STYLE_SOURCES:
+            if name in self.TENSE_EXEMPT:
+                continue
+            for index, line in enumerate(text.splitlines(), 1):
+                if self.STILL_PRIVATE.search(line):
+                    self.fail(
+                        f"{name}:{index} describes this repository as private, "
+                        f"or as not yet public. It went public on 2026-08-16. "
+                        f"Say what was true then in the past tense."
+                    )
+
 
 STACKS = sorted(ROOT.glob("labs/*/_stack/compose.yaml"))
 
@@ -1667,10 +1695,13 @@ class Links(unittest.TestCase):
     def test_the_self_exemption_covers_only_this_repository(self):
         """The exemption that could have hidden the bug it was written beside.
 
-        Links to this repository return 404 while it is private, so they cannot
-        be checked. Exempting every github.com/<owner>/ link would also have
-        exempted the stale one left behind by the rename, which is exactly the
-        link this whole check found. Only the current address is skipped.
+        While the repository was private its links to itself returned 404 and
+        could not be checked. Exempting every github.com/<owner>/ link would
+        also have exempted the stale one left behind by the rename, which is
+        exactly the link this whole check found. Only the exact current address
+        was ever skipped, which is what this asserts. The exemption has since
+        expired on its own, and this still holds: it is the shape of the rule
+        that mattered, not the window it applied in.
         """
         own = ("https://github.com/h-vance/prove-it-labs", "https://h-vance.github.io")
         self.assertEqual(

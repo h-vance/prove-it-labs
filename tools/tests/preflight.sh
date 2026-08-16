@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Everything CI would check, on this machine, before you push.
 #
-# This is the gate that matters while the repository is private. The Docker
-# half of verify.yml costs 73 of its 81 billable minutes, which is a private
-# repository's entire monthly allowance in 27 pushes, so it runs on request
-# only. The same work runs here for nothing.
+# CI runs the exercises too, on every push and every pull request. This is
+# still the faster place to find out: the images are already cached here and no
+# minute goes on booting a runner. It is also the only place the course is
+# tested on macOS, because hosted macOS runners have no Docker daemon.
 #
 #   tools/tests/preflight.sh            what your branch changed, against origin/main
 #   tools/tests/preflight.sh --all      all 25 exercises, the full CI matrix

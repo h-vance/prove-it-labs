@@ -68,8 +68,9 @@ jobs:
 
       # Every committed file, not just the recordings. The tree only, because
       # actions/checkout is shallow by default and scanning one commit of
-      # history would pass without proving anything. `tse leaks --history` is
-      # run locally against a full clone before the repository goes public.
+      # history would pass without proving anything. `tse leaks --history` reads
+      # the whole history and is run locally against a full clone, which is what
+      # was done before this repository went public.
       - name: Nothing from a real machine is committed
         run: tools/tse leaks
 
