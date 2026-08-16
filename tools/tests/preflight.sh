@@ -66,6 +66,39 @@ run "every link resolves"               "$TSE" links
 run "the CLI smoke test"                tools/tests/smoke.sh --fast
 
 # --------------------------------------------------------------------------- #
+step "A machine that is not this one"
+
+# Everything above ran in the shell you are sitting in, which has your PATH,
+# your locale and whatever else you have exported. A check that passes because
+# of something already set here proves nothing about a stranger's laptop.
+#
+# `env -i` clears all of it. LANG=C is set deliberately rather than left unset,
+# because that is the environment that broke `tse record` once: `text=True`
+# decoded subprocess output as US-ASCII and raised on the ellipsis that appears
+# in every recorded `docker ps`. Nothing found it until CI ran under a different
+# locale from the author's.
+cold() {
+    local label=$1; shift
+    local log; log=$(mktemp)
+    if env -i \
+        HOME="$HOME" \
+        PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin" \
+        LANG=C \
+        "$@" >"$log" 2>&1
+    then
+        pass "$label"
+    else
+        fail "$label" "$(tail -5 "$log" | sed 's/^/        /')"
+    fi
+    rm -f "$log"
+}
+
+cold "this machine is reported honestly" "$TSE" doctor
+cold "every exercise loads"              "$TSE" list
+cold "every file decodes"                "$TSE" leaks
+cold "every link is read"                "$TSE" links --offline
+
+# --------------------------------------------------------------------------- #
 step "Shell"
 
 if command -v shellcheck >/dev/null 2>&1; then
