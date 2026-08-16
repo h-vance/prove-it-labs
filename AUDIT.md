@@ -587,6 +587,61 @@ Two features were pinned to `"latest"`, so two Codespaces built a month apart
 were two different machines with no record of what changed. Both now name their
 versions.
 
+### P6. The CLI crashed on a machine with no Docker installed
+
+Found by the macOS job, on its first run, which is the argument for having
+added it.
+
+Three functions promised to be safe without Docker and none of them were.
+`image_in_node` is called from `tse cluster status` and its docstring says it
+must not blow up. `node_platform` says it returns None when it cannot tell.
+`cluster_exists` returns a bool. All three checked a return code, and
+`subprocess.run` raises `FileNotFoundError` when the binary does not exist, so
+there was never a return code to check.
+
+**Why nothing had caught it.** The distinction is between a stopped daemon and
+an absent binary, and only the first had ever been tested. Every machine this
+code had run on had Docker installed: the author's, the Codespace, and the
+Linux runners. `cmd_doctor` gets it right, and guards with `shutil.which`, which
+is why the cold-start check in `preflight.sh` passed and proved nothing about
+this. The one environment that would have exposed it was the one that was
+priced out.
+
+**The fix.** `run_tool` reports a missing binary as exit 127, which is what a
+shell reports for the same thing, so every caller that already tested the
+return code needed no change to benefit.
+
+**Fixing the crash exposed the next problem, which is worse.** With the
+traceback gone, `tse cluster status` answered a machine with no Docker with:
+
+```
+Cluster proveit does not exist. Create it with `tse cluster up`.
+```
+
+True, useless, and pointing at a command that could not work either. That is
+precisely the failure this course is built to teach, an accurate signal
+answering a narrower question than the one being asked, shipped in the tool
+that teaches it. It now names the missing tool and points at `tse doctor`.
+
+**Planted.** `run_tool` was changed back to let `FileNotFoundError` through:
+
+```
+ERROR: test_the_docker_helpers_survive_a_machine_with_no_docker
+FileNotFoundError: [Errno 2] No such file
+```
+
+**What the macOS runner reports about itself**, printed by the job's first step
+so the claim stays measured rather than remembered:
+
+```
+python3: Python 3.14.6, at /opt/homebrew/bin/python3
+docker: absent, which is why this job skips the exercises
+```
+
+That is why the macOS job runs the CLI, the suites and the scans, and not one
+exercise. `preflight.sh` on a real Mac is not a stopgap for that. It is the only
+thing that can cover it.
+
 ---
 
 ## Content and documentation
