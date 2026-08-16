@@ -1,9 +1,23 @@
 # Prove It
 
 [![verify](https://github.com/h-vance/prove-it-labs/actions/workflows/verify.yml/badge.svg)](https://github.com/h-vance/prove-it-labs/actions/workflows/verify.yml)
+[![site](https://github.com/h-vance/prove-it-labs/actions/workflows/site.yml/badge.svg)](https://github.com/h-vance/prove-it-labs/actions/workflows/site.yml)
+[![security](https://github.com/h-vance/prove-it-labs/actions/workflows/security.yml/badge.svg)](https://github.com/h-vance/prove-it-labs/actions/workflows/security.yml)
+[![license](https://img.shields.io/badge/license-MIT%20%2B%20CC%20BY%204.0-4a5568)](LICENSES/)
+
+![Docker](https://img.shields.io/badge/Docker-4a5568?logo=docker&logoColor=white)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-4a5568?logo=kubernetes&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4a5568?logo=postgresql&logoColor=white)
+![Python](https://img.shields.io/badge/Python%203.9+-4a5568?logo=python&logoColor=white)
+![OpenSSL](https://img.shields.io/badge/TLS-4a5568?logo=openssl&logoColor=white)
+![Astro](https://img.shields.io/badge/Astro-4a5568?logo=astro&logoColor=white)
 
 A hands-on Technical Support Engineering course. You get a customer ticket, a
 genuinely broken system, and no hint about which layer failed. You investigate.
+
+**The course site is at [h-vance.github.io/prove-it-labs](https://h-vance.github.io/prove-it-labs/).**
+Every exercise page there is generated from the exercise itself, and carries a
+terminal replaying output captured by really running those commands.
 
 Most infrastructure courses tell you the topic before the exercise, which is the
 one thing a real ticket never does. Every ticket here is a symptom in the

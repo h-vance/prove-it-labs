@@ -748,6 +748,38 @@ class PythonFloor(unittest.TestCase):
         self.assertIsNotNone(said, "the README no longer states a Python version")
         self.assertEqual((int(said.group(1)), int(said.group(2))), tse.MINIMUM_PYTHON)
 
+    def test_the_badge_agrees_with_the_cli_too(self):
+        """A badge is a claim, and this one repeats a fact stated two lines up.
+
+        The README now says the Python floor twice: once in prose and once on a
+        shield. Two copies of a number is how the first version of this got to
+        be wrong, so the badge is read the same way the sentence is.
+        """
+        badge = re.search(r"Python%20(\d+)\.(\d+)\+", (ROOT / "README.md").read_text())
+        self.assertIsNotNone(badge, "the README no longer carries a Python badge")
+        self.assertEqual((int(badge.group(1)), int(badge.group(2))), tse.MINIMUM_PYTHON)
+
+    def test_every_status_badge_points_at_a_workflow_that_exists(self):
+        """A badge for a deleted workflow renders a permanent 404 image."""
+        readme = (ROOT / "README.md").read_text()
+        for name in re.findall(r"actions/workflows/([\w.-]+)/badge\.svg", readme):
+            with self.subTest(name):
+                self.assertTrue(
+                    (ROOT / ".github" / "workflows" / name).is_file(),
+                    f"README badges a workflow that does not exist: {name}",
+                )
+
+    def test_every_workflow_is_badged(self):
+        """The other direction. A workflow nobody can see the state of is one nobody watches."""
+        readme = (ROOT / "README.md").read_text()
+        badged = set(re.findall(r"actions/workflows/([\w.-]+)/badge\.svg", readme))
+        for path in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+            with self.subTest(path.name):
+                self.assertIn(
+                    path.name, badged,
+                    f"{path.name} runs on every push and the README does not show its state",
+                )
+
     def test_the_floor_is_enforced_rather_than_documented(self):
         source = (ROOT / "tools" / "tse").read_text()
         self.assertIn("if sys.version_info < MINIMUM_PYTHON:", source)
