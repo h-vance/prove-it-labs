@@ -1603,6 +1603,40 @@ class Links(unittest.TestCase):
         slugs = tse.heading_slugs("# The Ticket\n\n## Why This One Exists\n\ntext\n")
         self.assertEqual(slugs, {"the-ticket", "why-this-one-exists"})
 
+    def test_punctuation_is_dropped_from_a_slug_rather_than_replaced(self):
+        """github-slugger deletes punctuation. Replacing it is a two-way error.
+
+        "the author's" has to become "the-authors". Turning the apostrophe into
+        a hyphen gives "the-author-s", which no renderer produces, so a working
+        link reads as broken and a broken one reads as fine. This checker had it
+        wrong until an apostrophe in one of AUDIT.md's own headings found it.
+        """
+        self.assertEqual(
+            tse.heading_slugs("## P3. A machine that is not the author's\n"),
+            {"p3-a-machine-that-is-not-the-authors"},
+        )
+        self.assertEqual(
+            tse.heading_slugs("## What `tse links` does (and does not)\n"),
+            {"what-tse-links-does-and-does-not"},
+        )
+        self.assertEqual(
+            tse.heading_slugs("## Quotes: “evidence”, not opinion\n"),
+            {"quotes-evidence-not-opinion"},
+        )
+
+    def test_this_document_resolves_its_own_anchors(self):
+        """AUDIT.md cross-references itself 23 times and is read on GitHub."""
+        audit = ROOT / "AUDIT.md"
+        if not audit.is_file():
+            self.skipTest("AUDIT.md has not been written")
+        text = audit.read_text()
+        slugs = tse.heading_slugs(text)
+        broken = sorted({
+            target for target in re.findall(r"\]\(#([^)]+)\)", text)
+            if target not in slugs
+        })
+        self.assertEqual(broken, [], f"AUDIT.md links to headings it does not have: {broken}")
+
     def test_the_whole_repository_currently_passes_offline(self):
         """The check, run for real, with no network involved."""
         base = tse.site_base_path()

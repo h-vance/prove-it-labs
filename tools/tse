@@ -2206,13 +2206,22 @@ def own_urls() -> tuple[str, ...]:
     return tuple(found)
 
 
+# Punctuation github-slugger deletes rather than replaces, which is the rule
+# both GitHub and Starlight follow. Getting this wrong is not a rounding error:
+# replacing an apostrophe with a hyphen turns "the author's" into "the-author-s"
+# where every real renderer produces "the-authors", so a working link reads as
+# broken and a broken one reads as fine. This checker had it wrong until an
+# apostrophe in one of AUDIT.md's own headings exposed it.
+SLUG_DROPPED = re.compile(r"""['‘’"“”!#$%&()*+,./:;<=>?@\[\]^`{|}~]""")
+
+
 def heading_slugs(text: str) -> set[str]:
     """The anchors a markdown file offers, slugified the way the site does."""
     slugs = set()
     for line in text.splitlines():
         if line.startswith("#"):
-            title = line.lstrip("#").strip()
-            slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+            title = SLUG_DROPPED.sub("", line.lstrip("#").strip().lower())
+            slug = re.sub(r"[^a-z0-9_-]+", "-", title).strip("-")
             if slug:
                 slugs.add(slug)
     return slugs
