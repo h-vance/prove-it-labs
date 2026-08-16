@@ -109,7 +109,7 @@ jobs:
     name: discover exercises
     runs-on: ubuntu-24.04
     outputs:
-      exercises: ${{ steps.collect.outputs.exercises }}
+      groups: ${{ steps.collect.outputs.groups }}
       count: ${{ steps.collect.outputs.count }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -130,8 +130,11 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$EVENT" = "schedule" ] || [ "$EVENT" = "workflow_dispatch" ]; then
-            reason="every exercise, because this run was scheduled or started by hand"
-            exercises=$(tools/tse list --ids)
+            reason="everything, because this run was scheduled or started by hand"
+            # Any path under tools/ selects the whole course, which is what a
+            # hand-started run means. Going through the same function as every
+            # other case keeps one code path rather than two.
+            changed="tools/tse"
           else
             if [ "$EVENT" = "pull_request" ]; then
               base="$BASE"
@@ -142,22 +145,30 @@ jobs:
             # commit this clone does not have. Neither can be diffed, so both
             # fall back to verifying everything.
             if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
-              reason="every exercise, because there is no base commit to compare against"
-              exercises=$(tools/tse list --ids)
+              reason="everything, because there is no base commit to compare against"
+              changed="tools/tse"
             else
               changed=$(git diff --name-only "$base" "$HEAD_SHA")
               printf '%s\n' "$changed" | sed 's/^/  /'
-              exercises=$(printf '%s\n' "$changed" | tools/tse affected)
               reason="the exercises those files can reach"
             fi
           fi
-          count=$(printf '%s' "$exercises" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')
-          echo "Verifying $count exercise(s): $reason"
-          echo "exercises=$exercises" >> "$GITHUB_OUTPUT"
-          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+          # What is in scope, and how it is packed into jobs. Both decisions
+          # live in tools/tse, where tests can run them, rather than here where
+          # nothing can run anything except a push. The summary and the matrix
+          # are written by the same command for the same reason: inline Python
+          # in a YAML run block is three levels of quoting and got it wrong
+          # twice before this was moved.
+          printf '%s\n' "$changed" | tools/tse affected --by-stack --for-github
+          echo "Scope: $reason"
 
   verify:
-    name: ${{ matrix.exercise }}
+    # Named for the stack rather than the exercise list. With an object matrix
+    # GitHub's default name is the serialized object, which is unreadable, and
+    # five full exercise ids is not much better. Which ones ran is in the log,
+    # one collapsible group each.
+    name: ${{ matrix.group.stack }} stack
     # `tests` as well as `discover`, which it did not have before.
     #
     # This job provisions every exercise it finds on the branch, which means it
@@ -166,17 +177,15 @@ jobs:
     # is the guard that matters because it runs everywhere. This ordering is the
     # second line: `test_content.py` refuses the same file a minute earlier and
     # without starting anything, so a bad pull request costs one job rather than
-    # twenty-five.
+    # a whole matrix.
     needs: [discover, tests]
     #
     # ---------------------------------------------------------------------
     # ON REQUEST ONLY, AND ONLY WHILE THIS REPOSITORY IS PRIVATE.
     #
-    # Measured on a real run: this workflow costs 81 billable minutes and 73 of
-    # them are this job. The rest of it, the tests and shellcheck and the
-    # discovery step, come to 3. A private repository gets 2,000 minutes a
-    # month, so this job alone is the whole allowance in 27 pushes, and it was
-    # spent.
+    # Measured on a real run: this workflow cost 90 billable minutes and this
+    # job was 76 of them. A private repository gets 2,000 a month, so it was
+    # the whole allowance in 26 pushes, and it was spent.
     #
     # Nothing is given up. The same verification runs locally against real
     # containers, free and unmetered, and that is now the gate that matters:
@@ -184,28 +193,45 @@ jobs:
     #     tools/tests/preflight.sh
     #
     # THE DAY THIS REPOSITORY GOES PUBLIC: delete the `workflow_dispatch` half
-    # of this condition, and put the nightly schedule back at the top of the
-    # file. Standard runners are free and unlimited on public repositories, so
-    # every push should verify every exercise it can reach, which is what this
-    # workflow was built to do.
+    # of this condition, and put a nightly schedule back at the top of the file.
+    # Standard runners are free and unlimited on public repositories.
     # ---------------------------------------------------------------------
     #
     # An empty matrix is also not a valid job, and a docs-only change selects
     # nothing, so the count guard stays either way.
     if: github.event_name == 'workflow_dispatch' && needs.discover.outputs.count != '0'
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 30
     strategy:
       fail-fast: false
+      # One job per lab stack, not one per exercise.
+      #
+      # Twenty five jobs spent about three quarters of their minutes on things
+      # that were not testing. Measured across one real run: 37 minutes of work
+      # inside the test steps, 31 minutes of runner startup and teardown around
+      # them, and 16 more lost to per-job billing rounding, which charges a
+      # whole minute for a job that worked for ninety seconds.
+      #
+      # They also rebuilt the same stacks over and over. Five Kubernetes
+      # exercises meant five builds of one cluster's manifests from nothing;
+      # the api stack backs five exercises counting a mixed incident that
+      # borrows it. Grouped, the images are built once and every exercise after
+      # the first reuses the layers already on the runner.
+      #
+      # The cost of grouping is honest and worth naming: a stack that will not
+      # come up now fails every exercise behind it rather than one, and the
+      # group runs in sequence so its wall time is the sum rather than the max.
+      # `tse verify` still force-recreates containers per exercise, so what is
+      # shared between them is the image cache and never the state.
       matrix:
-        exercise: ${{ fromJSON(needs.discover.outputs.exercises) }}
+        group: ${{ fromJSON(needs.discover.outputs.groups) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # tse creates and reuses its own cluster, so only the binary is needed.
       # The Kubernetes exercises are the only ones that touch it.
       - name: Install kind
-        if: startsWith(matrix.exercise, 'kubernetes/')
+        if: matrix.group.stack == 'kubernetes'
         run: |
           curl -fsSLo /tmp/kind https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64
           sudo install -m 0755 /tmp/kind /usr/local/bin/kind
@@ -213,20 +239,36 @@ jobs:
       # An exercise is only correct if it fails in its broken state and passes
       # against its documented solution. Asserting only the second half would
       # let a lab that is not actually broken ship green.
-      - name: Verify the exercise fails broken and passes fixed
-        run: tools/tse verify "${{ matrix.exercise }}"
-
-      # The site replays these recordings in its terminal, so they are only
-      # worth anything if they still match the system. This re-runs every
-      # recorded command against the real stack and fails if the output moved.
-      # Exercises without a transcript are skipped rather than failed, so a new
-      # one can land before it has been recorded.
-      - name: Recorded output still matches the system
+      #
+      # The recordings are checked in the same step and in the same loop. The
+      # site replays them in its terminal, so they are only worth anything if
+      # they still match the system, and re-running them here costs nothing
+      # extra now that the stack is already up.
+      #
+      # `set -e` is deliberately absent: every exercise in the group runs even
+      # after one fails, so a single run tells you about all of them rather
+      # than only the first. The tally at the end is what fails the job.
+      - name: Verify every exercise on this stack
+        env:
+          EXERCISES: ${{ join(matrix.group.exercises, ' ') }}
         run: |
-          if [ -f "labs/${{ matrix.exercise }}/transcript.json" ]; then
-            tools/tse record --check "${{ matrix.exercise }}"
-          else
-            echo "no transcript for ${{ matrix.exercise }}, nothing to check"
+          failed=0
+          for exercise in $EXERCISES; do
+            echo "::group::$exercise"
+            if tools/tse verify "$exercise"; then
+              if [ -f "labs/$exercise/transcript.json" ]; then
+                tools/tse record --check "$exercise" || failed=$((failed + 1))
+              else
+                echo "no transcript for $exercise, nothing to check"
+              fi
+            else
+              failed=$((failed + 1))
+            fi
+            echo "::endgroup::"
+          done
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::$failed check(s) failed on the ${{ matrix.group.stack }} stack"
+            exit 1
           fi
 
   loop:

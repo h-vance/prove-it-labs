@@ -1562,10 +1562,65 @@ def affected_exercises(changed: list[str]) -> list[str]:
     return [i for i in ids if i in selected]
 
 
+def group_by_stack(ids: list[str]) -> list[dict]:
+    """
+    The same exercises, gathered under the stack each one runs against.
+
+    One job per exercise was costing about three quarters of its minutes on
+    things that are not testing. Measured over a real run: 25 jobs, 37 minutes
+    of work inside the test steps, 31 minutes of runner startup and teardown
+    around them, and 16 more lost to per-job billing rounding.
+
+    On top of that the same stack was built once per exercise rather than once.
+    Kubernetes backs five exercises and was built five times from nothing.
+
+    Grouped, a job builds its stack once and every exercise after the first
+    reuses the layers. `tse verify` still recreates the containers for each one,
+    so what is shared is the image cache and not the state.
+
+    Ordered by size, largest first, because the matrix starts jobs in order and
+    the longest one should not be the last to begin.
+    """
+    grouped: dict[str, list[str]] = {}
+    for exercise in load_exercises():
+        if exercise.id in ids:
+            grouped.setdefault(exercise.stack_source, []).append(exercise.id)
+    return [
+        {"stack": stack, "exercises": grouped[stack]}
+        for stack in sorted(grouped, key=lambda name: (-len(grouped[name]), name))
+    ]
+
+
 def cmd_affected(args: argparse.Namespace) -> None:
-    """Read changed paths on stdin, print the exercise ids CI has to run."""
+    """
+    Read changed paths on stdin, print what CI has to run.
+
+    `--for-github` writes the matrix straight into $GITHUB_OUTPUT and prints a
+    readable summary. That exists because the alternative is a here-doc of
+    Python inside a YAML `run:` block inside a shell string, which is three
+    levels of quoting and got the escaping wrong twice before this function
+    existed. Every line of it also had to be tested by pushing, which is the
+    resource this whole change is trying not to spend.
+    """
     changed = [line.strip() for line in sys.stdin.read().splitlines() if line.strip()]
-    print(json.dumps(affected_exercises(changed)))
+    ids = affected_exercises(changed)
+    groups = group_by_stack(ids)
+    payload = json.dumps(groups if args.by_stack else ids)
+
+    if not args.for_github:
+        print(payload)
+        return
+
+    destination = os.environ.get("GITHUB_OUTPUT")
+    if not destination:
+        sys.exit("tse: --for-github needs GITHUB_OUTPUT set, so this is not a runner.")
+    with open(destination, "a", encoding="utf-8") as out:
+        out.write(f"groups={json.dumps(groups)}\n")
+        out.write(f"count={len(ids)}\n")
+
+    print(f"Verifying {len(ids)} exercise(s) in {len(groups)} job(s).")
+    for group in groups:
+        print(f"  {group['stack']:<14} {len(group['exercises'])}")
 
 
 def cmd_list(args: argparse.Namespace) -> None:
@@ -2722,6 +2777,10 @@ def main() -> None:
         "affected",
         help="read changed paths on stdin, emit the exercise ids CI has to verify",
     )
+    p.add_argument("--by-stack", action="store_true",
+                   help="group them by the stack each runs against, for the CI matrix")
+    p.add_argument("--for-github", action="store_true",
+                   help="write the matrix to $GITHUB_OUTPUT and print a summary")
     p.set_defaults(func=cmd_affected)
 
     p = sub.add_parser("verify", help="assert an exercise fails broken and passes fixed")

@@ -1232,6 +1232,46 @@ class AffectedExercises(unittest.TestCase):
         """CI reads this as a matrix, and a matrix that reshuffles is unreadable."""
         self.assertEqual(tse.affected_exercises(["tools/tse"]), self.all)
 
+    def test_grouping_loses_nothing(self):
+        """The property that matters: packing into jobs must not drop an exercise.
+
+        One job per exercise spent about three quarters of its minutes on runner
+        startup, teardown and per-job billing rounding rather than on testing,
+        so they are grouped by stack. The saving is worthless if an exercise can
+        fall out of the matrix on the way.
+        """
+        groups = tse.group_by_stack(self.all)
+        packed = [exercise for group in groups for exercise in group["exercises"]]
+        self.assertEqual(sorted(packed), sorted(self.all))
+        self.assertEqual(len(packed), len(set(packed)), "an exercise is in two groups")
+
+    def test_a_group_is_the_stack_its_exercises_actually_use(self):
+        """A mixed incident borrows a stack, and must be grouped with it.
+
+        mixed/01 runs on the Docker stack and mixed/02 on the api one. Grouping
+        by the exercise's own track rather than by the stack it uses would build
+        those stacks an extra time each, which is the cost this exists to remove.
+        """
+        by_id = {exercise.id: exercise for exercise in tse.load_exercises()}
+        for group in tse.group_by_stack(self.all):
+            for exercise in group["exercises"]:
+                with self.subTest(exercise):
+                    self.assertEqual(by_id[exercise].stack_source, group["stack"])
+
+    def test_grouping_is_smaller_than_not_grouping(self):
+        groups = tse.group_by_stack(self.all)
+        self.assertLess(len(groups), len(self.all))
+
+    def test_a_narrow_change_still_groups(self):
+        one = tse.affected_exercises([f"labs/{self.all[0]}/check.sh"])
+        groups = tse.group_by_stack(one)
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0]["exercises"], one)
+
+    def test_nothing_selected_makes_no_groups(self):
+        """An empty matrix is not a valid job, so the workflow skips on zero."""
+        self.assertEqual(tse.group_by_stack([]), [])
+
 
 class DetectorsActuallyFire(unittest.TestCase):
     """A linter that cannot fail is not a linter.
