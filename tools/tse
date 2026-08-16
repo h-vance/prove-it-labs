@@ -1427,6 +1427,42 @@ def provision(exercise: Exercise, *, variant: str) -> None:
     # graded on what the learner writes, so there is nothing to bring up.
     if exercise.stack == "compose":
         run(compose_command(exercise) + ["up", "-d", "--build", "--force-recreate"])
+        stack_self_check(exercise)
+
+
+def stack_self_check(exercise: Exercise) -> None:
+    """
+    Let a stack assert its own integrity before a learner is handed it.
+
+    If `_stack/self-check.sh` exists it is run after the stack comes up, and a
+    non-zero exit stops the exercise there rather than letting somebody debug a
+    symptom that has nothing to do with the lesson.
+
+    The networking stack is why this exists. It builds its own certificate
+    authority, and the generator mints fresh keys every time it runs, so a build
+    that runs it twice hands the gateway and the client two different CAs whose
+    subject lines are byte for byte identical and whose fingerprints are not.
+    Everything then fails on an unknown issuer, which is not what any exercise
+    in that track teaches, and the natural suspect is the content.
+
+    `tse` builds every service in one invocation, which shares the generator and
+    is why this has never been seen in the learner path. This is here for the
+    ways round that: a hand-run `docker compose build <service>`, or a build
+    cache evicted between two of them.
+    """
+    script = exercise.stack_dir() / "self-check.sh"
+    if not script.is_file():
+        return
+    result = subprocess.run(
+        ["bash", str(script)], cwd=ROOT, capture_output=True,
+        text=True, encoding="utf-8", errors="replace", timeout=RECORD_TIMEOUT_S,
+    )
+    if result.returncode != 0:
+        sys.exit(
+            f"{RED}tse: the {exercise.stack_source} stack came up in a state no "
+            f"exercise can be run against.{OFF}\n\n"
+            + (result.stdout + result.stderr).rstrip()
+        )
 
 
 def materialize(exercise: Exercise, source_dir: Path) -> None:
