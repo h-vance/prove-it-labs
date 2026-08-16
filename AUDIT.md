@@ -380,8 +380,10 @@ semantics for free. The remaining script only persists which disclosures are
 open and keeps the hint escalation, so losing it costs a preference rather than
 the content.
 
-**It got smaller.** The page dropped to 84,962 bytes from 86,618, and the
-JavaScript to 141,907 across 19 files from 144,123 across 21.
+**It got smaller.** The heaviest page dropped to 84,962 bytes from 86,618, and
+the JavaScript to 141,907 across 19 files from 144,123 across 21. The
+Content-Security-Policy added later puts the page back to 86,078, which is a
+fair trade and is still 14% under budget.
 
 **The gate.** A pass with `javaScriptEnabled: false` that opens every disclosure
 and asserts the prose is visible rather than merely present.
