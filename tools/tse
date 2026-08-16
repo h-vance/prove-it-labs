@@ -2210,11 +2210,22 @@ def own_urls(offline: bool = True) -> tuple[str, ...]:
         if repository:
             found.append(repository)
 
+    # Astro's `site` is configuration, not a link. It is half an address: the
+    # published pages live at `site` joined to `base`, and the bare value on
+    # its own is a user site that does not exist and is not meant to. This
+    # exemption does not expire with the others, because the string is not a
+    # link that could ever resolve rather than one that cannot resolve yet.
+    #
+    # It was previously covered by the private-repository exemption, which hid
+    # it. Removing that exemption is what exposed it, which is the argument for
+    # removing exemptions.
     config = ROOT / "site" / "astro.config.ts"
+    configured_site = ""
     if config.is_file():
         site = re.search(r"""site:\s*["']([^"']+)["']""", config.read_text(encoding="utf-8"))
         if site:
-            found.append(site.group(1).rstrip("/").lower())
+            configured_site = site.group(1).rstrip("/").lower()
+            found.append(configured_site)
 
     # Offline runs never request an external address at all, so there is
     # nothing to decide and no call worth making.
@@ -2228,7 +2239,7 @@ def own_urls(offline: bool = True) -> tuple[str, ...]:
     # failure.
     status, _ = probe_url(repository)
     if status == 200:
-        return ()
+        return tuple(url for url in found if url == configured_site)
     return tuple(found)
 
 
@@ -2373,11 +2384,19 @@ def cmd_links(args: argparse.Namespace) -> None:
     scope = (f"{counted['checked']} links across {counted['files']} files, "
              f"{counted['lab']} lab addresses skipped")
     if counted["self"]:
-        # Named rather than absorbed into the skip count, because these are the
-        # links that will start being checkable the day this goes public, and a
-        # number nobody can see is a number nobody revisits.
-        scope += (f", {counted['self']} pointing at this repository "
-                  f"(404 to a stranger while it is private)")
+        # Named rather than absorbed into the skip count, because a number
+        # nobody can see is a number nobody revisits. The two modes skip these
+        # for different reasons and saying so is the difference between a
+        # number that means something and one that reassures.
+        #
+        # Offline holds every self-reference back because it makes no requests
+        # at all. Online holds back only the Astro `site` value, which is
+        # configuration rather than an address: the pages live at `site` joined
+        # to `base`, and the bare value is a user site that does not exist.
+        if args.offline:
+            scope += f", {counted['self']} pointing at this repository, not requested offline"
+        else:
+            scope += f", {counted['self']} configured rather than linked"
     if not args.offline:
         scope += f", {len(external)} of them external"
     print(f"{GREEN}Every link resolves.{OFF} {scope}.")
