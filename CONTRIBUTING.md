@@ -42,18 +42,16 @@ is where a locale-dependent decode shows up, and it is also what keeps the
 Python floor honest: the stripped PATH finds the system interpreter rather than
 whichever one you installed.
 
-This is deliberately where the expensive checking lives rather than in CI. The
-Docker half of the workflow costs 73 of its 81 billable minutes, which is a
-private repository's entire monthly allowance in 27 pushes, so it runs on
-request. Your machine runs it for nothing.
+Run this before opening a pull request. CI runs the same exercise verification
+now that standard runners are free on a public repository, so this is no longer
+the only place the expensive half happens. It is still the faster place: your
+machine has the images cached and does not spend a minute booting a runner.
 
-It is also how this course gets tested on macOS. Hosted macOS runners bill at
-ten times the Linux rate, so a macOS matrix would be roughly 730 minutes per
-push against an allowance of 2,000 and would not survive a week. Running
-`preflight.sh` on the machine you actually work on is real coverage on a real
-platform, which is worth more than a job nobody could afford to keep. When this
-repository is public, standard runners are free and unmetered on every platform
-including macOS, and a macOS job becomes worth adding.
+It is also how this course gets tested on macOS, and that is not something CI
+can take over. Hosted macOS runners have no Docker daemon, so a macOS job can
+run the Python suites, the scans and the site build, but not a single exercise.
+Running `preflight.sh` on the machine you actually work on is the only thing
+that proves the course itself works on macOS.
 
 The individual pieces, if you want to run one on its own:
 

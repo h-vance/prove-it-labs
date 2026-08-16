@@ -4,24 +4,30 @@ on:
   push:
     branches: [main]
   pull_request:
-  # The whole course, on request. There is no schedule here, deliberately.
+  # Ordinary pushes and pull requests verify only the exercises the change can
+  # reach. That was once about affordability and is now about wall clock time,
+  # but it leaves the same real gap either way: a base image moving under a lab,
+  # or a Docker release changing an output format, breaks an exercise without
+  # anybody committing anything, and a push that touches one file will not
+  # notice.
   #
-  # Ordinary pushes verify only the exercises the change can reach, which is
-  # what makes them affordable. That is a real trade: a base image moving under
-  # a lab, or a Docker release changing an output format, breaks an exercise
-  # without anybody committing anything, and a push that touches one file will
-  # not notice.
+  # The nightly run is the answer to that. It was written here, taken back out
+  # within the hour, and is now back. The reason it could not stay is worth
+  # keeping written down, because it was a real measurement rather than a
+  # preference: the full course is about eighty billable minutes, nightly is
+  # roughly two thousand four hundred a month, and a private repository gets two
+  # thousand. The job meant to catch drift would have spent the entire budget
+  # and left nothing for the pushes that change something.
   #
-  # A nightly run is the usual answer to that, and it was written here and taken
-  # back out within the hour. The full course is about eighty billable minutes.
-  # Nightly is roughly two thousand four hundred a month against an allowance of
-  # two thousand, so the job meant to catch drift would have spent the entire
-  # budget and left nothing for the pushes that actually change something.
+  # None of that arithmetic applies now. Standard runners are free and unmetered
+  # on a public repository, and the first full course run after the flip cost
+  # zero billable milliseconds across twelve jobs.
   #
-  # Run it by hand before a release, and after any month where the labs sat
-  # untouched. On a public repository standard runners are free and unmetered,
-  # so a schedule becomes affordable the day this goes public and is worth
-  # adding back then.
+  # GitHub disables scheduled workflows on a repository with no activity for
+  # sixty days, which is the right behavior here rather than a problem to work
+  # around: a course nobody has touched in two months does not need a nightly.
+  schedule:
+    - cron: "23 5 * * *"
   workflow_dispatch:
 
 permissions:
@@ -180,26 +186,18 @@ jobs:
     # a whole matrix.
     needs: [discover, tests]
     #
-    # ---------------------------------------------------------------------
-    # ON REQUEST ONLY, AND ONLY WHILE THIS REPOSITORY IS PRIVATE.
+    # This job was once restricted to runs started by hand, because it was
+    # measured at 76 of the workflow's 90 billable minutes, which is a private
+    # repository's whole monthly allowance in 26 pushes. That restriction
+    # outlived its reason and became the more expensive mistake: with it in
+    # place, an ordinary push and a contributor's pull request both went green
+    # without provisioning a single container. A green badge that has verified
+    # no exercises is worse than no badge.
     #
-    # Measured on a real run: this workflow cost 90 billable minutes and this
-    # job was 76 of them. A private repository gets 2,000 a month, so it was
-    # the whole allowance in 26 pushes, and it was spent.
-    #
-    # Nothing is given up. The same verification runs locally against real
-    # containers, free and unmetered, and that is now the gate that matters:
-    #
-    #     tools/tests/preflight.sh
-    #
-    # THE DAY THIS REPOSITORY GOES PUBLIC: delete the `workflow_dispatch` half
-    # of this condition, and put a nightly schedule back at the top of the file.
-    # Standard runners are free and unlimited on public repositories.
-    # ---------------------------------------------------------------------
-    #
-    # An empty matrix is also not a valid job, and a docs-only change selects
-    # nothing, so the count guard stays either way.
-    if: github.event_name == 'workflow_dispatch' && needs.discover.outputs.count != '0'
+    # An empty matrix is not a valid job and a docs-only change selects nothing,
+    # so the count guard stays. It is the only condition left, and it is the one
+    # that was always doing real work.
+    if: needs.discover.outputs.count != '0'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
@@ -280,13 +278,12 @@ jobs:
 
   loop:
     name: learner loop
-    # Same reasoning as `verify`: the full smoke test runs the learner loop,
-    # which provisions a real exercise.
-    #
-    # Five more billable minutes of Docker, held to the same rule as the matrix
-    # above and for the same reason. `tools/tests/preflight.sh` runs it locally.
+    # Same reasoning as `verify`: the full smoke test provisions a real
+    # exercise, so it was held to the same on-request rule and is released from
+    # it for the same reason. It follows the count guard rather than the event,
+    # because a change that reaches no exercise has no learner loop to run.
     needs: [tests, discover]
-    if: github.event_name == 'workflow_dispatch' && needs.discover.outputs.count != '0'
+    if: needs.discover.outputs.count != '0'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:

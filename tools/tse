@@ -1655,10 +1655,11 @@ def affected_exercises(changed: list[str]) -> list[str]:
     """
     Which exercises a set of changed files can actually break.
 
-    Verifying all twenty five costs about eighty billable minutes, which is
-    roughly twenty two pushes a month on a private repository's allowance, and
-    it was reached. Most commits cannot affect most exercises, and this says
-    which ones can.
+    Verifying all twenty five takes about eighty minutes of runner time. That
+    was once a billing problem, on a private repository's allowance of two
+    thousand a month, and it was reached. It is now a wall clock one, which is
+    a smaller problem but the same answer: most commits cannot affect most
+    exercises, and this says which ones can.
 
     Deliberately generous in both directions it can be wrong. A shared stack
     means the whole track, because the exercises in a track share one set of
