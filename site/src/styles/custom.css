@@ -212,6 +212,67 @@ html[data-stretch="hidden"] [data-tier="stretch"] {
   font-weight: 400;
 }
 
+/* A native disclosure, styled to look like the button it replaced.
+ *
+ * `<details>` is used rather than a scripted button so the hints and the
+ * solution are readable with no JavaScript at all. Everything below is
+ * appearance; the open and close behaviour, the keyboard handling and the
+ * accessibility tree come from the browser. Same accent pairing as
+ * .reveal__button above, and for the same contrast reason. */
+.reveal__disclosure {
+  margin-block: 1rem;
+}
+
+.reveal__disclosure > summary {
+  font: inherit;
+  font-weight: 600;
+  display: block; /* Removes the default marker box so padding applies evenly. */
+  padding: 0.55rem 1.1rem;
+  border: 1px solid var(--sl-color-text-accent);
+  border-radius: var(--proveit-radius);
+  background: var(--sl-color-text-accent);
+  color: var(--sl-color-black);
+  cursor: pointer;
+}
+
+/* The triangle, drawn rather than inherited, because `display: block` above
+ * removes the one the browser supplies. Rotating it is the only thing on this
+ * page that animates, so it is the only thing that has to be turned off for
+ * anyone who asked for less motion. */
+.reveal__disclosure > summary::before {
+  content: "";
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-right: 0.6rem;
+  vertical-align: middle;
+  border-block: 0.32em solid transparent;
+  border-left: 0.5em solid currentColor;
+  transition: transform 150ms ease;
+}
+
+.reveal__disclosure[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal__disclosure > summary::before {
+    transition: none;
+  }
+}
+
+.reveal__disclosure > summary:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Hidden means hidden. A hint folded away until the one before it is opened
+ * carries `hidden`, and a browser default of `display: block` on details
+ * overrides that unless it is said again here. */
+.reveal__disclosure[hidden] {
+  display: none;
+}
+
 .reveal__done {
   margin: 0;
   color: var(--sl-color-gray-2);

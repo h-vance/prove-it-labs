@@ -111,39 +111,36 @@ for (const theme of ["dark", "light"]) {
       failures.push({ theme, path, violations });
     }
 
-    // Hints and the solution, which this had never once looked at.
+    // Hints and the solution, which this gate had never once looked at.
     //
-    // Both islands render only their trigger until it is clicked, so the page
-    // as served contains none of their content, and this file had bespoke steps
+    // They were islands that rendered nothing until clicked, so the page as
+    // served contained none of their content, and this file had bespoke steps
     // to force the terminal and the quiz into their real states and no
     // equivalent for these two. That is the richest markup on the page, tables
     // and blockquotes and fenced code, and it went unscanned on every exercise
-    // in both themes for as long as the gate has existed. An audit found the
+    // in both themes for as long as the gate existed. An audit found the
     // heading outline was broken in all twenty five as a result.
-    // Scoped by section, not by button text. Matching `.reveal__button` on the
-    // word "hint" also matched the terminal's own reveal, whose label ends "this
-    // is close to a hint", so this clicked that instead, and the terminal step
-    // further down then toggled it shut again and waited forever for a list
-    // that was no longer there. Each island owns a section labelled by its own
-    // heading, and that is unambiguous.
+    //
+    // Native disclosures now, rather than islands that rendered nothing until
+    // clicked. Opened in order, because the enhancement script folds hint n+1
+    // away until hint n has been opened, and a scan of a hidden element is a
+    // scan of nothing.
     const revealed = [];
-    const hintButton = page.locator('section[aria-labelledby^="hints-"] .reveal__button').first();
-    if (await hintButton.count()) {
-      // Every hint, not just the first. They are separate articles and a later
-      // one can carry markup the first does not.
-      for (let click = 0; click < 6; click += 1) {
-        if ((await hintButton.getAttribute("aria-disabled")) === "true") break;
-        await hintButton.click();
-      }
+    const hints = page.locator("details[data-hint]");
+    const hintCount = await hints.count();
+    for (let index = 0; index < hintCount; index += 1) {
+      await hints.nth(index).locator("summary").click();
+    }
+    if (hintCount > 0) {
+      await page.waitForSelector("details[data-hint][open] .reveal__item");
       revealed.push("hints");
       seenRevealStates.add("hints");
     }
-    const solutionButton = page
-      .locator('section[aria-labelledby^="solution-"] .reveal__button')
-      .first();
-    if (await solutionButton.count()) {
-      await solutionButton.click();
-      await page.waitForSelector('[id^="solution-body-"] > div');
+
+    const solution = page.locator("details[data-solution]");
+    if (await solution.count()) {
+      await solution.locator("summary").click();
+      await page.waitForSelector("details[data-solution][open] .reveal__item");
       revealed.push("the solution");
       seenRevealStates.add("solution");
     }
@@ -295,6 +292,153 @@ for (const theme of ["dark", "light"]) {
   await context.close();
 }
 
+// --------------------------------------------------------------------- 320px
+//
+// WCAG 2.2 AA, 1.4.10 Reflow: at 320 CSS pixels, which is a small phone and
+// also what a 1280px window looks like at 400% zoom, content must not require
+// scrolling in two directions. Nothing had ever looked at this site narrow,
+// and it carries a monospace terminal and wide preformatted SQL tables, so it
+// is a real risk rather than a formality.
+//
+// A wide block is allowed to scroll inside its own container. What is not
+// allowed is the whole page scrolling sideways, which is what this measures.
+// One theme: reflow is a layout property and does not change with colour.
+{
+  const context = await browser.newContext({ viewport: { width: 320, height: 720 } });
+  const page = await context.newPage();
+
+  for (const path of pages) {
+    await page.goto(`http://127.0.0.1:${PORT}${BASE}${path}`, { waitUntil: "networkidle" });
+
+    const overflow = await page.evaluate(() => {
+      const root = document.documentElement;
+      if (root.scrollWidth <= root.clientWidth + 1) return null;
+      // Name the widest thing, or the failure is a number with nowhere to go.
+      let worst = null;
+      for (const node of document.querySelectorAll("body *")) {
+        const box = node.getBoundingClientRect();
+        if (box.right <= root.clientWidth + 1) continue;
+        if (!worst || box.right > worst.right) {
+          worst = {
+            right: Math.round(box.right),
+            tag: node.tagName.toLowerCase(),
+            className: typeof node.className === "string" ? node.className : "",
+          };
+        }
+      }
+      return { page: root.scrollWidth, viewport: root.clientWidth, worst };
+    });
+
+    checks += 1;
+    if (overflow) {
+      const culprit = overflow.worst
+        ? `${overflow.worst.tag}${overflow.worst.className ? `.${overflow.worst.className.split(" ").join(".")}` : ""} reaches ${overflow.worst.right}px`
+        : "no single element could be blamed";
+      failures.push({
+        theme: "320px",
+        path,
+        violations: [{
+          impact: "serious",
+          id: "reflow",
+          help: `the page scrolls sideways at 320px: ${overflow.page}px of content in ${overflow.viewport}px`,
+          nodes: [{ target: [culprit] }],
+        }],
+      });
+    }
+
+    const narrow = await scan(page);
+    checks += 1;
+    if (narrow.violations.length > 0) {
+      failures.push({ theme: "320px", path, violations: narrow.violations });
+    }
+  }
+  await context.close();
+}
+
+// ------------------------------------------------------------- without script
+//
+// The reason the hints and the solution stopped being islands.
+//
+// They used to be props on a Preact component, so the markup shipped in every
+// page escaped inside an attribute: bytes paid for on every visit, and not one
+// word readable without JavaScript. Nothing here had ever loaded a page with
+// scripting off, so nothing would have said so.
+//
+// `<details>` opens with no script at all, which is the whole point, and this
+// is the check that keeps it true.
+{
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    javaScriptEnabled: false,
+  });
+  const page = await context.newPage();
+  const exercisePages = pages.filter((path) => path.startsWith("/exercises/"));
+
+  for (const path of exercisePages) {
+    await page.goto(`http://127.0.0.1:${PORT}${BASE}${path}`, { waitUntil: "domcontentloaded" });
+
+    // Every disclosure opened the way a person would, by clicking. If the
+    // enhancement script were still required for any of this, these clicks
+    // would do nothing and the assertions below would find empty pages.
+    for (const summary of await page.locator("details.reveal__disclosure summary").all()) {
+      await summary.click();
+    }
+
+    const readable = await page.evaluate(() => {
+      const visible = (node) =>
+        node && node.getClientRects().length > 0 && node.textContent.trim().length > 0;
+      const hints = [...document.querySelectorAll("details[data-hint] .reveal__item")];
+      const solution = document.querySelector("details[data-solution] .reveal__item");
+      return {
+        hints: hints.length,
+        hintsVisible: hints.filter(visible).length,
+        solutionVisible: visible(solution),
+        solutionChars: solution ? solution.textContent.trim().length : 0,
+      };
+    });
+
+    checks += 1;
+    if (readable.hints === 0 || readable.hintsVisible !== readable.hints) {
+      failures.push({
+        theme: "no javascript",
+        path,
+        violations: [{
+          impact: "critical",
+          id: "content-needs-script",
+          help: `${readable.hintsVisible} of ${readable.hints} hints are readable without JavaScript`,
+          nodes: [{ target: ["details[data-hint] .reveal__item"] }],
+        }],
+      });
+    }
+
+    checks += 1;
+    // A length, not just presence. An empty container that happens to be in
+    // the page would satisfy "the element exists" and teach nobody anything.
+    if (!readable.solutionVisible || readable.solutionChars < 200) {
+      failures.push({
+        theme: "no javascript",
+        path,
+        violations: [{
+          impact: "critical",
+          id: "content-needs-script",
+          help: `the solution is not readable without JavaScript (${readable.solutionChars} characters visible)`,
+          nodes: [{ target: ["details[data-solution] .reveal__item"] }],
+        }],
+      });
+    }
+
+    seenRevealStates.add("no-script");
+  }
+
+  // No axe here, deliberately. It injects itself into the page and runs there,
+  // so with scripting off it cannot run at all; the first attempt at this died
+  // on a garbage-collected promise rather than reporting anything. The markup
+  // is identical either way now that it is server-rendered, and the scans
+  // above cover it. What this pass uniquely proves is that the content is
+  // readable, which is the thing that was broken.
+  await context.close();
+}
+
 await browser.close();
 server.close();
 
@@ -327,6 +471,7 @@ for (const [state, described] of [
 for (const [state, described] of [
   ["hints", "a hint"],
   ["solution", "a solution"],
+  ["no-script", "a page with scripting turned off"],
 ]) {
   if (!seenRevealStates.has(state)) {
     console.error(`axe: ${described} was never revealed, so its markup went unchecked.`);
@@ -338,7 +483,8 @@ if (failures.length === 0) {
   console.log(
     `axe: ${checks} checks across ${pages.length} pages in 2 themes, ` +
       `including both quiz verdicts, the terminal showing output and a refusal, ` +
-      `and every hint and solution opened, no violations.`,
+      `every hint and solution opened, reflow at 320px, and every exercise ` +
+      `read with JavaScript turned off. No violations.`,
   );
   process.exit(0);
 }

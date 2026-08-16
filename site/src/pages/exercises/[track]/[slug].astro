@@ -1,8 +1,6 @@
 ---
 import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
 import { loadExercises, type Exercise } from "../../../lib/labs";
-import HintReveal from "../../../components/HintReveal";
-import SolutionReveal from "../../../components/SolutionReveal";
 import ScratchPad from "../../../components/ScratchPad";
 import Quiz from "../../../components/Quiz";
 import LabTerminal from "../../../components/LabTerminal";
@@ -117,9 +115,63 @@ const headings = [
 
   <ScratchPad exerciseId={exercise.id} client:load />
 
-  <HintReveal exerciseId={exercise.id} hints={exercise.hintsHtml} client:load />
+  {/*
+    Hints and the solution are written into the page, not handed to an island.
 
-  <SolutionReveal exerciseId={exercise.id} solution={exercise.solutionHtml} client:load />
+    They used to be props on a Preact component, which meant the markup shipped
+    in every page escaped inside an attribute: the bytes were paid for on every
+    visit and nobody with JavaScript off could read a word of it. Worst of both.
+
+    A native `<details>` opens and closes with no script at all and carries the
+    disclosure semantics for free, so the content is now genuinely available.
+    The script below only adds what the browser cannot: remembering what was
+    open, and holding the hints in order.
+  */}
+  {
+    exercise.hintsHtml.length > 0 && (
+      <section class="reveal" aria-labelledby={`hints-${exercise.id}`} data-hints>
+        <h2 id={`hints-${exercise.id}`}>Hints</h2>
+        <p class="reveal__lede">
+          Each hint gives away a little more. Try to spend a few minutes on your
+          own evidence first, because the recall is what makes it stick.
+        </p>
+        {exercise.hintsHtml.map((html, index) => (
+          <details
+            class="reveal__disclosure"
+            data-hint={index}
+            data-key={`proveit:hint:${exercise.id}:${index}`}
+            data-progress-key={`proveit:hints:${exercise.id}`}
+          >
+            <summary>
+              Hint {index + 1}
+              <span class="reveal__of"> of {exercise.hintsHtml.length}</span>
+            </summary>
+            <div class="reveal__item" set:html={html} />
+          </details>
+        ))}
+      </section>
+    )
+  }
+
+  {
+    exercise.solutionHtml && (
+      <section class="reveal" aria-labelledby={`solution-${exercise.id}`}>
+        <h2 id={`solution-${exercise.id}`}>Solution</h2>
+        <p class="reveal__lede">
+          Write your customer update before you read this. Comparing your wording
+          against the model answer is worth more than reading it cold.
+        </p>
+        <details
+          class="reveal__disclosure"
+          data-solution
+          data-key={`proveit:solution:${exercise.id}`}
+        >
+          <summary>Reveal the solution</summary>
+          <div class="reveal__item" set:html={exercise.solutionHtml} />
+        </details>
+      </section>
+    )
+  }
 
   <Quiz exerciseId={exercise.id} questions={exercise.questions} client:load />
 
@@ -160,3 +212,73 @@ const headings = [
     )
   }
 </StarlightPage>
+
+{/*
+  Everything the browser cannot do on its own, and nothing it can.
+
+  The disclosures above work with no script: opening and closing, the keyboard,
+  and the accessibility tree are all native. This adds two things.
+
+  It remembers what was open, under the same storage keys the islands used, so
+  nobody who already has a place in a page loses it.
+
+  And it keeps the hints in order, which is the one thing the markup cannot
+  express. Later hints are folded away until the one before has been opened.
+  With scripting off they are all available, which is the right way round: the
+  enhancement adds restraint, and its absence never withholds content. The
+  solution says the same thing in its own words already, that the click is
+  there to stop somebody reading the answer by accident rather than to gate it.
+*/}
+<script>
+  function remember(node: HTMLDetailsElement) {
+    const key = node.dataset.key;
+    if (!key) return;
+    try {
+      if (localStorage.getItem(key) === "true") node.open = true;
+    } catch {
+      /* Private mode or storage disabled. The page works, it just forgets. */
+    }
+    node.addEventListener("toggle", () => {
+      try {
+        localStorage.setItem(key, String(node.open));
+      } catch {
+        /* As above. Never let a storage failure break the disclosure. */
+      }
+    });
+  }
+
+  const solution = document.querySelector<HTMLDetailsElement>("details[data-solution]");
+  if (solution) remember(solution);
+
+  const hints = [...document.querySelectorAll<HTMLDetailsElement>("details[data-hint]")];
+  if (hints.length > 0) {
+    const progressKey = hints[0].dataset.progressKey ?? "";
+
+    // How far the learner has already got, so returning to a page does not
+    // fold away hints they have already read.
+    let unlocked = 1;
+    try {
+      unlocked = Math.max(1, Number(localStorage.getItem(progressKey) ?? 1));
+    } catch {
+      /* Defaults are fine. */
+    }
+
+    const apply = () => hints.forEach((hint, index) => (hint.hidden = index >= unlocked));
+
+    hints.forEach((hint, index) => {
+      remember(hint);
+      hint.addEventListener("toggle", () => {
+        if (!hint.open || index + 1 < unlocked) return;
+        unlocked = index + 2;
+        try {
+          localStorage.setItem(progressKey, String(unlocked));
+        } catch {
+          /* As above. */
+        }
+        apply();
+      });
+    });
+
+    apply();
+  }
+</script>
