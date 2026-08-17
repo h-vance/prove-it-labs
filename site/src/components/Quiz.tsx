@@ -1,3 +1,4 @@
+import { useEffect } from "preact/hooks";
 import { useStored } from "./storage";
 import type { QuizQuestion } from "../lib/labs";
 
@@ -28,8 +29,18 @@ export default function Quiz({ exerciseId, questions }: Props) {
     `proveit:quiz:${exerciseId}`,
     questions.map(() => UNANSWERED),
   );
-
-  if (questions.length === 0) return null;
+  /**
+   * The score, stored separately, for the one page that cannot work it out.
+   *
+   * The key above holds which option was picked, which is only a score if you
+   * also hold the answer key. This component has it; the proof record page does
+   * not, and giving it the correct index for all seventy five questions would
+   * put the entire answer key in the HTML of a page anybody can view the source
+   * of. Storing the number here instead reveals nothing new about a learner,
+   * because it was already derivable from what sits beside it, and it is the
+   * one form the other page can read without being handed the answers.
+   */
+  const [, setScore] = useStored<number | null>(`proveit:quiz-score:${exerciseId}`, null);
 
   // Stored state can be shorter than the question list if questions were added
   // after someone last visited. Pad rather than throwing their progress away.
@@ -43,6 +54,23 @@ export default function Quiz({ exerciseId, questions }: Props) {
     const pick = chosen[index];
     return pick !== undefined && pick !== UNANSWERED && question.options[pick]?.correct;
   }).length;
+
+  // Derived from the answers rather than written alongside them, so the two can
+  // never disagree. Writing it inside `choose` would mean every future path
+  // that changes an answer has to remember to update the score as well, and
+  // "Start over" below is already one such path.
+  useEffect(() => {
+    setScore(answered === 0 ? null : score);
+  }, [answered, score, setScore]);
+
+  // After the hooks, never before them. This return used to sit above the two
+  // useStored calls' worth of state below, which meant an exercise with no
+  // questions ran a different number of hooks from one that had them. It
+  // happened to be harmless, because the count is fixed for a given exercise
+  // and so stayed consistent across that component's own renders, but it is
+  // the shape of bug that stops being harmless the moment anything here
+  // becomes conditional.
+  if (questions.length === 0) return null;
 
   // Functional update, not setAnswers([...chosen]). Two answers given before
   // the next render would otherwise both build from the same stale array and

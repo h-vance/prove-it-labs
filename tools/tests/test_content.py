@@ -324,6 +324,34 @@ class AdvertisedFeatures(unittest.TestCase):
                     f"would watch the page not change."
                 )
 
+    def test_every_proof_question_can_be_restated_as_a_claim(self):
+        """The proof record page rewrites these, so their opening is load-bearing.
+
+        `asStatement` in site/src/components/ProofRecord.tsx turns "Can I prove
+        the route still exists?" into "You can prove the route still exists."
+        when the CLI reports an exercise passed. That is a text transform, so a
+        question written in any other shape comes out as nonsense on a page
+        nobody would think to re-read after adding an exercise.
+
+        Both halves are checked, because the transform strips the opening and
+        the trailing question mark and a missing mark would produce a sentence
+        ending in two full stops.
+        """
+        for exercise in EXERCISES:
+            question = exercise.meta.get("proof_question", "")
+            with self.subTest(exercise.id):
+                self.assertTrue(
+                    question.startswith("Can I "),
+                    f"{exercise.id}: proof_question is {question!r}, which does not "
+                    f"start with 'Can I '. The proof record page rewrites it into a "
+                    f"statement by swapping that opening for 'You can '.",
+                )
+                self.assertTrue(
+                    question.rstrip().endswith("?"),
+                    f"{exercise.id}: proof_question is {question!r}, which is not "
+                    f"punctuated as a question.",
+                )
+
     def difficulty_labels(self) -> list[str]:
         """The words the site prints for a difficulty, read from its own source."""
         text = (self.SITE / "src" / "lib" / "labs.ts").read_text(encoding="utf-8")

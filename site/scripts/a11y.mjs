@@ -79,6 +79,7 @@ const failures = [];
 const seenVerdicts = new Set();
 const seenTerminalStates = new Set();
 const seenRevealStates = new Set();
+const seenProofStates = new Set();
 let checks = 0;
 
 /**
@@ -325,6 +326,62 @@ for (const theme of ["dark", "light"]) {
         failures.push({ theme, path: `${path} (answered)`, violations: result.violations });
       }
     }
+
+    // The proof record, in all three of its states.
+    //
+    // As served it is twenty five unanswered questions, which is the one state
+    // with nothing to fail on. The refusal message and the proven item are both
+    // rendered only after somebody pastes something, and the proven item is the
+    // only place on the site where a color carries any part of a meaning, so
+    // leaving it unscanned would leave the risk unmeasured.
+    //
+    // The exercise id comes off the page's own links rather than being written
+    // here, so this cannot start passing against an exercise that was renamed.
+    if (await page.locator(".proof__import").count()) {
+      const field = page.locator("#proof-paste");
+      const importButton = page.locator(".proof__import .reveal__button").first();
+
+      await field.fill("this is not json");
+      await importButton.click();
+      await page.waitForSelector(".proof__message");
+      seenProofStates.add("refused");
+
+      // Refusing has to leave the record alone, which is the whole reason the
+      // parse and the write are separate steps in the component.
+      if (await page.locator(".proof__item--proven").count()) {
+        failures.push({
+          theme,
+          path: `${path} (refused import)`,
+          violations: [{
+            id: "proof-record-refusal",
+            help: "A refused import marked an exercise proven, so it wrote before it parsed.",
+            nodes: [],
+          }],
+        });
+      }
+
+      const first = await page.locator(".proof__item .proof__link a").first().getAttribute("href");
+      const id = first.replace(/^.*\/exercises\//, "");
+      await field.fill(JSON.stringify({ completed: [id], total: 25, by_track: {} }));
+      await importButton.click();
+      await page.waitForSelector(".proof__item--proven");
+      seenProofStates.add("imported");
+
+      await page.evaluate(() =>
+        Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => {}))),
+      );
+      const proofResult = await scan(page);
+      checks += 1;
+      if (proofResult.violations.length > 0) {
+        failures.push({ theme, path: `${path} (imported)`, violations: proofResult.violations });
+      }
+
+      // Leave nothing behind for the next theme's pass, which shares no context
+      // but would share an origin.
+      await page.locator(".proof__import .reveal__button--quiet").click();
+      await page.waitForSelector(".proof__item--proven", { state: "detached" });
+      seenProofStates.add("cleared");
+    }
   }
   await context.close();
 }
@@ -516,6 +573,20 @@ for (const [state, described] of [
   }
 }
 
+// And the proof record, whose three interesting states all need a paste to
+// exist at all. A run that opened the page and did nothing would scan twenty
+// five identical "Not started" rows and report the same clean line.
+for (const [state, described] of [
+  ["refused", "a refused import"],
+  ["imported", "an imported record"],
+  ["cleared", "the record being cleared again"],
+]) {
+  if (!seenProofStates.has(state)) {
+    console.error(`axe: the proof record never showed ${described}, so that state went unchecked.`);
+    process.exit(1);
+  }
+}
+
 if (cspFailures.length > 0) {
   console.error(
     `csp: ${cspFailures.length} Content-Security-Policy problem(s). The policy ` +
@@ -533,8 +604,9 @@ if (failures.length === 0) {
   console.log(
     `axe: ${checks} checks across ${pages.length} pages in 2 themes, ` +
       `including both quiz verdicts, the terminal showing output and a refusal, ` +
-      `every hint and solution opened, reflow at 320px, and every exercise ` +
-      `read with JavaScript turned off. No violations.`,
+      `every hint and solution opened, the proof record refusing and accepting ` +
+      `an import, reflow at 320px, and every exercise read with JavaScript ` +
+      `turned off. No violations.`,
   );
   console.log(
     `csp: enforced on all ${pages.length} pages in both themes with every ` +

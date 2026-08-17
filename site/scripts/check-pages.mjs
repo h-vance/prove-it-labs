@@ -169,7 +169,12 @@ for (const name of readdirSync(join(REPO, "reference")).filter((n) => n.endsWith
   }
 }
 
-for (const page of ["index.html", "how-it-works/index.html", "start/index.html"]) {
+for (const page of [
+  "index.html",
+  "how-it-works/index.html",
+  "start/index.html",
+  "proof/index.html",
+]) {
   if (!existsSync(join(DIST, page))) problems.push(`Missing core page: ${page}`);
 }
 

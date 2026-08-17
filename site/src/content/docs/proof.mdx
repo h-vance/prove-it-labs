@@ -1,0 +1,51 @@
+---
+title: What you can prove
+description: A record of the exercises you have worked through and the ones you have actually proven, held in your own browser and nowhere else.
+---
+
+import ProofRecord from "../../components/ProofRecord";
+import { loadExercises } from "../../lib/labs";
+
+export const entries = loadExercises().map((exercise) => ({
+  id: exercise.id,
+  trackLabel: exercise.trackLabel,
+  title: exercise.title,
+  href: exercise.href,
+  proofQuestion: exercise.proofQuestion,
+  questionCount: exercise.questions.length,
+  hintCount: exercise.hintsHtml.length,
+}));
+
+Every exercise here asks one question. The whole course is the difference
+between reading the answer to it and being able to prove it.
+
+This page is the record of which is which for you. It is worth being exact
+about what it can and cannot see, because a page that overstated this would be
+the walkthrough this course exists to avoid.
+
+**It can see what you did on this site.** The questions you answered, the hints
+you opened, the solution you read, the notes you wrote, the commands you
+replayed. All of that has been stored in your own browser all along, by the
+pages themselves. Nothing was uploaded, there is no account, and until this
+page existed nothing ever read any of it back.
+
+**It cannot see whether you fixed anything.** Nothing typed into a page changes
+a real system, so nothing you do here is proof of anything. Only `tse check`
+knows, because only `tse check` ran the assertions against genuinely broken
+containers. That is why the box below is here, and it is the only thing that
+turns a question into a statement.
+
+<ProofRecord client:load base={import.meta.env.BASE_URL.replace(/\/$/, "")} entries={entries} />
+
+## If it says nothing is proven
+
+That is the honest answer rather than a fault. Run the exercises in a Codespace
+or a local clone, then:
+
+```bash
+tse progress --json
+```
+
+Paste what it prints into the box above. Your terminal and your browser have no
+other way to reach each other, which is a consequence of this course keeping
+everything on your own machine rather than an oversight.
