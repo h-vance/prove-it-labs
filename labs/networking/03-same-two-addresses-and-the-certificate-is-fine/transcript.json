@@ -12,7 +12,7 @@
         "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T client /app/upload.sh",
         "docker compose exec client /app/upload.sh"
       ],
-      "output": "uploading to https://reports:8443/v1/exports\n\nupload failed (curl exit 7)\ncurl: (7) Failed to connect to reports:8443 after 1 ms: Could not connect to server",
+      "output": "uploading to https://reports:8443/v1/exports\n\nupload failed (curl exit 7)\ncurl: (7) Failed to connect to reports:8443 after 2 ms: Could not connect to server",
       "exit": 7
     },
     {
@@ -44,15 +44,15 @@
       "exit": 0
     },
     {
-      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client nslookup -type=A reports",
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client nslookup -type=A reports.",
       "aliases": [
-        "nslookup -type=A reports",
+        "nslookup -type=A reports.",
         "docker compose exec client nslookup reports"
       ],
       "match": [
-        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T client nslookup -type=A reports",
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T client nslookup -type=A reports.",
         "docker compose exec client nslookup reports",
-        "nslookup -type=A reports"
+        "nslookup -type=A reports."
       ],
       "output": "Server:\t\t127.0.0.11\nAddress:\t127.0.0.11:53\n\nNon-authoritative answer:\nName:\treports\nAddress: 127.0.0.1",
       "exit": 0

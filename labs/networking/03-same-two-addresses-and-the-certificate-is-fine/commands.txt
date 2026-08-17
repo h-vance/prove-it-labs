@@ -36,15 +36,23 @@ docker compose -f labs/networking/_stack/compose.yaml \
 # it replied with exactly what it was configured to say. Nothing here is
 # malfunctioning, which is why no health check saw it.
 #
-# Asked for one record type on purpose. Left to itself the tool asks for two at
-# once and prints whichever came back first, so the same lookup produces two
-# different transcripts on the same machine.
-# alias: nslookup -type=A reports
+# Two things here are deliberate and neither is cosmetic.
+#
+# One record type, because left to itself the tool asks for two at once and
+# prints whichever came back first, so the same lookup produces two different
+# transcripts on the same machine.
+#
+# And the trailing dot, which makes the name absolute. Without it the resolver
+# appends each search domain in turn and prints the misses on the way, so what
+# this command produces depends on the network the machine is sitting on. A
+# CI runner supplied one and a laptop supplied none, and the recording that was
+# stable across five runs here failed on the first run there.
+# alias: nslookup -type=A reports.
 # alias: docker compose exec client nslookup reports
 # keep: reports, 127.0.0.1
 docker compose -f labs/networking/_stack/compose.yaml \
                -f labs/networking/_stack/compose.override.yaml \
-               exec -T client nslookup -type=A reports
+               exec -T client nslookup -type=A reports.
 ---
 # The gateway is healthy and serving, which the connection failure never told
 # you either way, because nothing ever reached it.

@@ -707,6 +707,38 @@ thing that can cover it.
 
 ---
 
+### P7. A recorded lookup depended on the network the machine was sitting on
+
+Found by CI on the first run of `networking/03`, which is the point of having
+it. Everything below had passed five consecutive drift checks on the machine
+that wrote the recording.
+
+`nslookup reports` was recorded against a laptop whose containers get no DNS
+search domain. The CI runner is an Azure host and Docker hands its containers
+one, so the resolver there tried `reports.<the runner's internal suffix>`
+first, printed the miss, and the recording disagreed on line four. The exercise
+itself verified correctly on the runner: it failed broken and passed fixed. Only
+the recording moved.
+
+Two smaller things had already been fixed on the way to this one, and they are
+the same mistake at different sizes. The tool asks for A and AAAA at once and
+prints whichever returns first, so the same lookup produced two different
+transcripts on one machine; asking for a single record type settled it. And how
+long curl spends failing to connect is a measure of the machine, which is a
+scrub rule and behaved correctly in CI on the run that found this.
+
+**The fix is a trailing dot.** `nslookup -type=A reports.` is an absolute name,
+so no search domain is appended and the answer is the same on any network.
+Proven by reproducing the runner's condition locally, with its exact search
+domain and then with two of them, and getting output identical to the
+recording both times.
+
+Worth stating plainly because it generalizes past this repository: a recorded
+command is only reproducible if nothing it touches is supplied by the
+environment, and the resolver's search list is exactly that kind of input. It
+is invisible until somebody runs the command somewhere else, which is what CI
+is for.
+
 ## Content and documentation
 
 ### C1. The style rules covered `labs/` and two files at the root
