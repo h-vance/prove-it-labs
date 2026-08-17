@@ -157,8 +157,6 @@ prose, which includes a lot of very good engineers.
 - **Uniform structure.** Every exercise is laid out identically, so orienting
   yourself costs nothing.
 - **Stated cost.** Every exercise declares how long it takes before you start.
-- **Core and stretch are separated,** and stretch material can be hidden rather
-  than skimmed past.
 - **A minimum viable day exists.** One ticket, one command, one proof sentence,
   one question answered. That counts as a day of progress.
 - **The writing is graded.** Support is half communication, so customer updates

@@ -73,6 +73,44 @@ export const TRACK_LABELS: Record<string, string> = {
   mixed: "Mixed incidents",
 };
 
+/**
+ * One word per permitted difficulty, indexed by the number itself.
+ *
+ * The permitted range lives in tools/tests/test_content.py, which asserts every
+ * exercise declares a difficulty in 1 to 5. This list has to cover exactly that
+ * range, and until now the only copy of it was an anonymous array literal
+ * inside the exercise page template with nothing tying the two together. A
+ * sixth permitted level would have rendered an empty difficulty on every page
+ * that used it, silently, because indexing past the end of an array in
+ * JavaScript is not an error.
+ *
+ * A test now reads this list and fails if it stops matching the range the
+ * schema allows, in either direction.
+ *
+ * Index 0 is unused and deliberately unreachable: difficulty is one-based, and
+ * padding the front is cheaper to read than subtracting one at every use.
+ */
+export const DIFFICULTY_LABELS = [
+  "",
+  "Gentle",
+  "Straightforward",
+  "Involved",
+  "Hard",
+  "Brutal",
+] as const;
+
+/** The word for a difficulty, or a loud failure at build time rather than a blank. */
+export function difficultyLabel(difficulty: number): string {
+  const label = DIFFICULTY_LABELS[difficulty];
+  if (!label) {
+    throw new Error(
+      `Difficulty ${difficulty} has no label. Add one to DIFFICULTY_LABELS in ` +
+        `src/lib/labs.ts, and widen the range in tools/tests/test_content.py to match.`,
+    );
+  }
+  return label;
+}
+
 export interface QuizOption {
   text: string;
   /** Exactly one option per question carries this. test_content.py enforces it. */

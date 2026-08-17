@@ -14,17 +14,9 @@ export default defineConfig({
       description:
         "A hands-on Technical Support Engineering course. Real incidents, symptom-only tickets, and a grader that shows its evidence.",
       customCss: ["./src/styles/custom.css"],
-      head: [
-        {
-          // Applied before first paint so stretch material never flashes in
-          // and then disappears, which is worse than never hiding it.
-          tag: "script",
-          content:
-            "try{document.documentElement.dataset.stretch=" +
-            "JSON.parse(localStorage.getItem('proveit:stretch'))?'shown':'hidden'}" +
-            "catch(e){document.documentElement.dataset.stretch='hidden'}",
-        },
-      ],
+      // No `head` entries. There was one, and it read a setting that nothing
+      // writes any more: see the note at the top of src/components/TierToggle.tsx
+      // for what it did and the exact line to restore alongside that control.
       social: [
         {
           icon: "github",
