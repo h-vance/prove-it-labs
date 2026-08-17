@@ -40,7 +40,7 @@ argument for building the gates in the first place.
 ## Contents
 
 - [Blockers](#blockers), two, both closed
-- [Checks that could not fail](#checks-that-could-not-fail), seven of them
+- [Checks that could not fail](#checks-that-could-not-fail), eight of them
 - [Correctness](#correctness)
 - [Security](#security)
 - [Accessibility](#accessibility)
@@ -135,7 +135,7 @@ must still exist.
 
 ## Checks that could not fail
 
-The largest single category. Seven checks were passing without checking
+The largest single category. Eight checks were passing without checking
 anything.
 
 ### F1. `--not-contains` passed when the command errored
@@ -209,6 +209,42 @@ not abort, which was the actual intent of `|| true`.
 ### F7. The style rules read a fraction of what gets published
 
 See [C1](#c1-the-style-rules-covered-labs-and-two-files-at-the-root).
+
+### F8. A new file is exempt from the editorial rules until it is committed
+
+`style_sources()` builds its list from `tse.tracked_files()`, on the stated
+grounds that tracked files are exactly what gets published. That is the right
+scope and it has a timing hole nobody had noticed.
+
+A file that has just been written is not tracked yet, so every editorial rule
+skips it. The tests pass. The author, reasonably, reads that as permission to
+commit. Committing is what puts the file in scope, and the rules that would
+have caught it do not run again until somebody thinks to re-run them.
+
+Found by walking into it. `site/scripts/demo-svg.mjs` was written, checked
+green at 145 tests, and committed. The next run failed `test_us_spelling` on
+that file, naming a line and a British spelling in a comment that had been
+sitting there the whole time.
+
+The message is described rather than quoted, and for the third time today that
+is not squeamishness. Pasting it in put the misspelled word into this document,
+and `AUDIT.md` is held to the spelling rule like everything else, so the finding
+about a gate failed on the gate it was about. The same collision produced the
+same answer in [C10](#c10-nothing-checks-that-this-document-is-still-true) and
+[C11](#c11-a-setting-a-reader-could-change-that-could-change-nothing). A
+document cannot both forbid a string and contain it, and the right response is
+usually to stop quoting rather than to stop checking.
+
+**Not changed, deliberately.** Widening the scan to untracked files would put
+scratch files, editor leftovers and anything a contributor happens to have in
+their working directory under the editorial rules, which is a fast way to make
+the gate something people learn to ignore.
+
+The real mitigation is the one that already worked: `preflight.sh` is the thing
+you run before pushing, it runs after you have committed, and it caught this
+before anything left the machine. What is worth knowing is that a green test
+run on a file you have not committed yet is not evidence about that file, and
+this document is the place to write that down.
 
 ---
 
