@@ -896,7 +896,7 @@ rather than skimmed past, and *How this works* carried the control that did
 the hiding. It was a real component, correctly written, with its state applied
 before first paint so nothing would flash in and out.
 
-Every one of the twenty five exercises is `tier: core`. There has never been a
+Every one of the twenty six exercises is `tier: core`. There has never been a
 single piece of stretch material in this repository. Somebody who found the
 switch and used it watched the page not change, and had no way to tell whether
 they had misunderstood the feature or the site was broken.
@@ -1187,7 +1187,7 @@ removed.
 
 1. **Path-aware selection.** `tse affected` verifies only the exercises a change
    can reach.
-2. **One job per stack, not per exercise.** Eight jobs instead of twenty-five,
+2. **One job per stack, not per exercise.** Eight jobs instead of twenty-six,
    grouped by the stack an exercise actually runs against rather than its track,
    because `mixed/01` borrows the docker stack and `mixed/02` borrows api.
    Grouping by track would have built both an extra time. Roughly 76 billable
@@ -1243,8 +1243,8 @@ into hint 2, all in the newest tracks, and that they should be rewritten.
 that *gather evidence*; hint 3 shows what the evidence says and what to change.
 That is a real escalation and a better one than the rule described. The right
 measurement is where the *fix* appears: `tse apply` and `tse check` are what
-somebody runs after changing something, and across all twenty-five exercises
-they are in hint 3 fifteen times and in hint 2 **never**.
+somebody runs after changing something, and across all twenty-six exercises
+they are in hint 3 sixteen times and in hint 2 **never**.
 
 Acting on the first measurement would have stripped good teaching content out of
 the six hardest exercises. `CONTRIBUTING.md` now says what the exercises
@@ -1351,6 +1351,13 @@ The most useful section for anyone reading this as a work sample.
   a real cluster or another distribution.
 - **The networking track teaches no routing.** DNS is now taught by
   `networking/03`. Routing is named in the track and is not.
+- **Only the README's counts are gated.** `ReadmeCounts` reads the track table
+  against the real exercises, which is why that table cannot go stale. Nothing
+  reads the counts written into prose elsewhere. Adding one exercise falsified
+  five sentences across `CONTRIBUTING.md` and this file, all found by grep
+  rather than by a gate. A rule general enough to catch them would also have to
+  tell a live claim from a historical one, and this document is full of the
+  second kind.
 - **`tse links` checks external URLs but not their content.** A link that
   resolves to a parked domain passes.
 - **No mutation testing.** The gates are proven by planted defects chosen by the
@@ -1382,13 +1389,13 @@ The most useful section for anyone reading this as a work sample.
   learners prove things to it rather than to themselves would have the wrong
   relationship with them. Worth stating plainly, because a reader could
   otherwise mistake it for an attestation.
-- **The evidence layers are free text.** Sixty eight distinct phrases across
-  twenty five exercises, sixty of them used exactly once, so they cannot
+- **The evidence layers are free text.** Seventy one distinct phrases across
+  twenty six exercises, sixty five of them used exactly once, so they cannot
   support the thing they look like they should support: a map of which layers
   somebody has actually gathered evidence at. Turning them into a controlled
-  vocabulary is content work on all twenty five exercises, and it is the
+  vocabulary is content work on all twenty six exercises, and it is the
   obvious next thing the proof record wants.
-- **25 exercises against a target of 100.** Depth inside existing tracks rather
+- **26 exercises against a target of 100.** Depth inside existing tracks rather
   than new ground, and not an audit finding.
 
 ---
