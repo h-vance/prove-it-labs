@@ -414,6 +414,34 @@ class Editorial(unittest.TestCase):
     # past tense is the whole point.
     TENSE_EXEMPT = {"AUDIT.md"}
 
+    # Phrases that were true when written and are now false. Two exact strings
+    # rather than a pattern, because this document's subject is the past and a
+    # broader rule would fire on correct sentences. A gate that fires on
+    # correct work gets switched off, which costs more than it catches.
+    AUDIT_WENT_STALE = ("Deferred to the flip", "currently disabled")
+
+    def test_the_audit_does_not_describe_a_repository_that_stopped_existing(self):
+        """The one file exempt from the rule above, and the one that rotted.
+
+        `AUDIT.md` is exempt from the tense check because recording the private
+        period accurately is the whole point of it. That exemption is right and
+        it has a cost: the section listing what the flip would buy spent an
+        afternoon listing as pending seven things that had already shipped, and
+        saying both workflows were disabled while four were running.
+
+        This does not make the document self-checking. It catches the one way
+        it has actually been seen to rot.
+        """
+        text = (ROOT / "AUDIT.md").read_text(encoding="utf-8")
+        for index, line in enumerate(text.splitlines(), 1):
+            for phrase in self.AUDIT_WENT_STALE:
+                if phrase in line:
+                    self.fail(
+                        f"AUDIT.md:{index} says {phrase!r}, which was true "
+                        f"before this repository went public and is not now. "
+                        f"Say what happened instead of what was expected."
+                    )
+
     def test_nothing_still_claims_this_repository_is_private(self):
         """It is public. A file that says otherwise is wrong, not merely stale."""
         for name, text in STYLE_SOURCES:
