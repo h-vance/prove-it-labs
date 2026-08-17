@@ -28,6 +28,7 @@ export default defineConfig({
         { label: "Start here", link: "/" },
         { label: "How this works", link: "/how-it-works" },
         { label: "Where do I begin?", link: "/start" },
+        { label: "What you can prove", link: "/proof" },
         ...sidebarFromLabs(),
         {
           label: "Reference",

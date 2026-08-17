@@ -747,6 +747,97 @@ html[data-stretch="hidden"] [data-tier="stretch"] {
   outline-offset: 2px;
 }
 
+/* ------------------------------------------------------------ proof record */
+
+/* Deliberately quiet. This page is a record, not a scoreboard, so it gets the
+ * same rules and the same panel treatment as everything else rather than a
+ * visual language of its own. A proven item is marked by its sentence changing
+ * from a question into a statement; the tick and the border are reinforcement,
+ * and removing both would lose nothing a reader needs. */
+
+.proof__count {
+  font-size: var(--sl-text-lg);
+  font-weight: 600;
+  margin-block: 1rem 1.5rem;
+}
+
+.proof__import {
+  margin-block: 1.5rem;
+  padding: 1rem 1.25rem;
+  border: var(--proveit-rule);
+  border-radius: var(--proveit-radius);
+  background: var(--proveit-panel);
+}
+
+.proof__label {
+  display: block;
+  font-weight: 600;
+}
+
+.proof__help {
+  margin: 0.35rem 0 0.75rem;
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-2);
+}
+
+.proof__textarea {
+  width: 100%;
+  font-family: var(--sl-font-mono);
+  font-size: var(--sl-text-sm);
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--sl-color-gray-4);
+  border-radius: var(--proveit-radius);
+  background: var(--sl-color-black);
+  color: var(--sl-color-white);
+  resize: vertical;
+}
+
+.proof__message {
+  margin-bottom: 0;
+  font-size: var(--sl-text-sm);
+}
+
+.proof__track {
+  margin-block: 2rem;
+}
+
+.proof__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.proof__item {
+  padding: 0.85rem 1rem;
+  border: var(--proveit-rule);
+  border-inline-start: 4px solid var(--sl-color-gray-4);
+  border-radius: var(--proveit-radius);
+}
+
+.proof__item--proven {
+  border-inline-start-color: var(--proveit-correct);
+}
+
+.proof__claim {
+  margin: 0;
+  font-weight: 600;
+}
+
+.proof__state,
+.proof__link {
+  margin: 0.35rem 0 0;
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-2);
+}
+
+.proof__mark {
+  color: var(--proveit-correct);
+  font-weight: 700;
+  margin-inline-end: 0.35rem;
+}
+
 /* Wide content scrolls inside its own box so the page body never does. */
 .sl-markdown-content table {
   display: block;
