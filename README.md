@@ -45,6 +45,14 @@ Most infrastructure courses tell you the topic before the exercise, which is the
 one thing a real ticket never does. Every ticket here is a symptom in the
 customer's own words. Working out what to look at first is the skill.
 
+**The site keeps a record of what you can prove.** Every exercise asks one
+question, and [the proof page](https://h-vance.github.io/prove-it-labs/proof)
+shows which of them you have answered. Nothing done on the site counts: reading
+a hint or answering a question is not proof of anything, because nothing typed
+into a page fixes a system. Paste the output of `tse progress --json` and the
+questions you actually solved turn into statements. It stays in your browser,
+there is no account, and nothing is uploaded.
+
 ## Start
 
 Open the repository in a Codespace, wait for the container to build, then:
@@ -100,7 +108,7 @@ these paragraphs never mention.
 | `tse apply` | Recreate the services after you edit the configuration |
 | `tse reset` | Return to the state described in the ticket |
 | `tse quiz` | Answer the exercise's questions and see why |
-| `tse progress` | See or export your progress |
+| `tse progress` | See your progress, or export it for the site's proof record |
 | `tse doctor` | Check this machine can run the labs |
 | `tse record` | Capture real output for the site's terminal |
 | `tse leaks` | Scan committed files for anything from a real machine |
