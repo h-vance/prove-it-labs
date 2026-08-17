@@ -162,6 +162,24 @@ for (const shot of SHOTS) {
     node.style.boxSizing = "border-box";
   });
 
+  // An element taller than the viewport is photographed by scrolling and
+  // stitching the slices together, and anything the browser pins in place is
+  // painted into every slice. Starlight's search box came out smeared across
+  // the middle of the quiz, covering an answer, and that image had been in the
+  // README since the screenshots first landed.
+  //
+  // Hidden rather than removed, so nothing underneath reflows and the image
+  // still frames what a reader would see. Ancestors are skipped, or hiding the
+  // chrome would hide the subject with it. The page is closed after each shot,
+  // so none of this needs putting back.
+  await target.evaluate((self) => {
+    for (const node of document.querySelectorAll("body *")) {
+      if (node.contains(self)) continue;
+      const { position } = getComputedStyle(node);
+      if (position === "fixed" || position === "sticky") node.style.visibility = "hidden";
+    }
+  });
+
   await target.scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);
   await target.screenshot({ path: join(OUT, shot.file) });
