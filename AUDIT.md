@@ -49,7 +49,7 @@ argument for building the gates in the first place.
 - [Cost](#cost)
 - [Where the auditor was wrong](#where-the-auditor-was-wrong)
 - [Accepted](#accepted)
-- [Deferred to the public flip](#deferred-to-the-public-flip)
+- [What the flip bought](#what-the-flip-bought)
 - [Not covered](#not-covered)
 - [The gates as they stand](#the-gates-as-they-stand)
 
@@ -714,6 +714,118 @@ foundations" and every page on the site called it "Linux and CLI".
 
 See [Where the auditor was wrong](#w4-the-hints-had-not-drifted-the-measurement-had).
 
+### C6. Both buttons on the front page served a 404
+
+Found by clicking one. For as long as the site existed, its two hero actions
+pointed at `/start` and `/how-it-works`, which resolve to `h-vance.github.io/start`
+rather than `h-vance.github.io/prove-it-labs/start`. The only working action on
+the page was `Repository`, which is an absolute URL and so could not be wrong
+in this particular way.
+
+**The cause is a difference worth knowing.** Starlight prefixes the base path
+onto sidebar entries in `astro.config.ts` and does not prefix a hero action's
+`link`, which goes into an `href` as written. Both spellings look correct.
+
+**Confirmed against the live site rather than reasoned about**: `/start`
+returned 404, `/prove-it-labs/start` returned 200.
+
+### C7. The check that would have caught it was never handed the string
+
+This is the more interesting half. `check_local_link` already refused a
+site-absolute link that does not start with the site's base path, and it was
+written after this exact bug bit once before, when the repository rename left
+`how-it-works.mdx` pointing at the old name. The rule existed. The input never
+reached it.
+
+`extract_links` matches three shapes: a markdown link, an `href` attribute, and
+a bare URL in prose. A hero action is none of those. It is a YAML value in a
+page's frontmatter, so every link written that way had been invisible to the
+checker since the day it was built.
+
+**The gate.** Frontmatter is now read as well, for `.md` and `.mdx` only.
+Deliberately not for `astro.config.ts`, which carries `link:` keys of its own
+for the sidebar, and Starlight *does* prefix those: reading them here would
+report a working link as broken, which is the fastest way to get a check
+switched off.
+
+**Planted with the defect that actually shipped**, and it fires offline, so
+`preflight.sh` and CI would both have caught it:
+
+```
+site/src/content/docs/index.mdx:18: /start
+      a site link that does not start with the site's base path '/prove-it-labs'
+site/src/content/docs/index.mdx:21: /how-it-works
+      a site link that does not start with the site's base path '/prove-it-labs'
+```
+
+### C8. The self-link exemption was a prefix where it needed to be exact
+
+`classify_link` skipped anything starting with one of this repository's own
+addresses. For the repository URL that is right, and necessary: while private,
+the README badge and every other path beneath it answered 404 together.
+
+Applied to the Astro `site` value it is wrong, and expensively so.
+`https://h-vance.github.io` is a prefix of every page the site publishes, so
+adding a README link to the live site created an entry that was exempt from
+checking on the day it was written. The single address most worth checking was
+the one being skipped.
+
+**The fix** separates the two rather than sharing one mechanism between them:
+repository addresses match as prefixes and expire when the repository goes
+public, and configured addresses match exactly and never expire, because
+Astro's `site` is half an address rather than a link that could resolve.
+
+**Measured.** Link coverage went from 42 to 56.
+
+### C9. Three required tools were named nowhere a reader would look
+
+`tse doctor` probes for `kubectl`, `kind` and `jq`. None of the three appeared
+in `README.md` or `CONTRIBUTING.md`. Someone following the README would have
+installed Docker and Python, started the Kubernetes track, and hit a wall the
+documentation had never mentioned.
+
+**Not fixed by writing a requirements table.** That would be a second copy of
+the list, and this repository has been caught by second copies three times: a
+README claiming Python 3.11 when the floor was 3.9, an exercise count nobody
+checked, and a dozen sentences calling the repository private after it went
+public. `tse doctor` is the list, now grouped by what needs what so a gap costs
+a reader one track rather than leaving them guessing, and a test fails the
+build if it learns to require something the prose does not name.
+
+**Planted**, by teaching `doctor` a tool the docs do not mention:
+
+```
+tse doctor requires rg and neither README.md nor CONTRIBUTING.md names it.
+A reader cannot install what nothing tells them about.
+```
+
+### C10. Nothing checks that this document is still true
+
+Every other tracked file is held to the present tense by a rule that refuses
+any claim this repository is private. `AUDIT.md` is exempt, because describing
+the private period accurately is the whole point of it.
+
+That exemption is correct and it has a cost, which showed up within hours. The
+section now titled *What the flip bought* spent an afternoon as *Deferred to
+the public flip*, listing as pending seven things that had already shipped, and
+stating that both workflows were disabled when four were running.
+
+**The gate is narrow on purpose.** Two exact strings, held in
+`test_content.py` rather than repeated here, each a phrase that was true when
+written and became false at a known moment. A broader rule over a document
+whose subject is the past would fire on correct sentences, and a gate that
+fires on correct work gets switched off.
+
+They are not quoted in this paragraph, and that is not squeamishness: a
+document cannot both forbid a phrase and contain it. Writing them out here made
+the gate fail on the section describing the gate, which is how this sentence
+came to exist. The same problem already had the same answer one level up, where
+`test_content.py` is exempt from the style rules because it holds the pattern
+table those rules are written from.
+
+It does not make this document self-checking. It catches the one way it has
+actually been observed to rot.
+
 ---
 
 ## Cost
@@ -837,74 +949,55 @@ and the cold-start check keeps it true rather than letting it rot.
 
 ---
 
-## Deferred to the public flip
+## What the flip bought
 
-Each of these becomes free or possible the moment the repository is public.
-None are blocked on anything else.
+This section used to be a list of things waiting on the repository going
+public. It went public on 2026-08-16, every row of that list landed the same
+day, and what follows is what actually happened rather than what was expected.
 
-**Written, not yet run.** `.github/workflows/security.yml` now holds CodeQL for
-`actions`, `javascript-typescript` and `python`, and `dependency-review-action`
-on pull requests. Both are free on a public repository and billed on a private
-one, so the file exists and has never executed. Writing a scanner and running it
-are different claims and this document should not confuse them. One thing to
-read on the first run: `tools/tse` is three thousand lines of Python in a file
-with no `.py` extension, and whether the extractor finds it on the shebang alone
-is not knowable from here. If the reported line count for Python is near zero,
-the largest file in the repository is not being scanned.
+**The arithmetic that forced it.** Verifying the whole course is about eighty
+minutes of runner time. A private repository gets two thousand a month, which
+is roughly twenty two pushes, and the allowance was reached during this audit.
+The last CI run before the flip did not fail a test: it never started, and said
+so, `The job was not started because recent account payments have failed or
+your spending limit needs to be increased`. On a public repository standard
+runners are free and unmetered. The first full course run afterwards reported
+**zero billable milliseconds across twelve jobs**.
 
-| | Why it waits |
+| | What it turned out to be |
 |---|---|
-| Running CodeQL and dependency review | Written and committed. Needs the flip, plus the dependency graph switched on |
-| macOS matrix | Standard runners are free and unmetered on public repositories |
-| Docker layer caching (`type=gha`) | Cannot be measured without a run, and an unmeasured gate is what this audit exists to find |
-| Re-enabling both workflows | The allowance is spent until it resets |
-| Branch protection on `main` | Returns HTTP 403 on a private repository on the free plan. `CODEOWNERS` does nothing until it exists |
-| Fork pull request approval | Not configurable while private. Matters because removing the `workflow_dispatch` gate lets a stranger's exercise files run in Docker on a runner |
-| Secret scanning, push protection, private vulnerability reporting | The whole `security_and_analysis` block is unavailable, and reads as null today |
+| CodeQL | Runs on `actions`, `javascript-typescript` and `python`. Found four, three of them the course working as designed and dismissed with reasons, one a genuinely unused import |
+| `dependency-review-action` | Runs on every pull request |
+| macOS | Added, and it failed on its first run for a real reason. See P6 |
+| Exercises on pull requests | The bigger find. See below |
+| Branch protection | Seven required checks, chosen so that a legitimately skipped job cannot block a merge |
+| Secret scanning and push protection | On. Fired once, on the synthetic Slack token in `test_content.py` that exists to prove the leak scan catches that format. Resolved as used in tests |
+| Private vulnerability reporting | On, which is what makes `SECURITY.md`'s advisory link resolve rather than 404 |
+| Pages | Publishing. The gate on `github.event.repository.private == false` started working with nothing to remember |
 
-Both workflows are currently disabled. The GitHub Pages publish step is already
-gated on `github.event.repository.private == false`, so it skips cleanly now and
-starts working at the flip with nothing to remember. The link checker's
-self-exemption expires the same way, on its own, and is described in S7.
+**CodeQL does read `tools/tse`.** This document previously recorded that as
+unknowable from here: three thousand lines of Python in a file with no `.py`
+extension, and no way to tell whether the extractor finds it on the shebang
+alone. It is knowable, and the run answers it. Thirteen tracked `.py` files
+exist and CodeQL reported scanning fourteen Python files. The extra one is the
+CLI. No rename was needed, which was the alternative on the table.
 
-**The one thing that cannot be checked before the flip.** The last five `verify`
-runs failed and their logs have expired, so the first version of this paragraph
-recorded the cause as unknowable and moved on. That was giving up too early.
-The run logs expire; the check run annotations do not, and they name both the
-failing step and the reason.
+**The `workflow_dispatch` gate was the expensive mistake.** The exercise matrix
+and learner loop had been restricted to runs started by hand, because together
+they were 76 of the workflow's 90 billable minutes. That restriction outlived
+its reason and quietly became worse than what it saved: an ordinary push and a
+contributor's first pull request both went green **without provisioning a
+single container**. A push went from three jobs to twelve when it was removed.
+A green badge that has verified nothing is worse than no badge.
 
-Read that way, the five runs are two different stories.
-
-| Run | What actually failed |
-|---|---|
-| 20:03 | Nothing ran. `The job was not started because recent account payments have failed or your spending limit needs to be increased` |
-| 19:49 | `sql/03` and `observability/02`, both on "fails broken and passes fixed" |
-| 19:17 | The same two, plus `docker/02` on "recorded output still matches the system" |
-| 19:01 | The same two again |
-| 18:44 | `networking/01` on "recorded output still matches the system" |
-
-So the red badge is not one failure, it is a billing wall in front of a real
-one. Two exercises failed on three consecutive runs, which is not flake.
-
-**Neither of them is timing dependent**, which was the first guess and was
-wrong. `sql/03` deliberately asserts on the query plan rather than on elapsed
-time, and says so in a comment: a wall clock threshold there would be flaky and
-misleading. `observability/02` asserts that one reference appears in each
-service's log. Both are deterministic, so both failed for a real reason on
-Linux while passing on the machine they were written on.
-
-What that reason is stays open. Both now pass here, in a full
-`preflight.sh --all`, and the stack under one of them changed after these runs:
-`sql/03` reads an `EXPLAIN` plan, and the audit moved that database onto a
-tmpfs `PGDATA` running as `postgres`, which changes the I/O costs a planner
-makes its choices from. That could have fixed it or moved it. Guessing which is
-exactly what this document is against.
-
-The honest statement is therefore narrower than "probably fixed": two exercises
-have a known, reproducible, unexplained difference between Linux CI and macOS,
-last seen before a change that could plausibly affect one of them. The first
-`verify` run after the flip is the experiment, and going in expecting green
-would be the wrong posture.
+**The two exercises that failed before the flip now pass.** `sql/03` and
+`observability/02` failed on three consecutive runs, deterministically, on
+Linux while passing on macOS. Both pass in CI now. The honest version is that
+this was never diagnosed: the run logs had expired by the time anyone looked,
+and the stack under one of them changed in between, since `sql/03` reads an
+`EXPLAIN` plan and this audit moved that database onto a tmpfs `PGDATA`. A
+plausible cause is not a proven one. What can be said is that they pass, and
+that the nightly schedule now exists to catch it if that stops being true.
 
 ---
 
@@ -914,8 +1007,6 @@ The most useful section for anyone reading this as a work sample.
 
 - **The devcontainer is never built.** Its contents are checked; that it comes
   up is not.
-- **No dependency vulnerability scanning.** Dependabot opens version bumps; it
-  is not an advisory gate. Deferred to the flip.
 - **No performance budget beyond page weight.** Nothing measures render time,
   interaction latency or Core Web Vitals.
 - **No test of the site under a screen reader.** axe is a static analysis of the
@@ -931,6 +1022,16 @@ The most useful section for anyone reading this as a work sample.
 - **The scrubber's rule set is empirical.** It covers what has been seen. A new
   kind of machine-specific output would need a new rule, and nothing predicts
   those.
+- **The screenshots in the README are not read by the leak scan.** A PNG is not
+  text, so the four in `docs/screenshots/` are named in `LEAK_BINARY` and
+  skipped. What stands in for reading them is that a script regenerates all
+  four from `site/dist`, so every pixel originates in a file the scan does
+  read. A screenshot taken by hand would not have that property.
+- **Nothing checks that this document is still true.** Every other tracked file
+  is held to the present tense by a rule that refuses any claim this repository
+  is private. `AUDIT.md` is exempt from it, because recording the private
+  period is its job, and that exemption is why this section spent an afternoon
+  describing a repository that had already changed. See C10.
 - **25 exercises against a target of 100.** Depth inside existing tracks rather
   than new ground, and not an audit finding.
 
@@ -943,13 +1044,13 @@ nothing installed beyond Docker and Python.
 
 | Gate | Scale |
 |---|---|
-| `test_content.py` | 125 tests |
+| `test_content.py` | 137 tests |
 | `test_scrub.py` | 53 tests |
 | `test_rubric.py` | 20 tests |
 | `test_meta.py` | 18 tests, incl. parity against real PyYAML |
 | `smoke.sh` | 42 assertions |
-| `tse leaks` | 394 files, 24 patterns everywhere and 26 in recordings |
-| `tse links` | every link in the tree |
+| `tse leaks` | 396 files, 24 patterns everywhere and 26 in recordings |
+| `tse links` | 56 links, including frontmatter and every README badge |
 | Cold start | 4 commands under `env -i` with `LANG=C` |
 | shellcheck | every shell script, `--severity=info` |
 | Site types | `astro check`, `noUncheckedIndexedAccess` on |
@@ -961,3 +1062,22 @@ nothing installed beyond Docker and Python.
 | `tse record --check` | every transcript still matches a real run |
 
 It ends on `Safe to push.` or `Not safe to push.`
+
+**Added on the day this went public**, each planted against before it was
+trusted, and each closing a finding above:
+
+| Gate | Refuses |
+|---|---|
+| Downloaded binaries | A file fetched over the network and installed without its checksum verified first (S6) |
+| Present tense | Any tracked file except this one claiming the repository is private (C1) |
+| This document | The two exact phrases the flip made false (C10) |
+| Python floor on the badge | A shield stating a version the CLI does not enforce |
+| Badge and workflow parity | A badge for a workflow that does not exist, and a workflow no badge shows |
+| Requirements | A tool `tse doctor` requires that the docs do not name (C9) |
+| Frontmatter links | A site-absolute link in a page's frontmatter missing the base path (C7) |
+| Docker absence | The CLI raising rather than reporting on a machine with no `docker` binary (P6) |
+
+CI adds what a laptop cannot: every exercise on every pull request, CodeQL on
+three languages, dependency review, the CLI on macOS, and a nightly run of the
+whole course to catch a base image moving under a lab with nobody committing
+anything.
