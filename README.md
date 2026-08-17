@@ -15,6 +15,14 @@
 A hands-on Technical Support Engineering course. You get a customer ticket, a
 genuinely broken system, and no hint about which layer failed. You investigate.
 
+![A terminal replaying real recorded output. docker ps shows one container restarting and the postgres container healthy, and the caption reads: the database is healthy, the customer still cannot load anything](docs/demo.svg)
+
+Every character of that output was captured by running those commands against
+the broken system. It is drawn from the same recording the site's terminal
+replays and CI re-verifies on every push, and a test fails the build if the
+drawing and the recording ever disagree. Regenerate it with
+`npm --prefix site run demo`.
+
 **The course site is at [h-vance.github.io/prove-it-labs](https://h-vance.github.io/prove-it-labs/).**
 Every exercise page there is generated from the exercise itself, and carries a
 terminal replaying output captured by really running those commands.

@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1224" height="286" viewBox="0 0 1224 286" role="img" aria-label="A terminal replaying real recorded output from the Prove It course. Docker reports one container restarting and the postgres container healthy, and the caption reads: the database is healthy, the customer still cannot load anything.">
+  <title>Prove It: the database is healthy and the customer still cannot load anything</title>
+  <style>
+  text { font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+         font-size: 13px; white-space: pre; }
+  .dim { fill: #9aa3b2; }
+  .out { fill: #d7dbe3; }
+  .cmd { fill: #93d8e2; }
+  .note { fill: #d7dbe3; font-weight: 600; }
+  .note2 { fill: #9aa3b2; }
+  .hl-warn { fill: #f0b429; }
+  .hl-ok { fill: #4ade80; }
+
+
+      #r0-clip rect { animation: r0-type 9.322000000000001s steps(36) infinite; }
+      @keyframes r0-type {
+        0%, 5.364% { width: 0px; }
+        22.120%, 96% { width: 1180px; }
+        100% { width: 0px; }
+      }
+
+    #r1 { animation: r1-in 9.322000000000001s infinite; }
+    @keyframes r1-in {
+      0%, 26.840% { opacity: 0; }
+      26.947%, 96% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    #r2 { animation: r2-in 9.322000000000001s infinite; }
+    @keyframes r2-in {
+      0%, 28.342% { opacity: 0; }
+      28.449%, 96% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    #r3 { animation: r3-in 9.322000000000001s infinite; }
+    @keyframes r3-in {
+      0%, 29.843% { opacity: 0; }
+      29.951%, 96% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+      #r5-clip rect { animation: r5-type 9.322000000000001s steps(38) infinite; }
+      @keyframes r5-type {
+        0%, 34.134% { width: 0px; }
+        51.298%, 96% { width: 1180px; }
+        100% { width: 0px; }
+      }
+
+    #r6 { animation: r6-in 9.322000000000001s infinite; }
+    @keyframes r6-in {
+      0%, 56.018% { opacity: 0; }
+      56.125%, 96% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+      #r7 { animation: r7-in 9.322000000000001s infinite; }
+      @keyframes r7-in {
+        0%, 57.520% { opacity: 0; }
+        57.627%, 96% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+
+  #caption { animation: caption-in 9.322000000000001s infinite; }
+  @keyframes caption-in {
+    0%, 63.420% { opacity: 0; }
+    63.527%, 96% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  #cursor { animation: blink 1.06s steps(2, jump-none) infinite; fill: #93d8e2; }
+  @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }</style>
+  <rect width="1224" height="286" rx="10" fill="#16181d"/>
+  <rect x="0.5" y="0.5" width="1223" height="285" rx="10" fill="none" stroke="#2c313b"/>
+  <rect x="1" y="1" width="1222" height="34" rx="10" fill="#1c1f26"/>
+  <rect x="1" y="26" width="1222" height="9" fill="#1c1f26"/>
+  <line x1="1" y1="35" x2="1223" y2="35" stroke="#2c313b"/>
+  <text x="22" y="23" class="dim">prove-it-labs</text>
+  <text x="1202" y="23" class="dim" text-anchor="end">docker/01 &#183; the ticket says "dashboard unavailable"</text>
+  <clipPath id="r0-clip"><rect x="22" y="39" width="0" height="20"/></clipPath>
+  <g clip-path="url(#r0-clip)"><text x="22" y="52"><tspan class="dim">$ </tspan><tspan class="cmd">docker ps -a --filter "label=com.docker.compose.project=proveit-docker"</tspan></text></g>
+  <text id="r1" x="22" y="72" class="out"><tspan class="out">CONTAINER ID   IMAGE                COMMAND                  CREATED          STATUS                                  PORTS      NAMES</tspan></text>
+  <text id="r2" x="22" y="92" class="out"><tspan class="out">5aca06905314   proveit-docker-app   "python /app/app.py"     12 seconds ago   </tspan><tspan class="hl-warn">Restarting (1)</tspan><tspan class="out"> Less than a second ago              proveit-docker-app-1</tspan></text>
+  <text id="r3" x="22" y="112" class="out"><tspan class="out">800e69c1a5ea   postgres:16-alpine   "docker-entrypoint.s…"   12 seconds ago   Up 12 seconds (</tspan><tspan class="hl-ok">healthy</tspan><tspan class="out">)                 5432/tcp   proveit-docker-pos...</tspan></text>
+  <clipPath id="r5-clip"><rect x="22" y="139" width="0" height="20"/></clipPath>
+  <g clip-path="url(#r5-clip)"><text x="22" y="152"><tspan class="dim">$ </tspan><tspan class="cmd">docker inspect --format '{{.State.Health.Status}}' proveit-docker-postgres-1</tspan></text></g>
+  <text id="r6" x="22" y="172" class="out"><tspan class="out"></tspan><tspan class="hl-ok">healthy</tspan><tspan class="out"></tspan></text>
+  <g id="r7">
+    <text x="22" y="192" class="dim">$ </text>
+    <rect id="cursor" x="37.6" y="181" width="7.8" height="13"/>
+  </g>
+  <g id="caption">
+    <line x1="22" y1="218" x2="1202" y2="218" stroke="#2c313b"/>
+    <text x="22" y="244" class="note">The database is healthy. The customer still cannot load anything.</text>
+    <text x="22" y="264" class="note2">Saying what that proves, and what it does not, is the exercise.</text>
+  </g>
+</svg>
