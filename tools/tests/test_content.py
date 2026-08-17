@@ -30,6 +30,7 @@ REQUIRED_META = ("id", "track", "title", "proof_question", "stack", "tier",
                  "difficulty", "minutes", "interview_relevance", "teaches")
 VALID_TIERS = {"core", "stretch"}
 VALID_STACKS = {"compose", "kind", "none"}
+VALID_DIFFICULTIES = range(1, 6)
 
 REQUIRED_SOLUTION_SECTIONS = (
     "## What the evidence proved",
@@ -221,7 +222,7 @@ class Metadata(unittest.TestCase):
                     self.assertIsNotNone(meta[field], f"{exercise.id}: {field} is empty")
                 self.assertIn(meta["tier"], VALID_TIERS)
                 self.assertIn(meta["stack"], VALID_STACKS)
-                self.assertIn(meta["difficulty"], range(1, 6))
+                self.assertIn(meta["difficulty"], VALID_DIFFICULTIES)
                 self.assertGreater(meta["minutes"], 0)
 
     def test_id_matches_directory(self):
@@ -261,6 +262,99 @@ class Metadata(unittest.TestCase):
                 with self.subTest(f"{exercise.id}:{path.name}"):
                     self.assertNotIn("TODO", path.read_text(),
                                      f"{path} still contains a template placeholder")
+
+
+class AdvertisedFeatures(unittest.TestCase):
+    """A setting a reader can change must be able to change something.
+
+    Two of these shipped. Both were the same shape as the two hero buttons that
+    served a 404 for the life of the site: a promise written down, with nothing
+    behind it, and nothing looking.
+
+    The README and the homepage both said stretch material could be hidden
+    rather than skimmed past. `TierToggle` was rendered on the "How this works"
+    page to do the hiding. Every one of the twenty five exercises is
+    `tier: core`, so the control had nothing to act on, and a reader who
+    switched it saw the page not change.
+
+    The difficulty labels are the milder version. The permitted range is
+    asserted a few classes above this one, and the only list of words covering
+    that range was an anonymous array literal in the exercise page template.
+    Nothing joined them, and indexing past the end of a JavaScript array is not
+    an error, so widening the range would have printed an empty difficulty on
+    every page that used the new value without a word of complaint.
+    """
+
+    SITE = ROOT / "site"
+
+    # The claim, not the word. "stretch" appears legitimately in the component
+    # that documents its own dormancy and in the CSS rule it drives, and a gate
+    # that fires on those would be switched off within a week.
+    STRETCH_CLAIM = re.compile(
+        r"stretch\s+material\s+(?:that\s+)?can\s+be\s+hidden"
+        r"|core\s+and\s+stretch\s+are\s+separated",
+        re.IGNORECASE)
+
+    def stretch_exercises(self) -> list[str]:
+        return [e.id for e in EXERCISES if e.meta.get("tier") == "stretch"]
+
+    def test_nothing_offers_to_hide_stretch_material_that_does_not_exist(self):
+        if self.stretch_exercises():
+            return
+        for name, text in STYLE_SOURCES:
+            for index, line in enumerate(text.splitlines(), 1):
+                if self.STRETCH_CLAIM.search(line):
+                    self.fail(
+                        f"{name}:{index} says stretch material can be hidden, but "
+                        f"no exercise declares `tier: stretch`, so the control has "
+                        f"nothing to hide. Either write the stretch material or "
+                        f"drop the claim."
+                    )
+
+    def test_the_stretch_control_is_not_rendered_without_stretch_material(self):
+        """The claim above in its other form: the control itself on a page."""
+        if self.stretch_exercises():
+            return
+        for path in sorted(self.SITE.glob("src/**/*.mdx")):
+            text = path.read_text(encoding="utf-8")
+            if "<TierToggle" in text:
+                self.fail(
+                    f"{path.relative_to(ROOT)} renders <TierToggle />, but no "
+                    f"exercise declares `tier: stretch`. Someone toggling it "
+                    f"would watch the page not change."
+                )
+
+    def difficulty_labels(self) -> list[str]:
+        """The words the site prints for a difficulty, read from its own source."""
+        text = (self.SITE / "src" / "lib" / "labs.ts").read_text(encoding="utf-8")
+        match = re.search(
+            r"export const DIFFICULTY_LABELS\s*=\s*\[(.*?)\]\s*as const;", text, re.S)
+        self.assertIsNotNone(
+            match, "DIFFICULTY_LABELS is gone from site/src/lib/labs.ts, or was "
+                   "reshaped so this can no longer read it.")
+        return re.findall(r'"([^"]*)"', match.group(1))
+
+    def test_every_permitted_difficulty_has_a_word(self):
+        labels = self.difficulty_labels()
+        for difficulty in VALID_DIFFICULTIES:
+            self.assertTrue(
+                difficulty < len(labels) and labels[difficulty],
+                f"Difficulty {difficulty} is permitted by VALID_DIFFICULTIES but has "
+                f"no label in site/src/lib/labs.ts, so an exercise using it would "
+                f"render a blank.",
+            )
+
+    def test_no_difficulty_word_is_unreachable(self):
+        """The other direction, so the list cannot quietly outgrow the range."""
+        labels = self.difficulty_labels()
+        highest = max(VALID_DIFFICULTIES)
+        extra = [label for label in labels[highest + 1:] if label]
+        self.assertFalse(
+            extra,
+            f"site/src/lib/labs.ts labels difficulties above {highest}, which "
+            f"VALID_DIFFICULTIES does not permit, so no exercise can ever show "
+            f"{extra}. Widen the range or drop the words.",
+        )
 
 
 class Editorial(unittest.TestCase):

@@ -1,6 +1,6 @@
 ---
 import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
-import { loadExercises, type Exercise } from "../../../lib/labs";
+import { loadExercises, difficultyLabel, type Exercise } from "../../../lib/labs";
 import ScratchPad from "../../../components/ScratchPad";
 import Quiz from "../../../components/Quiz";
 import LabTerminal from "../../../components/LabTerminal";
@@ -22,9 +22,7 @@ const all = loadExercises();
 const prerequisites = exercise.prerequisites
   .map((id) => all.find((candidate) => candidate.id === id))
   .filter((candidate): candidate is Exercise => Boolean(candidate));
-const difficultyLabel = ["", "Gentle", "Straightforward", "Involved", "Hard", "Brutal"][
-  exercise.difficulty
-];
+const difficulty = difficultyLabel(exercise.difficulty);
 
 // StarlightPage builds its table of contents from this list rather than by
 // scanning the slot, so the sections rendered by the islands have to be
@@ -66,7 +64,7 @@ const headings = [
     </div>
     <div>
       <dt>Difficulty</dt>
-      <dd>{difficultyLabel}</dd>
+      <dd>{difficulty}</dd>
     </div>
     <div>
       <dt>Tier</dt>
