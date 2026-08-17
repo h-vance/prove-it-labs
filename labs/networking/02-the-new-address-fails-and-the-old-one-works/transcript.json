@@ -1,5 +1,5 @@
 {
-  "recorded": "2026-08-15",
+  "recorded": "2026-08-17",
   "entries": [
     {
       "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client /app/upload.sh",
@@ -40,7 +40,7 @@
         "getent hosts reports",
         "getent hosts reports gateway"
       ],
-      "output": "<ip>        reports  reports\n<ip>        gateway  gateway",
+      "output": "192.0.2.2         reports  reports\n192.0.2.2         gateway  gateway",
       "exit": 0
     },
     {

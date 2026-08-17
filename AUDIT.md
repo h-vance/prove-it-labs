@@ -40,7 +40,7 @@ argument for building the gates in the first place.
 ## Contents
 
 - [Blockers](#blockers), two, both closed
-- [Checks that could not fail](#checks-that-could-not-fail), eight of them
+- [Checks that could not fail](#checks-that-could-not-fail), nine of them
 - [Correctness](#correctness)
 - [Security](#security)
 - [Accessibility](#accessibility)
@@ -136,7 +136,7 @@ must still exist.
 ## Checks that could not fail
 
 The largest single category. Eight checks were passing without checking
-anything.
+anything, and a ninth was caught before it ever ran here.
 
 ### F1. `--not-contains` passed when the command errored
 
@@ -245,6 +245,33 @@ you run before pushing, it runs after you have committed, and it caught this
 before anything left the machine. What is worth knowing is that a green test
 run on a file you have not committed yet is not evidence about that file, and
 this document is the place to write that down.
+
+### F9. A grader assertion that could not fail, caught before it shipped
+
+The only entry in this section that never ran in this repository, kept because
+the rule that found it is the one this section exists to state.
+
+`networking/03` was written with three assertions. The third read back what the
+customer's address resolves to and required the gateway's own value, meaning to
+catch two wrong fixes: pointing the record at something that merely answers,
+and deleting the record so the name stops resolving at all.
+
+It looked like a real check. Applying this document's own standard to it, that
+a gate never seen to fail is not a gate, meant constructing a state it would
+reject and the first two did not. There is none. Both wrong fixes stop the
+upload working, so the first assertion already refuses them, and across every
+state reachable through the four keys an exercise may set the third never once
+failed alone.
+
+Worse, the fix it was written to catch is the one it lets through. A record
+holding the gateway's literal address rather than its name passes all three,
+because today it resolves to exactly the same place. It goes wrong on the next
+rebuild, which is not a thing any check running now can observe.
+
+So the assertion was removed rather than shipped, the reasoning is written into
+`check.sh` where the next person to have the idea will find it, and the literal
+address trap is taught in the solution and deliberately left ungraded. Two
+assertions that can both fail are worth more than three where one is decoration.
 
 ---
 
@@ -680,6 +707,38 @@ thing that can cover it.
 
 ---
 
+### P7. A recorded lookup depended on the network the machine was sitting on
+
+Found by CI on the first run of `networking/03`, which is the point of having
+it. Everything below had passed five consecutive drift checks on the machine
+that wrote the recording.
+
+`nslookup reports` was recorded against a laptop whose containers get no DNS
+search domain. The CI runner is an Azure host and Docker hands its containers
+one, so the resolver there tried `reports.<the runner's internal suffix>`
+first, printed the miss, and the recording disagreed on line four. The exercise
+itself verified correctly on the runner: it failed broken and passed fixed. Only
+the recording moved.
+
+Two smaller things had already been fixed on the way to this one, and they are
+the same mistake at different sizes. The tool asks for A and AAAA at once and
+prints whichever returns first, so the same lookup produced two different
+transcripts on one machine; asking for a single record type settled it. And how
+long curl spends failing to connect is a measure of the machine, which is a
+scrub rule and behaved correctly in CI on the run that found this.
+
+**The fix is a trailing dot.** `nslookup -type=A reports.` is an absolute name,
+so no search domain is appended and the answer is the same on any network.
+Proven by reproducing the runner's condition locally, with its exact search
+domain and then with two of them, and getting output identical to the
+recording both times.
+
+Worth stating plainly because it generalizes past this repository: a recorded
+command is only reproducible if nothing it touches is supplied by the
+environment, and the resolver's search list is exactly that kind of input. It
+is invisible until somebody runs the command somewhere else, which is what CI
+is for.
+
 ## Content and documentation
 
 ### C1. The style rules covered `labs/` and two files at the root
@@ -869,7 +928,7 @@ rather than skimmed past, and *How this works* carried the control that did
 the hiding. It was a real component, correctly written, with its state applied
 before first paint so nothing would flash in and out.
 
-Every one of the twenty five exercises is `tier: core`. There has never been a
+Every one of the twenty six exercises is `tier: core`. There has never been a
 single piece of stretch material in this repository. Somebody who found the
 switch and used it watched the page not change, and had no way to tell whether
 they had misunderstood the feature or the site was broken.
@@ -1100,6 +1159,41 @@ The second plant is the realistic one. It is what happens when somebody adds
 the italic file and a width axis without thinking about it, which is a change
 of two lines.
 
+### C16. Every service could take back what it had dropped
+
+The containment gate reads six keys off every service in every stack and
+insists on the strong form of three of them: `read_only: true`, `cap_drop`
+containing `ALL`, and `no-new-privileges:true`. It had never looked at
+`cap_add`.
+
+A service could therefore drop every capability, add back exactly the one it
+wanted, and report as fully sealed, because the gate only ever asked what was
+given up and never what was taken back. `cap_drop: ALL` beside a `cap_add` is
+not the posture the other five keys advertise.
+
+Nothing in the course did this. The hole was found while adding the networking
+resolver, which binds port 53 and is the first service here with a reason to
+want `NET_BIND_SERVICE`. It turned out not to need it: Docker sets
+`net.ipv4.ip_unprivileged_port_start=0` inside containers, so the resolver
+binds 53 as an unprivileged user with everything dropped, which was confirmed
+on a live daemon before the design leaned on it and is explained in
+`resolver.py` where a daemon configured otherwise will land.
+
+Closing a hole at the moment something first has a reason to use it, rather
+than after it has been used, is the whole reason to write the gate now.
+
+**Not a ban.** A service that genuinely needs a capability declares
+`x-containment` with the reason, which is the escape every other rule in this
+group already offers. The gate refuses the silent form, not the argued one.
+
+**The gate, planted against:**
+
+```
+labs/networking/_stack/compose.yaml: resolver drops all capabilities and adds
+'NET_BIND_SERVICE' straight back, which is not the posture the keys beside it
+advertise. Say why in x-containment, or do without it.
+```
+
 ---
 
 ## Cost
@@ -1125,7 +1219,7 @@ removed.
 
 1. **Path-aware selection.** `tse affected` verifies only the exercises a change
    can reach.
-2. **One job per stack, not per exercise.** Eight jobs instead of twenty-five,
+2. **One job per stack, not per exercise.** Eight jobs instead of twenty-six,
    grouped by the stack an exercise actually runs against rather than its track,
    because `mixed/01` borrows the docker stack and `mixed/02` borrows api.
    Grouping by track would have built both an extra time. Roughly 76 billable
@@ -1181,8 +1275,8 @@ into hint 2, all in the newest tracks, and that they should be rewritten.
 that *gather evidence*; hint 3 shows what the evidence says and what to change.
 That is a real escalation and a better one than the rule described. The right
 measurement is where the *fix* appears: `tse apply` and `tse check` are what
-somebody runs after changing something, and across all twenty-five exercises
-they are in hint 3 fifteen times and in hint 2 **never**.
+somebody runs after changing something, and across all twenty-six exercises
+they are in hint 3 sixteen times and in hint 2 **never**.
 
 Acting on the first measurement would have stripped good teaching content out of
 the six hardest exercises. `CONTRIBUTING.md` now says what the exercises
@@ -1287,8 +1381,15 @@ The most useful section for anyone reading this as a work sample.
   accessibility tree, not a test that the page is usable by ear.
 - **The Kubernetes track is verified against `kind` only.** Nothing checks it on
   a real cluster or another distribution.
-- **The networking track is two exercises and both are TLS.** DNS and routing
-  are named in the track and not yet taught.
+- **The networking track teaches no routing.** DNS is now taught by
+  `networking/03`. Routing is named in the track and is not.
+- **Only the README's counts are gated.** `ReadmeCounts` reads the track table
+  against the real exercises, which is why that table cannot go stale. Nothing
+  reads the counts written into prose elsewhere. Adding one exercise falsified
+  five sentences across `CONTRIBUTING.md` and this file, all found by grep
+  rather than by a gate. A rule general enough to catch them would also have to
+  tell a live claim from a historical one, and this document is full of the
+  second kind.
 - **`tse links` checks external URLs but not their content.** A link that
   resolves to a parked domain passes.
 - **No mutation testing.** The gates are proven by planted defects chosen by the
@@ -1320,13 +1421,13 @@ The most useful section for anyone reading this as a work sample.
   learners prove things to it rather than to themselves would have the wrong
   relationship with them. Worth stating plainly, because a reader could
   otherwise mistake it for an attestation.
-- **The evidence layers are free text.** Sixty eight distinct phrases across
-  twenty five exercises, sixty of them used exactly once, so they cannot
+- **The evidence layers are free text.** Seventy one distinct phrases across
+  twenty six exercises, sixty five of them used exactly once, so they cannot
   support the thing they look like they should support: a map of which layers
   somebody has actually gathered evidence at. Turning them into a controlled
-  vocabulary is content work on all twenty five exercises, and it is the
+  vocabulary is content work on all twenty six exercises, and it is the
   obvious next thing the proof record wants.
-- **25 exercises against a target of 100.** Depth inside existing tracks rather
+- **26 exercises against a target of 100.** Depth inside existing tracks rather
   than new ground, and not an audit finding.
 
 ---
@@ -1338,7 +1439,7 @@ nothing installed beyond Docker and Python.
 
 | Gate | Scale |
 |---|---|
-| `test_content.py` | 143 tests |
+| `test_content.py` | 146 tests |
 | `test_scrub.py` | 53 tests |
 | `test_rubric.py` | 20 tests |
 | `test_meta.py` | 18 tests, incl. parity against real PyYAML |
@@ -1352,7 +1453,7 @@ nothing installed beyond Docker and Python.
 | `check:terminal` | 150 assertions across 9 normalization cases |
 | `a11y.mjs` | 330 axe checks, 32 pages, 2 themes, plus 320px reflow and no-JS |
 | CSP | enforced by a browser on 32 pages in both themes |
-| `tse verify` | 25 exercises must fail broken and pass fixed |
+| `tse verify` | 26 exercises must fail broken and pass fixed |
 | `tse record --check` | every transcript still matches a real run |
 
 It ends on `Safe to push.` or `Not safe to push.`
@@ -1382,6 +1483,13 @@ trusted, and each closing a finding above:
 | The proof record | A run that never made the page refuse an import, accept one, and clear it (C13) |
 | Styles and fonts | More than 260,000 bytes of them, measured across the whole build (C15) |
 | Orphan fonts | A font that ships when no stylesheet refers to it (C15) |
+
+**Added by the DNS exercise**, on the same terms:
+
+| Gate | Refuses |
+|---|---|
+| Capabilities taken back | A service that drops all capabilities and adds one back without saying why (C16) |
+| Connect timing | A recording that compares a duration only the machine's speed decides (networking/03) |
 
 CI adds what a laptop cannot: every exercise on every pull request, CodeQL on
 three languages, dependency review, the CLI on macOS, and a nightly run of the

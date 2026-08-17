@@ -1,0 +1,20 @@
+# The gateway's live configuration, and the records the internal resolver
+# serves for this customer.
+#
+# GATEWAY_CERT names which of the certificates issued by the internal CA the
+# gateway presents to callers. LAB_RECORDS is what the resolver answers with,
+# as `name=target`, where a target is an address or another name.
+#
+# The customer has been on the reports address since the May migration.
+services:
+  gateway:
+    environment:
+      GATEWAY_CERT: /certs/v3.pem
+
+  resolver:
+    environment:
+      LAB_RECORDS: "reports=127.0.0.1"
+
+  client:
+    environment:
+      GATEWAY_URL: https://reports:8443

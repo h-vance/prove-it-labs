@@ -181,7 +181,7 @@ Hint 2 may carry commands, and in the harder exercises it should: knowing which
 question to ask a system is most of the skill, and withholding `df -i` teaches
 nothing that withholding it does not also hide. What hint 2 must never contain
 is the change to make. `test_content.py` checks that, and it holds across all
-twenty-five exercises with no exceptions.
+twenty-six exercises with no exceptions.
 
 `solution.md` gives the reasoning.
 

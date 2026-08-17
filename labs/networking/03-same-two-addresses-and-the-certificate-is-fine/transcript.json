@@ -1,0 +1,89 @@
+{
+  "recorded": "2026-08-17",
+  "entries": [
+    {
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client /app/upload.sh",
+      "aliases": [
+        "/app/upload.sh",
+        "docker compose exec client /app/upload.sh"
+      ],
+      "match": [
+        "/app/upload.sh",
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T client /app/upload.sh",
+        "docker compose exec client /app/upload.sh"
+      ],
+      "output": "uploading to https://reports:8443/v1/exports\n\nupload failed (curl exit 7)\ncurl: (7) Failed to connect to reports:8443 after 2 ms: Could not connect to server",
+      "exit": 7
+    },
+    {
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client sh -c 'GATEWAY_URL=https://gateway:8443 /app/upload.sh'",
+      "aliases": [
+        "GATEWAY_URL=https://gateway:8443 /app/upload.sh",
+        "upload.sh against gateway"
+      ],
+      "match": [
+        "GATEWAY_URL=https://gateway:8443 /app/upload.sh",
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T client sh -c 'GATEWAY_URL=https://gateway:8443 /app/upload.sh'",
+        "upload.sh against gateway"
+      ],
+      "output": "uploading to https://gateway:8443/v1/exports\n{\"status\": \"accepted\", \"bytes_received\": 32}\nupload finished",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client sh -c 'getent hosts reports; getent hosts gateway'",
+      "aliases": [
+        "getent hosts reports gateway",
+        "getent hosts reports"
+      ],
+      "match": [
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T client sh -c 'getent hosts reports; getent hosts gateway'",
+        "getent hosts reports",
+        "getent hosts reports gateway"
+      ],
+      "output": "127.0.0.1         reports  reports\n192.0.2.2         gateway  gateway",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client nslookup -type=A reports.",
+      "aliases": [
+        "nslookup -type=A reports.",
+        "docker compose exec client nslookup reports"
+      ],
+      "match": [
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T client nslookup -type=A reports.",
+        "docker compose exec client nslookup reports",
+        "nslookup -type=A reports."
+      ],
+      "output": "Server:\t\t127.0.0.11\nAddress:\t127.0.0.11:53\n\nNon-authoritative answer:\nName:\treports\nAddress: 127.0.0.1",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               logs gateway",
+      "aliases": [
+        "docker compose logs gateway",
+        "logs gateway"
+      ],
+      "match": [
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml logs gateway",
+        "docker compose logs gateway",
+        "logs gateway"
+      ],
+      "output": "gateway-1  | level=info event=server_started port=8443\ngateway-1  | level=info method=POST path=/v1/exports status=202",
+      "exit": 0
+    },
+    {
+      "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client sh -c 'echo | openssl s_client -connect gateway:8443 -servername gateway 2>/dev/null | openssl x509 -noout -subject -dates -ext subjectAltName'",
+      "aliases": [
+        "openssl x509 -noout -dates -ext subjectAltName",
+        "openssl s_client -connect gateway:8443"
+      ],
+      "match": [
+        "docker compose -f labs/networking/_stack/compose.yaml -f labs/networking/_stack/compose.override.yaml exec -T client sh -c 'echo | openssl s_client -connect gateway:8443 -servername gateway 2>/dev/null | openssl x509 -noout -subject -dates -ext subjectAltName'",
+        "openssl s_client -connect gateway:8443",
+        "openssl x509 -noout -dates -ext subjectAltName"
+      ],
+      "output": "subject=C=US, O=Prove It Lab, CN=gateway\nnotBefore=Apr  1 00:00:00 2025 GMT\nnotAfter=Dec 31 23:59:59 2035 GMT\nX509v3 Subject Alternative Name: \n    DNS:gateway, DNS:reports",
+      "exit": 0
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+[
+  {
+    "question": "The first two tickets from this customer failed with exit 60 and this one failed with exit 7. What does that difference establish before any other evidence is gathered?",
+    "options": [
+      {
+        "text": "That the failure is more serious, since the connection did not even open",
+        "correct": false,
+        "explanation": "Severity is about what the customer loses, and all three cost them the same nightly export. The codes describe where a sequence stopped, not how bad the consequence was."
+      },
+      {
+        "text": "That nothing was ever presented to the caller, so every question about what the server serves is already answered",
+        "correct": true,
+        "explanation": "Exactly. Exit 60 means a connection was established and the caller then refused what it was shown. Exit 7 means nothing accepted the connection, so there was nothing to show and nothing to refuse. The whole category the previous two tickets lived in is ruled out for free."
+      },
+      {
+        "text": "That the service is down, since a connection was refused",
+        "correct": false,
+        "explanation": "A tempting read and the evidence closes it immediately: the same client reaches the same service on the other name, in the same second. Something is up. The caller was sent somewhere else."
+      },
+      {
+        "text": "That the customer's client was upgraded and now reports failures differently",
+        "correct": false,
+        "explanation": "Worth ruling out rather than assuming, and it does not survive contact. The same client produces exit 0 on one address and exit 7 on the other in the same run, so it is not the client's reporting that changed."
+      }
+    ]
+  },
+  {
+    "question": "The name `reports` resolved successfully and the upload still failed at the connection. Why is resolving successfully not the same as resolving correctly?",
+    "options": [
+      {
+        "text": "Because resolution can succeed and hand back an answer that reaches nothing useful, and nothing in the lookup checks that",
+        "correct": true,
+        "explanation": "Right, and it is the whole lesson. A lookup asks what a name maps to and reports whether it got an answer. Whether the answer is the correct one is a different question that no part of the path asks, which is why every component can be healthy while the system does not work."
+      },
+      {
+        "text": "Because the answer had not finished propagating and would have become correct on its own",
+        "correct": false,
+        "explanation": "It answered instantly and consistently on every attempt across two nights. Propagation explains an answer that changes, not one that is stable and wrong."
+      },
+      {
+        "text": "Because the resolver was unhealthy and returning corrupted answers",
+        "correct": false,
+        "explanation": "It was healthy, it answered in milliseconds, and it answered with precisely what it had been configured to say. A service faithfully serving a wrong value is the hardest version of this to find, because nothing is malfunctioning."
+      },
+      {
+        "text": "Because the name should have been fully qualified and the short form is ambiguous",
+        "correct": false,
+        "explanation": "The short form resolved, once, to a single unambiguous answer, and the other short form beside it resolved correctly. The form of the name was not what differed between the two."
+      }
+    ]
+  },
+  {
+    "question": "The fix set the record to `reports=gateway` rather than to the gateway's address. Why does that matter after the ticket is closed?",
+    "options": [
+      {
+        "text": "Because naming the service is faster to type and easier for the next person to read",
+        "correct": false,
+        "explanation": "Both are true and neither is the reason. Readability does not stop a value from becoming wrong, and this is a fix chosen to stop a value from becoming wrong."
+      },
+      {
+        "text": "Because an address is only correct until the service is next recreated, so a record holding one goes wrong later with nobody having touched it",
+        "correct": true,
+        "explanation": "That is the durable part. The gateway is handed a new address on every rebuild, so a record pinned to today's address is a future incident that nobody caused and nobody changed. Pointing a name at a name survives the move."
+      },
+      {
+        "text": "Because addresses in configuration are a security problem",
+        "correct": false,
+        "explanation": "Nothing here turns on secrecy. An internal address is not sensitive, and the same fix would be right in a system where every address was published."
+      },
+      {
+        "text": "Because the resolver cannot store literal addresses",
+        "correct": false,
+        "explanation": "It can, and that is exactly how the broken record was written. The capability is not the constraint; choosing the form that stays true is."
+      }
+    ]
+  }
+]

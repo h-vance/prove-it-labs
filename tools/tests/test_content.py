@@ -756,6 +756,32 @@ class Containment(unittest.TestCase):
                 self.assertIn("no-new-privileges:true", keys.get("security_opt", ""),
                               f"{name}: {service} can still gain privileges")
 
+    def test_nothing_takes_back_what_it_dropped(self):
+        """`cap_drop: ALL` beside a `cap_add` is not the posture it looks like.
+
+        Found while adding the networking resolver, which binds port 53 and was
+        the first service in the course with a reason to want a capability
+        back. Every check above reads `cap_drop` and none of them had ever
+        looked at `cap_add`, so a service could drop everything, add back
+        exactly what it wanted, and report as sealed. Nothing did, and the
+        moment to close it is before something does rather than after.
+
+        Not an outright ban. A service that genuinely needs one declares
+        `x-containment` with the reason, the same escape every other rule here
+        offers, so this refuses the silent form rather than the argued one.
+        """
+        for name, service, keys in self.containment():
+            if tse.CONTAINMENT_EXCEPTION in keys:
+                continue
+            with self.subTest(f"{name}:{service}"):
+                self.assertNotIn(
+                    "cap_add", keys,
+                    f"{name}: {service} drops all capabilities and adds "
+                    f"{keys.get('cap_add')!r} straight back, which is not the "
+                    f"posture the keys beside it advertise. Say why in "
+                    f"{tse.CONTAINMENT_EXCEPTION}, or do without it.",
+                )
+
     def test_every_stack_was_actually_read(self):
         """A scan that quietly found no services would pass everything above."""
         self.assertGreaterEqual(len(STACKS), 6, "stacks have gone missing")
@@ -856,7 +882,7 @@ class BaseImages(unittest.TestCase):
 NUMBER_WORDS = {
     "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
     "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
-    "twenty-five": 25, "fifty": 50, "one hundred": 100,
+    "twenty-five": 25, "twenty-six": 26, "fifty": 50, "one hundred": 100,
 }
 
 

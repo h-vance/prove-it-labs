@@ -95,3 +95,22 @@ RUN chmod 0755 /app/upload.sh
 
 USER integration
 CMD ["sleep", "infinity"]
+
+
+# --------------------------------------------------------------------------- #
+# The internal resolver. Answers the names the platform team publishes.
+#
+# Built from the base rather than from the gateway, unlike the client stage
+# above, and for the opposite reason: it holds no certificate, so there is
+# nothing here that has to agree with anything the CA signed. A name is not a
+# secret and this image carries no key material at all.
+# --------------------------------------------------------------------------- #
+FROM python:3.12-alpine3.24 AS resolver
+
+RUN adduser -S -u 1000 resolver
+
+COPY resolver.py /app/resolver.py
+
+USER resolver
+EXPOSE 53/udp
+CMD ["python", "/app/resolver.py"]

@@ -5,14 +5,6 @@ services:
     build:
       context: .
       target: gateway
-    # The second name the gateway answers to. The customer was moved onto it
-    # during a migration, and one of the exercises turns on the fact that a
-    # service answering to two names is not the same as a certificate covering
-    # both of them.
-    networks:
-      default:
-        aliases:
-          - reports
     read_only: true
     cap_drop:
       - ALL
@@ -33,6 +25,54 @@ services:
       timeout: 3s
       retries: 10
 
+  # The internal resolver, and the reason it is in the stack rather than in an
+  # exercise. `COMPOSE_OVERRIDE_KEYS` lets an exercise set `environment`,
+  # `user`, `group_add` and `ports`, and nothing else, so there is no way to
+  # break name resolution from inside one. `dns` and `extra_hosts` are refused
+  # deliberately and stay refused. A resolver here, configured by an
+  # environment variable, is what makes the DNS exercise possible without
+  # widening what a contributed pull request is allowed to do.
+  #
+  # It answers the names it is given and relays everything else to Docker's
+  # embedded DNS untouched, which is what keeps the two TLS exercises in this
+  # track resolving exactly as they did before it existed.
+  resolver:
+    build:
+      context: .
+      target: resolver
+    networks:
+      default:
+        # Fixed, because `dns` below takes an address and not a name. There is
+        # no way to point a container at a resolver it has to resolve first.
+        ipv4_address: 192.0.2.53
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    cpus: 0.50
+    pids_limit: 100
+    environment:
+      # The second name the gateway answers to, and it is a record here rather
+      # than a Compose alias on the gateway itself. An alias is owned by
+      # Docker's embedded DNS, which an exercise cannot reach; a record is
+      # owned by this service, which an exercise can repoint by setting this
+      # variable. That is what makes the name a thing the course can break.
+      #
+      # This default is what the two TLS exercises run on, so neither of them
+      # has to know the resolver exists.
+      LAB_RECORDS: "reports=gateway"
+    healthcheck:
+      # Asks this resolver for a name it does not hold, so a pass means both
+      # halves work: it is bound and listening, and its relay to Docker's own
+      # DNS is answering. A check that only proved the socket was open would
+      # let the stack come up with every relayed lookup failing.
+      test: ["CMD", "nslookup", "gateway", "127.0.0.1"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
   client:
     build:
       context: .
@@ -40,6 +80,14 @@ services:
     depends_on:
       gateway:
         condition: service_healthy
+      resolver:
+        condition: service_healthy
+    # The customer's integration resolves names the way the customer's network
+    # does, through the internal resolver rather than through Docker. Set here
+    # rather than per exercise because an exercise may not set it, which is the
+    # whole reason the resolver exists.
+    dns:
+      - 192.0.2.53
     read_only: true
     cap_drop:
       - ALL
@@ -56,3 +104,26 @@ services:
 # 127.0.0.1. A learner would be looking at a real error that is not the error
 # the exercise is about. Everything here runs in the client container, where
 # the trust store is the customer's and the failure is the customer's.
+
+networks:
+  default:
+    ipam:
+      config:
+        # Pinned so the resolver has an address the client can be pointed at.
+        # Compose picks a different subnet every time it creates a network,
+        # which is fine for names and useless for the one thing here that has
+        # to be written down in advance.
+        #
+        # RFC 5737 reserves this range for documentation and examples, so it
+        # is guaranteed never to be a network anybody actually has. That rules
+        # out a collision with the host's own networks or with whatever a CI
+        # runner brings up beside this one, which a block picked out of 10/8
+        # does not.
+        #
+        # It is also not a private address, which matters twice. The leak scan
+        # refuses to publish one, correctly, because a private address in a
+        # tracked file usually describes the author's network. And the scrubber
+        # folds one away in a recording for the same reason. Both leave this
+        # range alone, so every address in this track is the same on every
+        # machine and a learner reads the real value rather than a placeholder.
+        - subnet: 192.0.2.0/24

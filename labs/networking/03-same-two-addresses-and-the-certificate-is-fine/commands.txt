@@ -1,0 +1,73 @@
+# The nightly upload on the address the customer has been on since May.
+#
+# The number in front is not the one the previous two tickets produced, and it
+# came back in about a millisecond rather than after a pause. Both of those are
+# evidence, and both arrived before anything was gathered.
+# alias: /app/upload.sh
+# alias: docker compose exec client /app/upload.sh
+# wait: 10
+# keep: curl: (7), Failed to connect, upload failed
+docker compose -f labs/networking/_stack/compose.yaml \
+               -f labs/networking/_stack/compose.override.yaml \
+               exec -T client /app/upload.sh
+---
+# The same client, the same credentials, the same payload, the other address.
+# One gateway, and it is reachable right now.
+# alias: GATEWAY_URL=https://gateway:8443 /app/upload.sh
+# alias: upload.sh against gateway
+# keep: accepted, upload finished
+docker compose -f labs/networking/_stack/compose.yaml \
+               -f labs/networking/_stack/compose.override.yaml \
+               exec -T client sh -c 'GATEWAY_URL=https://gateway:8443 /app/upload.sh'
+---
+# What each name resolves to, read the same way so the comparison means
+# something. This is the whole finding, and it is two lines long.
+#
+# 127.0.0.1 is not a place. It means "this machine" to whoever reads it, so the
+# customer's job connected to itself.
+# alias: getent hosts reports gateway
+# alias: getent hosts reports
+# keep: 127.0.0.1, reports, gateway
+docker compose -f labs/networking/_stack/compose.yaml \
+               -f labs/networking/_stack/compose.override.yaml \
+               exec -T client sh -c 'getent hosts reports; getent hosts gateway'
+---
+# Where the answer came from. The resolver is healthy, it replied at once, and
+# it replied with exactly what it was configured to say. Nothing here is
+# malfunctioning, which is why no health check saw it.
+#
+# Two things here are deliberate and neither is cosmetic.
+#
+# One record type, because left to itself the tool asks for two at once and
+# prints whichever came back first, so the same lookup produces two different
+# transcripts on the same machine.
+#
+# And the trailing dot, which makes the name absolute. Without it the resolver
+# appends each search domain in turn and prints the misses on the way, so what
+# this command produces depends on the network the machine is sitting on. A
+# CI runner supplied one and a laptop supplied none, and the recording that was
+# stable across five runs here failed on the first run there.
+# alias: nslookup -type=A reports.
+# alias: docker compose exec client nslookup reports
+# keep: reports, 127.0.0.1
+docker compose -f labs/networking/_stack/compose.yaml \
+               -f labs/networking/_stack/compose.override.yaml \
+               exec -T client nslookup -type=A reports.
+---
+# The gateway is healthy and serving, which the connection failure never told
+# you either way, because nothing ever reached it.
+# alias: docker compose logs gateway
+# alias: logs gateway
+# keep: server_started
+docker compose -f labs/networking/_stack/compose.yaml \
+               -f labs/networking/_stack/compose.override.yaml \
+               logs gateway
+---
+# And the certificate the customer checked themselves, read against the address
+# that still works. Valid to 2035 and covering both names, exactly as they said.
+# alias: openssl x509 -noout -dates -ext subjectAltName
+# alias: openssl s_client -connect gateway:8443
+# keep: notAfter=Dec, DNS:gateway, DNS:reports
+docker compose -f labs/networking/_stack/compose.yaml \
+               -f labs/networking/_stack/compose.override.yaml \
+               exec -T client sh -c 'echo | openssl s_client -connect gateway:8443 -servername gateway 2>/dev/null | openssl x509 -noout -subject -dates -ext subjectAltName'

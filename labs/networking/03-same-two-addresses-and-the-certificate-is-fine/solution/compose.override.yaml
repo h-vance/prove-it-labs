@@ -1,0 +1,24 @@
+# The gateway's live configuration, and the records the internal resolver
+# serves for this customer.
+#
+# GATEWAY_CERT names which of the certificates issued by the internal CA the
+# gateway presents to callers. LAB_RECORDS is what the resolver answers with,
+# as `name=target`, where a target is an address or another name.
+#
+# The customer has been on the reports address since the May migration.
+#
+# The record points at the gateway again. It had been left pointing at the
+# caller's own loopback address, which is where somebody testing on the box
+# itself would have pointed it and where nothing else can ever reach.
+services:
+  gateway:
+    environment:
+      GATEWAY_CERT: /certs/v3.pem
+
+  resolver:
+    environment:
+      LAB_RECORDS: "reports=gateway"
+
+  client:
+    environment:
+      GATEWAY_URL: https://reports:8443

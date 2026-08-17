@@ -890,6 +890,19 @@ SCRUB_RULES: list[tuple[str, "re.Pattern[str]", str]] = [
     ("curl-accepted-then-nothing", re.compile(
         r"curl: \((?:52|56)\) (?:Empty reply from server"
         r"|Recv failure: Connection reset by peer)"), "curl: <accepted-then-closed>"),
+    # How long curl spent failing to connect, which is a measure of the machine
+    # rather than of the fault. A record pointing at loopback is refused in
+    # under a millisecond on a fast laptop and took two on the same laptop
+    # under load, so the number rounds to 0, 1 or 2 depending on nothing that
+    # matters.
+    #
+    # Scoped to exit 7 and to the words around the number, so it cannot reach a
+    # duration anywhere else. "Failed to connect" and the exit code itself are
+    # left alone: they are the evidence networking/03 turns on, and its `keep:`
+    # markers name both.
+    ("curl-connect-timing", re.compile(
+        r"(curl: \(7\) Failed to connect to \S+ )after \d+ ms:"),
+        r"\1after <t> ms:"),
     # `docker ps` lists a container's exposed-but-unpublished ports alongside
     # its published ones on Linux and omits them on Docker Desktop. Only dropped
     # when a published mapping follows, so a service that publishes nothing at
