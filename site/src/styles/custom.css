@@ -9,7 +9,81 @@
  *    background gray-3 measures 4.49:1, which fails AA by a hair.
  */
 
+/* --------------------------------------------------------------------- type
+ *
+ * One typeface, one file, served from this origin.
+ *
+ * The site read as a documentation template because it was one: Starlight's
+ * default is whatever sans-serif the reader's operating system happens to
+ * supply, which is a different face on every machine and nobody's decision.
+ *
+ * IBM Plex Sans, under the SIL Open Font License. It comes from the pinned
+ * @fontsource-variable/ibm-plex-sans dependency rather than being committed
+ * here, so there is exactly one copy, the lockfile records where it came from,
+ * and Dependabot watches it like everything else. The CSP is `font-src 'self'`
+ * and `default-src 'none'`, so a webfont from anywhere else would be refused by
+ * the browser rather than merely discouraged.
+ *
+ * Three choices, all measured rather than assumed:
+ *
+ *  - The weight axis only, not the width axis. 45,712 bytes against 65,488,
+ *    and nothing here uses a condensed or extended width.
+ *  - Upright only, no italic. That saves a further 50,184 bytes, which is more
+ *    than the font itself, and the whole built site contains four <em> elements
+ *    across three of its thirty two pages. Those four get a synthetic oblique.
+ *    Buying a second file for them would be the worst trade on the page.
+ *  - Latin subset only. Every word of this course is in English, and the
+ *    unicode-range below means a reader who lands on text outside it gets their
+ *    system font rather than a download that could not render it anyway.
+ */
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("@fontsource-variable/ibm-plex-sans/files/ibm-plex-sans-latin-wght-normal.woff2")
+    format("woff2-variations");
+  font-weight: 100 700;
+  font-style: normal;
+  /* swap, not optional. The face is this site's identity rather than a
+   * refinement of it, so text arriving in the system font and never being
+   * replaced is the wrong failure. It is one same-origin request. */
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* -------------------------------------------------------------------- color
+ *
+ * One accent, chosen around what the palette already means.
+ *
+ * Green is a correct answer, red is a wrong one, and the orange rule down the
+ * side of a ticket is the customer's problem. Those three are load-bearing and
+ * were here first, so the accent had to be none of them: an accent sharing a
+ * hue with a verdict is a link that looks like a judgement.
+ *
+ * Teal is what was left, and it happens to be right. It reads as instrument
+ * rather than alarm, which is the register this whole course is written in.
+ *
+ * Starlight is dark-first for these three, so the bare :root block is the dark
+ * theme and the [data-theme="light"] block overrides it. That is the opposite
+ * way round from the --proveit-* verdict colors below, which is Starlight's
+ * convention rather than a choice made here, and worth knowing before editing
+ * either.
+ *
+ * Contrast is not asserted in this comment, because a comment cannot check it.
+ * `npm run a11y` measures every pairing on every page in both themes, and these
+ * values were adjusted until it stopped complaining rather than until they
+ * looked about right.
+ */
 :root {
+  /* Starlight already falls back to --sl-font-system on its own, so a reader
+   * who blocks fonts, or who arrives before this one has loaded, gets exactly
+   * what they got before rather than a bare serif. */
+  --sl-font: "IBM Plex Sans";
+
+  --sl-color-accent-low: #10333a;
+  --sl-color-accent: #17808f;
+  --sl-color-accent-high: #93d8e2;
+
   --proveit-radius: 0.5rem;
   --proveit-gap: 1rem;
   --proveit-rule: 1px solid var(--sl-color-gray-5);
@@ -21,11 +95,46 @@
   --proveit-wrong: #b91c1c;
 }
 
+:root[data-theme="light"] {
+  --sl-color-accent-low: #c6e8ed;
+  --sl-color-accent: #0e6b79;
+  --sl-color-accent-high: #0a3b43;
+}
+
 /* Starlight toggles the theme with data-theme, so the dark values hang off
  * that rather than off prefers-color-scheme. */
 :root[data-theme="dark"] {
   --proveit-correct: #4ade80;
   --proveit-wrong: #fca5a5;
+}
+
+/* --------------------------------------------------------------- the hero */
+
+/* Starlight's splash hero is laid out around an image, and this page has none.
+ *
+ * Two consequences, both measured on the built page rather than guessed at.
+ * The grid is `7fr 4fr`, so the tagline was squeezed into two thirds of the
+ * width while the remaining third sat empty. And the block padding is
+ * `clamp(2.5rem, 1rem + 10vmin, 10rem)`, which is generous when it is balancing
+ * a picture and is a third of a screen of nothing when it is balancing nothing:
+ * on a 1100px viewport there were 365 pixels between the buttons and the first
+ * real content on the page.
+ *
+ * The width query matches Starlight's own so the two cannot disagree, and the
+ * selectors here are plain classes because Starlight wraps its own in :where(),
+ * which carries no specificity and is meant to be overridden exactly like this.
+ */
+@media (min-width: 50rem) {
+  .hero {
+    grid-template-columns: 100%;
+    padding-block: clamp(2rem, 1rem + 4vmin, 4.5rem) clamp(1.5rem, 1rem + 2vmin, 2.5rem);
+  }
+
+  /* A tagline running the full width of a wide screen is a different
+   * readability problem from the one just fixed. */
+  .hero .copy {
+    max-width: 46rem;
+  }
 }
 
 /* ------------------------------------------------------------------ tiers */

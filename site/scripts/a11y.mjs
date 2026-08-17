@@ -254,7 +254,16 @@ for (const theme of ["dark", "light"]) {
       // Open the reveal first. Its list gets scanned too, and it is where a
       // command known to be recorded on this page comes from, so nothing here
       // needs to know which exercise it is looking at.
-      await page.locator(".terminal .reveal__button--quiet").click();
+      //
+      // Toggled rather than clicked, because the button is a toggle and whether
+      // it is already on is remembered per exercise rather than per page. The
+      // home page carries docker/01's terminal, so it shares a storage key with
+      // that exercise's own page: within one theme's context the first of the
+      // two revealed the list, and the second dutifully clicked it shut again
+      // and then waited thirty seconds for content it had just hidden.
+      if (!(await page.locator(".terminal__list code").first().isVisible())) {
+        await page.locator(".terminal .reveal__button--quiet").click();
+      }
       await page.waitForSelector(".terminal__list code");
 
       // Real fill and keypress rather than a dispatched KeyboardEvent. A

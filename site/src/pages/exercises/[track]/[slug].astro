@@ -27,9 +27,13 @@ const difficulty = difficultyLabel(exercise.difficulty);
 // StarlightPage builds its table of contents from this list rather than by
 // scanning the slot, so the sections rendered by the islands have to be
 // declared here or they vanish from the sidebar navigation.
+// The ticket comes first, here and in the body below. It used to sit third,
+// under a table of facts and a block of setup instructions, which put the one
+// thing a reader came for below the fold and led with housekeeping. A ticket is
+// the hook of every exercise in this course and the whole argument for it.
 const headings = [
-  { depth: 2, slug: "start-it", text: "Start it" },
   { depth: 2, slug: "the-ticket", text: "The ticket" },
+  { depth: 2, slug: "start-it", text: "Start it" },
   ...(exercise.transcript.length > 0
     ? [{ depth: 2, slug: `terminal-${exercise.id}`, text: "Look at the evidence" }]
     : []),
@@ -52,6 +56,9 @@ const headings = [
   headings={headings}
 >
   <p class="proof-question">{exercise.proofQuestion}</p>
+
+  <h2 id="the-ticket">The ticket</h2>
+  <div class="ticket" set:html={exercise.ticketHtml} />
 
   <dl class="facts">
     <div>
@@ -90,12 +97,9 @@ const headings = [
   <p>In a Codespace or a local clone:</p>
   <pre tabindex="0"><code>tse start {exercise.id}</code></pre>
   <p>
-    That provisions the broken system and prints the ticket below. Investigate with
+    That provisions the broken system and prints the ticket above. Investigate with
     ordinary tools, then run <code>tse check</code>.
   </p>
-
-  <h2 id="the-ticket">The ticket</h2>
-  <div class="ticket" set:html={exercise.ticketHtml} />
 
   {/*
     client:load rather than client:visible on all three. The scratchpad is a

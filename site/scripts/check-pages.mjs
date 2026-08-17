@@ -54,6 +54,26 @@ const MAX_PAGE_BYTES = 100_000;
  */
 const MAX_SCRIPT_BYTES = 200_000;
 
+/**
+ * Stylesheets and fonts, which until the typeface landed nothing measured.
+ *
+ * The two budgets above cover HTML and JavaScript, and between them they gave
+ * the comfortable impression that page weight was watched. It was not. A
+ * webfont is the easiest kilobyte on a site to spend, it lands in neither of
+ * those numbers, and a second face or a careless subset could have quietly
+ * doubled what a first-time reader downloads with every gate still green.
+ *
+ * Measured at the point the font arrived: 157,486 bytes of CSS and no fonts at
+ * all, going to 203,198 with IBM Plex Sans at 45,712. Two thirds of the CSS is
+ * Pagefind's own search interface, which is vendored by the search integration
+ * and is not ours to trim.
+ *
+ * 260,000 leaves room for the mono face this site should probably also ship,
+ * and fails on a second full sans family, which is the regression worth
+ * catching. Raw bytes, for the same reason as above.
+ */
+const MAX_STATIC_BYTES = 260_000;
+
 if (!existsSync(DIST)) {
   console.error("dist/ not found. Run `npm run build` first.");
   process.exit(1);
@@ -162,6 +182,44 @@ if (scriptBytes > MAX_SCRIPT_BYTES) {
   );
 }
 
+// Walked rather than read from one directory, because Pagefind writes its
+// stylesheets outside _astro/ and a budget that missed two thirds of the CSS
+// would be worse than none: it would report a number nobody would question.
+function walkFor(directory, extensions) {
+  const found = [];
+  for (const name of readdirSync(directory)) {
+    const path = join(directory, name);
+    if (statSync(path).isDirectory()) found.push(...walkFor(path, extensions));
+    else if (extensions.some((extension) => name.endsWith(extension))) found.push(path);
+  }
+  return found;
+}
+
+const staticAssets = walkFor(DIST, [".css", ".woff2", ".woff", ".ttf", ".otf"]);
+const staticBytes = staticAssets.reduce((total, path) => total + statSync(path).size, 0);
+const fonts = staticAssets.filter((path) => /\.(woff2?|[ot]tf)$/.test(path));
+if (staticBytes > MAX_STATIC_BYTES) {
+  problems.push(
+    `Stylesheets and fonts are ${staticBytes.toLocaleString()} bytes across ` +
+      `${staticAssets.length} files, over the ${MAX_STATIC_BYTES.toLocaleString()} ` +
+      `budget. ${fonts.length} of them are fonts.`,
+  );
+}
+
+// A face that is downloaded but never asked for is pure cost, and it is the
+// exact residue of swapping one typeface for another and forgetting the old
+// import. Checked by name against what the stylesheets actually reference.
+const styleText = staticAssets
+  .filter((path) => path.endsWith(".css"))
+  .map((path) => readFileSync(path, "utf8"))
+  .join("");
+for (const font of fonts) {
+  const name = font.slice(font.lastIndexOf("/") + 1);
+  if (!styleText.includes(name)) {
+    problems.push(`${name} ships but no stylesheet refers to it, so nothing will load it.`);
+  }
+}
+
 for (const name of readdirSync(join(REPO, "reference")).filter((n) => n.endsWith(".md"))) {
   const slug = name.replace(/\.md$/, "");
   if (!existsSync(join(DIST, "reference", slug, "index.html"))) {
@@ -188,11 +246,16 @@ if (problems.length > 0) {
 // shrinking over several changes instead of noticed the day it fails.
 const pageHeadroom = Math.round((1 - heaviest.bytes / MAX_PAGE_BYTES) * 100);
 const scriptHeadroom = Math.round((1 - scriptBytes / MAX_SCRIPT_BYTES) * 100);
+const staticHeadroom = Math.round((1 - staticBytes / MAX_STATIC_BYTES) * 100);
+const fontBytes = fonts.reduce((total, path) => total + statSync(path).size, 0);
 
 console.log(
   `Site content check passed: ${expected.length} exercise pages, all with ticket, scratchpad, and hints.\n` +
     `  Heaviest page: ${heaviest.id} at ${heaviest.bytes.toLocaleString()} bytes, ` +
     `${pageHeadroom}% under budget.\n` +
     `  JavaScript: ${scriptBytes.toLocaleString()} bytes across ${scripts.length} files, ` +
-    `${scriptHeadroom}% under budget.`,
+    `${scriptHeadroom}% under budget.\n` +
+    `  Styles and fonts: ${staticBytes.toLocaleString()} bytes across ` +
+    `${staticAssets.length} files, ${staticHeadroom}% under budget. ` +
+    `${fonts.length} font(s), ${fontBytes.toLocaleString()} bytes.`,
 );
