@@ -1407,13 +1407,11 @@ The most useful section for anyone reading this as a work sample.
   is private. `AUDIT.md` is exempt from it, because recording the private
   period is its job, and that exemption is why this section spent an afternoon
   describing a repository that had already changed. See C10.
-- **The monospace face is still whatever the reader's machine supplies.** The
-  sans is now shipped and identical everywhere; the terminal is not, and the
-  terminal is the product. Recorded output that lines up on one machine can
-  wrap on another, and the screenshots in the README are a picture of one
-  laptop's idea of monospace. A second face would cost about 30KB against
-  56,000 bytes of remaining budget, so this is a decision that has not been
-  made rather than one that could not be.
+- **The screenshots in the README are still a picture of one machine.** The
+  monospace face is shipped now, so the site renders the same everywhere, but
+  the four PNGs in `docs/screenshots/` were captured before it and show the
+  laptop's own idea of monospace. They are pictures rather than text, so nothing
+  compares them against the site they claim to show.
 - **The proof record believes whatever is pasted into it.** Anyone can type
   `{"completed": [...]}` and watch every question turn into a claim. There is
   no signature and there will not be one: the record is for the person doing
@@ -1483,6 +1481,11 @@ trusted, and each closing a finding above:
 | The proof record | A run that never made the page refuse an import, accept one, and clear it (C13) |
 | Styles and fonts | More than 260,000 bytes of them, measured across the whole build (C15) |
 | Orphan fonts | A font that ships when no stylesheet refers to it (C15) |
+
+The budget above is what made the design pass safe to attempt. Shipping a second
+face and rebuilding the surface, radius and type scales moved styles and fonts
+from 203,932 bytes to 219,812, which the same gate reported as 15% under rather
+than as a number somebody had to go and look up.
 
 **Added by the DNS exercise**, on the same terms:
 
