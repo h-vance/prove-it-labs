@@ -40,7 +40,7 @@ argument for building the gates in the first place.
 ## Contents
 
 - [Blockers](#blockers), two, both closed
-- [Checks that could not fail](#checks-that-could-not-fail), eight of them
+- [Checks that could not fail](#checks-that-could-not-fail), nine of them
 - [Correctness](#correctness)
 - [Security](#security)
 - [Accessibility](#accessibility)
@@ -136,7 +136,7 @@ must still exist.
 ## Checks that could not fail
 
 The largest single category. Eight checks were passing without checking
-anything.
+anything, and a ninth was caught before it ever ran here.
 
 ### F1. `--not-contains` passed when the command errored
 
@@ -245,6 +245,33 @@ you run before pushing, it runs after you have committed, and it caught this
 before anything left the machine. What is worth knowing is that a green test
 run on a file you have not committed yet is not evidence about that file, and
 this document is the place to write that down.
+
+### F9. A grader assertion that could not fail, caught before it shipped
+
+The only entry in this section that never ran in this repository, kept because
+the rule that found it is the one this section exists to state.
+
+`networking/03` was written with three assertions. The third read back what the
+customer's address resolves to and required the gateway's own value, meaning to
+catch two wrong fixes: pointing the record at something that merely answers,
+and deleting the record so the name stops resolving at all.
+
+It looked like a real check. Applying this document's own standard to it, that
+a gate never seen to fail is not a gate, meant constructing a state it would
+reject and the first two did not. There is none. Both wrong fixes stop the
+upload working, so the first assertion already refuses them, and across every
+state reachable through the four keys an exercise may set the third never once
+failed alone.
+
+Worse, the fix it was written to catch is the one it lets through. A record
+holding the gateway's literal address rather than its name passes all three,
+because today it resolves to exactly the same place. It goes wrong on the next
+rebuild, which is not a thing any check running now can observe.
+
+So the assertion was removed rather than shipped, the reasoning is written into
+`check.sh` where the next person to have the idea will find it, and the literal
+address trap is taught in the solution and deliberately left ungraded. Two
+assertions that can both fail are worth more than three where one is decoration.
 
 ---
 
@@ -1100,6 +1127,41 @@ The second plant is the realistic one. It is what happens when somebody adds
 the italic file and a width axis without thinking about it, which is a change
 of two lines.
 
+### C16. Every service could take back what it had dropped
+
+The containment gate reads six keys off every service in every stack and
+insists on the strong form of three of them: `read_only: true`, `cap_drop`
+containing `ALL`, and `no-new-privileges:true`. It had never looked at
+`cap_add`.
+
+A service could therefore drop every capability, add back exactly the one it
+wanted, and report as fully sealed, because the gate only ever asked what was
+given up and never what was taken back. `cap_drop: ALL` beside a `cap_add` is
+not the posture the other five keys advertise.
+
+Nothing in the course did this. The hole was found while adding the networking
+resolver, which binds port 53 and is the first service here with a reason to
+want `NET_BIND_SERVICE`. It turned out not to need it: Docker sets
+`net.ipv4.ip_unprivileged_port_start=0` inside containers, so the resolver
+binds 53 as an unprivileged user with everything dropped, which was confirmed
+on a live daemon before the design leaned on it and is explained in
+`resolver.py` where a daemon configured otherwise will land.
+
+Closing a hole at the moment something first has a reason to use it, rather
+than after it has been used, is the whole reason to write the gate now.
+
+**Not a ban.** A service that genuinely needs a capability declares
+`x-containment` with the reason, which is the escape every other rule in this
+group already offers. The gate refuses the silent form, not the argued one.
+
+**The gate, planted against:**
+
+```
+labs/networking/_stack/compose.yaml: resolver drops all capabilities and adds
+'NET_BIND_SERVICE' straight back, which is not the posture the keys beside it
+advertise. Say why in x-containment, or do without it.
+```
+
 ---
 
 ## Cost
@@ -1287,8 +1349,8 @@ The most useful section for anyone reading this as a work sample.
   accessibility tree, not a test that the page is usable by ear.
 - **The Kubernetes track is verified against `kind` only.** Nothing checks it on
   a real cluster or another distribution.
-- **The networking track is two exercises and both are TLS.** DNS and routing
-  are named in the track and not yet taught.
+- **The networking track teaches no routing.** DNS is now taught by
+  `networking/03`. Routing is named in the track and is not.
 - **`tse links` checks external URLs but not their content.** A link that
   resolves to a parked domain passes.
 - **No mutation testing.** The gates are proven by planted defects chosen by the
@@ -1338,7 +1400,7 @@ nothing installed beyond Docker and Python.
 
 | Gate | Scale |
 |---|---|
-| `test_content.py` | 143 tests |
+| `test_content.py` | 146 tests |
 | `test_scrub.py` | 53 tests |
 | `test_rubric.py` | 20 tests |
 | `test_meta.py` | 18 tests, incl. parity against real PyYAML |
@@ -1352,7 +1414,7 @@ nothing installed beyond Docker and Python.
 | `check:terminal` | 150 assertions across 9 normalization cases |
 | `a11y.mjs` | 330 axe checks, 32 pages, 2 themes, plus 320px reflow and no-JS |
 | CSP | enforced by a browser on 32 pages in both themes |
-| `tse verify` | 25 exercises must fail broken and pass fixed |
+| `tse verify` | 26 exercises must fail broken and pass fixed |
 | `tse record --check` | every transcript still matches a real run |
 
 It ends on `Safe to push.` or `Not safe to push.`
@@ -1382,6 +1444,13 @@ trusted, and each closing a finding above:
 | The proof record | A run that never made the page refuse an import, accept one, and clear it (C13) |
 | Styles and fonts | More than 260,000 bytes of them, measured across the whole build (C15) |
 | Orphan fonts | A font that ships when no stylesheet refers to it (C15) |
+
+**Added by the DNS exercise**, on the same terms:
+
+| Gate | Refuses |
+|---|---|
+| Capabilities taken back | A service that drops all capabilities and adds one back without saying why (C16) |
+| Connect timing | A recording that compares a duration only the machine's speed decides (networking/03) |
 
 CI adds what a laptop cannot: every exercise on every pull request, CodeQL on
 three languages, dependency review, the CLI on macOS, and a nightly run of the

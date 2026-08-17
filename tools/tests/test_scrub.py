@@ -113,6 +113,12 @@ SAMPLES: dict[str, str] = {
     # Recorded on Docker Desktop. A Linux runner produced curl: (56) for the
     # identical fault.
     "curl-accepted-then-nothing": "curl: (52) Empty reply from server",
+    # Recorded in networking/03. The same command on the same machine produced
+    # 0, 1 and 2 in the same afternoon.
+    "curl-connect-timing": (
+        "curl: (7) Failed to connect to reports:8443 after 1 ms: "
+        "Could not connect to server"
+    ),
     "unpublished-port": (
         "proveit-docker-app-1  Up 20 seconds (healthy)  8080/tcp, 127.0.0.1:8100->8081/tcp"
     ),
@@ -155,6 +161,11 @@ MUST_SURVIVE = [
     "127.0.0.1",
     "port 5432 failed: Connection refused",
     "HTTP/1.0 503 Service Unavailable",
+    # networking/03 is about which stage of the connection failed, and the exit
+    # code is what says so. The rule that folds the duration beside it sits one
+    # word away from both of these.
+    "curl: (7)",
+    "Failed to connect to reports:8443",
 ]
 
 
@@ -193,6 +204,12 @@ class RulesFire(unittest.TestCase):
             (
                 "orders-api-kdwnq   IPv4   8080   10.244.0.23,10.244.0.24   12m",
                 "orders-api-hk8zx   IPv4   8080   10.244.0.46,10.244.0.45   3m2s",
+            ),
+            (
+                "curl: (7) Failed to connect to reports:8443 after 0 ms: "
+                "Could not connect to server",
+                "curl: (7) Failed to connect to reports:8443 after 2 ms: "
+                "Could not connect to server",
             ),
         ]
         for first, second in pairs:

@@ -1,5 +1,5 @@
 {
-  "recorded": "2026-08-15",
+  "recorded": "2026-08-17",
   "entries": [
     {
       "command": "docker compose -f labs/networking/_stack/compose.yaml \\\n               -f labs/networking/_stack/compose.override.yaml \\\n               exec -T client /app/upload.sh",
@@ -26,7 +26,7 @@
         "docker compose exec client getent hosts gateway",
         "getent hosts gateway"
       ],
-      "output": "<ip>        gateway  gateway",
+      "output": "192.0.2.2         gateway  gateway",
       "exit": 0
     },
     {
@@ -82,7 +82,7 @@
         "openssl s_client -verify_return_error",
         "openssl s_client -verify_return_error -connect gateway:8443"
       ],
-      "output": "CONNECTED(00000003)\n---\nCertificate chain\n 0 s:C=US, O=Prove It Lab, CN=gateway\n   i:C=US, O=Prove It Lab, CN=Prove It Lab Internal CA\n   a:PKEY: RSA, 2048 (bit); sigalg: sha256WithRSAEncryption\n   v:NotBefore: Jan  1 00:00:00 2025 GMT; NotAfter: Apr  1 00:00:00 2025 GMT\n---\nno peer certificate available\n---\nNo client certificate CA names sent\nNegotiated TLS1.3 group: X25519MLKEM768\n---\nSSL handshake has read 2196 bytes and written 1547 bytes\nVerification error: certificate has expired\n---\nNew, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384\nProtocol: TLSv1.3\nThis TLS version forbids renegotiation.\nNo ALPN negotiated\nEarly data was not sent\nVerify return code: 10 (certificate has expired)\n---\nConnecting to <ip>\ndepth=1 C=US, O=Prove It Lab, CN=Prove It Lab Internal CA\nverify return:1\ndepth=0 C=US, O=Prove It Lab, CN=gateway\nverify error:num=10:certificate has expired\nnotAfter=Apr  1 00:00:00 2025 GMT\n28CD2A97FFFF0000:error:0A000086:SSL routines:tls_post_process_server_certificate:certificate verify failed:ssl/statem/statem_clnt.c:2124:",
+      "output": "CONNECTED(00000003)\n---\nCertificate chain\n 0 s:C=US, O=Prove It Lab, CN=gateway\n   i:C=US, O=Prove It Lab, CN=Prove It Lab Internal CA\n   a:PKEY: RSA, 2048 (bit); sigalg: sha256WithRSAEncryption\n   v:NotBefore: Jan  1 00:00:00 2025 GMT; NotAfter: Apr  1 00:00:00 2025 GMT\n---\nno peer certificate available\n---\nNo client certificate CA names sent\nNegotiated TLS1.3 group: X25519MLKEM768\n---\nSSL handshake has read 2196 bytes and written 1547 bytes\nVerification error: certificate has expired\n---\nNew, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384\nProtocol: TLSv1.3\nThis TLS version forbids renegotiation.\nNo ALPN negotiated\nEarly data was not sent\nVerify return code: 10 (certificate has expired)\n---\nConnecting to 192.0.2.2\ndepth=1 C=US, O=Prove It Lab, CN=Prove It Lab Internal CA\nverify return:1\ndepth=0 C=US, O=Prove It Lab, CN=gateway\nverify error:num=10:certificate has expired\nnotAfter=Apr  1 00:00:00 2025 GMT\n283D1DBFFFFF0000:error:0A000086:SSL routines:tls_post_process_server_certificate:certificate verify failed:ssl/statem/statem_clnt.c:2124:",
       "exit": 1
     },
     {

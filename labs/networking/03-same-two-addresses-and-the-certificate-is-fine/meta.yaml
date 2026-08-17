@@ -1,0 +1,36 @@
+id: networking/03-same-two-addresses-and-the-certificate-is-fine
+track: networking
+title: Same two addresses, and the certificate is fine
+proof_question: Can I prove how far the connection got before it failed?
+stack: compose
+tier: core
+difficulty: 3
+minutes: 30
+prerequisites:
+  - networking/02-the-new-address-fails-and-the-old-one-works
+
+commands_introduced:
+  - getent hosts
+  - nslookup
+
+evidence_layers:
+  - the exit code, and which stage of the connection it belongs to
+  - what the name the customer calls actually resolves to
+  - what the name that works resolves to, read the same way
+
+interview_relevance: >
+  The third failure on the same pair of addresses, and the one that separates
+  people who have learned a fix from people who have learned a method. The two
+  before it were both refusals by the caller after a connection was
+  established. This one never establishes anything, and the exit code says so
+  before any evidence is gathered. Being able to name which stage a failure
+  belongs to, and to say what that rules out, is most of what makes somebody
+  fast at this.
+
+teaches: >
+  A connection is a sequence of stages and each one fails its own way:
+  resolving the name, reaching the address, agreeing on trust, then the
+  application answering. A name that resolves is not a name that resolves
+  correctly, and a wrong answer from a healthy resolver is indistinguishable
+  from a working network until somebody reads the answer instead of assuming
+  it.
