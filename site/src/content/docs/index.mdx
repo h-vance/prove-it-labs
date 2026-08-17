@@ -28,6 +28,46 @@ hero:
 
 import { Card, CardGrid } from "@astrojs/starlight/components";
 import TrackIndex from "../../components/TrackIndex.astro";
+import LabTerminal from "../../components/LabTerminal";
+import { loadExercises } from "../../lib/labs";
+
+export const opener = loadExercises().find((exercise) => exercise.id.startsWith("docker/01"));
+
+{/*
+  This page used to describe the course. Now it runs it.
+
+  What was here was a stock Starlight splash: a tagline, four cards explaining
+  that the tickets are symptom-only and the terminal replays real output, and a
+  list of exercises. Every word of it was true and none of it was evidence, on
+  a site whose entire argument is that a claim and a demonstration are not the
+  same thing. The first thing a reader met was the course talking about itself.
+
+  So the two things it was describing now happen on the page instead, using the
+  same components and the same recorded output as the exercise itself. Nothing
+  below is written for this page. It is `docker/01`, loaded from `labs/`, which
+  means it cannot drift from the exercise and CI re-verifies every byte of that
+  output against a freshly provisioned stack on every push.
+*/}
+
+## This is the whole idea
+
+A customer writes to you. They tell you what they see, because that is all they
+know. Nobody tells you which layer broke.
+
+<div class="ticket" set:html={opener.ticketHtml} />
+
+{/*
+  No heading of its own here. LabTerminal renders "Look at the evidence" and a
+  lede that says the same thing this paragraph did, so writing one above it put
+  two headings and two explanations on the page for one component.
+*/}
+<LabTerminal exerciseId={opener.id} entries={opener.transcript} client:load />
+
+Try `docker inspect` on the database. It comes back **healthy**, and the
+customer still cannot load anything.
+
+Learning to say exactly what that proves, and just as importantly what it does
+not, is the entire course.
 
 ## Why this is different
 
@@ -67,8 +107,9 @@ Investigate with ordinary tools. When you think you have fixed it:
 tse check
 ```
 
-Running locally instead needs Docker and Python 3.11 or newer. There is nothing
-to install, and `tse doctor` will tell you what is missing.
+Running locally instead needs Docker and Python 3.9 or newer. There is nothing
+to build, and `tse doctor` tells you what is missing, grouped by which track
+needs it.
 
 ## The exercises
 

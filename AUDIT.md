@@ -826,6 +826,244 @@ table those rules are written from.
 It does not make this document self-checking. It catches the one way it has
 actually been observed to rot.
 
+### C11. A setting a reader could change, that could change nothing
+
+`README.md` and the home page both said stretch material could be hidden
+rather than skimmed past, and *How this works* carried the control that did
+the hiding. It was a real component, correctly written, with its state applied
+before first paint so nothing would flash in and out.
+
+Every one of the twenty five exercises is `tier: core`. There has never been a
+single piece of stretch material in this repository. Somebody who found the
+switch and used it watched the page not change, and had no way to tell whether
+they had misunderstood the feature or the site was broken.
+
+Measured, not remembered: `grep -rh "^tier:" labs/*/*/meta.yaml | sort | uniq
+-c` returns 25 core and no stretch.
+
+This is the same shape as the two hero buttons in C6. A promise written down,
+nothing behind it, and nothing looking. It is worth naming that shape because
+three separate instances of it have now been found in a repository whose whole
+argument is that its claims are checked, and all three survived a full audit
+that was looking for exactly this.
+
+**What changed.** The claim and the control are gone. `TierToggle.tsx` and its
+CSS rule are kept, unimported and therefore costing nothing in the build, with
+the three steps to restore them written at the top of the component. The inline
+script came out of `astro.config.ts`, where it was reading a setting nothing
+writes on all thirty one pages.
+
+**The gates**, two of them, because the claim has two forms. Prose that says
+stretch material can be hidden, and a page that renders the control. Either
+requires at least one exercise to declare `tier: stretch`, which makes the rule
+self-correcting: the day the content exists, the claim is allowed back.
+
+Planted against, by putting each back:
+
+```
+README.md:160 says stretch material can be hidden, but no exercise declares
+`tier: stretch`, so the control has nothing to hide. Either write the stretch
+material or drop the claim.
+
+site/src/content/docs/how-it-works.mdx renders <TierToggle />, but no exercise
+declares `tier: stretch`. Someone toggling it would watch the page not change.
+```
+
+**And it fired on this section.** Writing the finding up put the forbidden
+phrase into `AUDIT.md`, so the rule refused the document explaining the rule.
+That is the third time a gate here has collided with the file describing it,
+after C10 and after `test_content.py` being exempt from the style rules that
+read its own pattern table.
+
+`AUDIT.md` is now exempt, and unlike C10 the exemption is the right answer
+rather than the second-best one. This rule exists to stop a reader being
+offered a setting that cannot do anything, and nobody is offered a feature by
+an audit explaining why it was removed. Every surface that does the offering,
+the README and every page under `site/`, is still read.
+
+### C12. The difficulty words and the range they cover were never joined
+
+Every exercise declares a difficulty, and `test_content.py` asserts it falls in
+1 to 5. The only list of words covering that range was an anonymous array
+literal inside the exercise page template, six strings long, with nothing
+connecting it to the assertion.
+
+Nothing was broken. Only 1, 2 and 3 are used, so `Hard` and `Brutal` were
+simply unreachable. The defect is the join, not the values: indexing past the
+end of a JavaScript array returns `undefined` rather than raising, so widening
+the permitted range to 6 would have rendered an empty difficulty on every page
+that used it, silently, with every gate green.
+
+This one was found by looking for the shape of C11 elsewhere rather than by a
+report, and it is the milder version of it: not a promise with nothing behind
+it, but a promise with nothing holding it in place.
+
+**What changed.** The words moved to `DIFFICULTY_LABELS` in `site/src/lib/labs.ts`
+behind a function that throws at build time rather than rendering a blank, and
+the permitted range became a named constant both sides can be checked against.
+
+**The gate** runs in both directions, because a list can drift either way.
+Planted against by removing a word, and then by adding one:
+
+```
+Difficulty 5 is permitted by VALID_DIFFICULTIES but has no label in
+site/src/lib/labs.ts, so an exercise using it would render a blank.
+
+site/src/lib/labs.ts labels difficulties above 5, which VALID_DIFFICULTIES does
+not permit, so no exercise can ever show ['Punishing'].
+```
+
+### C13. Every page wrote a record, and nothing ever read one back
+
+Six families of `localStorage` key are written by this site: the quiz answers,
+how far into the hints somebody went, whether they opened the solution, the
+notes they wrote in the scratchpad, and the commands they replayed. Twenty five
+exercises each writing their own.
+
+Nothing had ever read any of them back. Every component wrote its key and
+forgot about it, so somebody returning after a week had a complete record of
+their own work sitting in their own browser that no page would ever show them.
+
+`tse progress` compounded it. It has printed *"Export for the site with `tse
+progress --json`"* since it was written, and `grep -rn progress site/src`
+returned nothing but the word appearing in three unrelated sentences. The site
+had never read that export. The line was an intention that reads as a fact.
+
+**What changed.** A page at `/proof`, built on the state that was already
+there rather than on anything new. It reports what happened on the site, and
+refuses to call any of it proof.
+
+That refusal is the design. Nothing typed into a page fixes a system, so no
+amount of reading, answering or replaying can turn an exercise's proof question
+into a statement. Only `tse check` knows, because only `tse check` ran the
+assertions against real containers. Pasting its output is the one thing that
+changes a question into a claim, which is what finally makes the CLI's export
+line true.
+
+**The reward is the content, not a token.** Every exercise already carries a
+proof question, and a passed exercise restates it: *"Can I prove the
+application started at all?"* becomes *"You can prove the application started at
+all."* No points, no streaks, no badges, no levels. A page that awarded a token
+for opening a hint would contradict every other page in this repository, and the
+restatement costs no metadata that did not already exist.
+
+**One thing deliberately not shipped.** The quiz stores which option was
+picked, which is only a score if you also hold the answer key. Scoring on the
+proof page would have meant putting the correct index for all seventy five
+questions into the HTML of a page anybody can read the source of. `Quiz.tsx`
+stores its own score instead: derivable from what already sat beside it, so no
+new fact about a learner, and the one form the other page can read without
+being handed the answers.
+
+**The gate drives it rather than scanning it.** `a11y.mjs` now pastes something
+invalid, asserts the refusal wrote nothing, pastes a real record, scans the
+proven state, and clears it. It earned that on its first run, before any defect
+was planted, by catching the new page skipping from `h1` straight to `h3`.
+
+Planted against by stopping the input reaching the check, which is the failure
+mode C7 was:
+
+```
+axe: the proof record never showed a refused import, so that state went
+unchecked.
+```
+
+### C14. The home page described the course instead of running it
+
+The landing page opened with a tagline and four cards. One explained that the
+tickets are symptom-only. One explained that the grader shows its evidence. One
+explained that the terminal replays real output.
+
+Every word was true and none of it was evidence, on a site whose entire
+argument is that a claim and a demonstration are different things. The first
+thing a reader met was the course talking about itself.
+
+**What changed.** The two things being described now happen on the page. A
+reader meets `docker/01`'s actual ticket and its actual terminal, loaded from
+`labs/` through the same loader the exercise pages use, so the front page
+cannot drift from the exercise and CI re-verifies its recorded output against a
+freshly provisioned stack on every push.
+
+**Two layout defects found while measuring rather than guessing.** Starlight's
+splash hero is built around an image this page does not have. Its grid is
+`7fr 4fr`, so the tagline was squeezed into two thirds of the width while the
+remaining third sat empty, and its block padding reaches `10rem` to balance a
+picture. At a 1100px viewport that was 365 pixels of nothing between the
+buttons and the first real content.
+
+**And one real defect in a gate, exposed by the change.** The terminal's
+command list is a toggle, and whether it is open is remembered per exercise
+rather than per page. `a11y.mjs` clicked it unconditionally. With `docker/01`'s
+terminal now on two pages, whichever the gate reached second in a theme's
+context clicked the list shut and then waited thirty seconds for content it had
+just hidden. It failed loudly and correctly stopped the build, so this is a
+maintenance bug rather than a check that could not fail, but it is the first
+time two pages in this site have shared a storage key and nothing had
+anticipated it.
+
+### C15. Nothing measured a stylesheet or a font
+
+`check-pages.mjs` held a budget for the heaviest built page and a budget for
+total JavaScript, and between them they gave the comfortable impression that
+page weight was watched.
+
+CSS was not measured at all, and neither was anything else a browser downloads.
+There were no fonts to miss, which is exactly why nobody noticed: the gap was
+invisible until something walked into it.
+
+A webfont is the easiest kilobyte on a site to spend. Adding a second family,
+or shipping every axis of a variable one, or leaving an old face behind after
+swapping it out, would have added hundreds of kilobytes to what a first-time
+reader downloads with all three existing gates green.
+
+**What changed, and in this order.** The budget first, then the font. Measured
+at the moment it landed: 157,486 bytes of CSS and no fonts, going to 203,198
+with one typeface at 45,712. Two thirds of that CSS is Pagefind's own search
+interface, vendored by the search integration and not ours to trim.
+
+**The typeface.** IBM Plex Sans, SIL Open Font License, from a pinned
+dependency rather than committed here, so there is one copy, the lockfile
+records its provenance, and Dependabot watches it like everything else. The
+site's own policy is `default-src 'none'` with `font-src 'self'`, so a font
+from anywhere else would be refused by the browser rather than merely
+discouraged.
+
+Three choices, each measured against what it bought:
+
+| Choice | Cost avoided |
+|---|---|
+| Weight axis only, not width | 19,776 bytes |
+| Upright only, no italic file | 50,184 bytes |
+| Latin subset only | the rest |
+
+Dropping italic is the one worth stating plainly, because it is a visible
+compromise rather than a free win. The entire built site contains four `<em>`
+elements across three of its thirty two pages. Those four now get a synthetic
+oblique, which is worse than a real one, and buying a 50KB file heavier than
+the typeface itself to fix four words would have been the worst trade on the
+page.
+
+**The accent** was chosen around what the palette already meant rather than by
+preference. Green is a correct answer, red is a wrong one, and the orange rule
+down the side of a ticket is the customer's problem. All three were here first
+and all three carry meaning, so an accent sharing a hue with any of them is a
+link that looks like a judgement. The values were then adjusted until the
+contrast gate stopped reporting violations, rather than until they looked about
+right.
+
+**Two gates**, planted against:
+
+```
+orphan.woff2 ships but no stylesheet refers to it, so nothing will load it.
+
+Stylesheets and fonts are 319,587 bytes across 9 files, over the 260,000
+budget. 3 of them are fonts.
+```
+
+The second plant is the realistic one. It is what happens when somebody adds
+the italic file and a width axis without thinking about it, which is a change
+of two lines.
+
 ---
 
 ## Cost
@@ -1032,6 +1270,26 @@ The most useful section for anyone reading this as a work sample.
   is private. `AUDIT.md` is exempt from it, because recording the private
   period is its job, and that exemption is why this section spent an afternoon
   describing a repository that had already changed. See C10.
+- **The monospace face is still whatever the reader's machine supplies.** The
+  sans is now shipped and identical everywhere; the terminal is not, and the
+  terminal is the product. Recorded output that lines up on one machine can
+  wrap on another, and the screenshots in the README are a picture of one
+  laptop's idea of monospace. A second face would cost about 30KB against
+  56,000 bytes of remaining budget, so this is a decision that has not been
+  made rather than one that could not be.
+- **The proof record believes whatever is pasted into it.** Anyone can type
+  `{"completed": [...]}` and watch every question turn into a claim. There is
+  no signature and there will not be one: the record is for the person doing
+  the work, it is stored only in their own browser, and a course that made its
+  learners prove things to it rather than to themselves would have the wrong
+  relationship with them. Worth stating plainly, because a reader could
+  otherwise mistake it for an attestation.
+- **The evidence layers are free text.** Sixty eight distinct phrases across
+  twenty five exercises, sixty of them used exactly once, so they cannot
+  support the thing they look like they should support: a map of which layers
+  somebody has actually gathered evidence at. Turning them into a controlled
+  vocabulary is content work on all twenty five exercises, and it is the
+  obvious next thing the proof record wants.
 - **25 exercises against a target of 100.** Depth inside existing tracks rather
   than new ground, and not an audit finding.
 
@@ -1044,20 +1302,20 @@ nothing installed beyond Docker and Python.
 
 | Gate | Scale |
 |---|---|
-| `test_content.py` | 137 tests |
+| `test_content.py` | 143 tests |
 | `test_scrub.py` | 53 tests |
 | `test_rubric.py` | 20 tests |
 | `test_meta.py` | 18 tests, incl. parity against real PyYAML |
 | `smoke.sh` | 42 assertions |
-| `tse leaks` | 396 files, 24 patterns everywhere and 26 in recordings |
+| `tse leaks` | 398 files, 24 patterns everywhere and 26 in recordings |
 | `tse links` | 56 links, including frontmatter and every README badge |
 | Cold start | 4 commands under `env -i` with `LANG=C` |
 | shellcheck | every shell script, `--severity=info` |
 | Site types | `astro check`, `noUncheckedIndexedAccess` on |
-| `check:pages` | page weight and JavaScript budgets |
+| `check:pages` | three budgets: page weight, JavaScript, and stylesheets and fonts |
 | `check:terminal` | 150 assertions across 9 normalization cases |
-| `a11y.mjs` | 324 axe checks, 31 pages, 2 themes, plus 320px reflow and no-JS |
-| CSP | enforced by a browser on 31 pages in both themes |
+| `a11y.mjs` | 330 axe checks, 32 pages, 2 themes, plus 320px reflow and no-JS |
+| CSP | enforced by a browser on 32 pages in both themes |
 | `tse verify` | 25 exercises must fail broken and pass fixed |
 | `tse record --check` | every transcript still matches a real run |
 
@@ -1076,6 +1334,18 @@ trusted, and each closing a finding above:
 | Requirements | A tool `tse doctor` requires that the docs do not name (C9) |
 | Frontmatter links | A site-absolute link in a page's frontmatter missing the base path (C7) |
 | Docker absence | The CLI raising rather than reporting on a machine with no `docker` binary (P6) |
+
+**Added by the makeover**, on the same terms:
+
+| Gate | Refuses |
+|---|---|
+| Stretch, in prose | Any file that offers to hide stretch material when no exercise declares it, this document excepted (C11) |
+| Stretch, on a page | A page rendering the control while the content it hides does not exist (C11) |
+| Difficulty coverage | A permitted difficulty with no word, and a word no difficulty can reach (C12) |
+| Proof questions | A proof question the page cannot restate as a claim, because it does not open "Can I" |
+| The proof record | A run that never made the page refuse an import, accept one, and clear it (C13) |
+| Styles and fonts | More than 260,000 bytes of them, measured across the whole build (C15) |
+| Orphan fonts | A font that ships when no stylesheet refers to it (C15) |
 
 CI adds what a laptop cannot: every exercise on every pull request, CodeQL on
 three languages, dependency review, the CLI on macOS, and a nightly run of the

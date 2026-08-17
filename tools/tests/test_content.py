@@ -295,6 +295,18 @@ class AdvertisedFeatures(unittest.TestCase):
         r"|core\s+and\s+stretch\s+are\s+separated",
         re.IGNORECASE)
 
+    # AUDIT.md records what the claim was and quotes the message this rule
+    # produced, so the rule fired on the document describing it the moment that
+    # finding was written up. Same collision as the tense rule one class above,
+    # and the same answer, for the same reason: a document cannot both forbid a
+    # phrase and report on it.
+    #
+    # This is a scope, not a hole. The rule exists to stop a reader being
+    # offered a setting that cannot do anything, and nobody is offered a
+    # feature by an audit that explains why it was removed. Every surface that
+    # does the offering, the README and every page under site/, is still read.
+    CLAIM_EXEMPT = {"AUDIT.md"}
+
     def stretch_exercises(self) -> list[str]:
         return [e.id for e in EXERCISES if e.meta.get("tier") == "stretch"]
 
@@ -302,6 +314,8 @@ class AdvertisedFeatures(unittest.TestCase):
         if self.stretch_exercises():
             return
         for name, text in STYLE_SOURCES:
+            if name in self.CLAIM_EXEMPT:
+                continue
             for index, line in enumerate(text.splitlines(), 1):
                 if self.STRETCH_CLAIM.search(line):
                     self.fail(

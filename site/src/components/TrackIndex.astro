@@ -1,5 +1,5 @@
 ---
-import { tracksWithExercises, TRACK_ORDER, TRACK_LABELS } from "../lib/labs";
+import { tracksWithExercises, TRACK_ORDER, TRACK_LABELS, difficultyLabel } from "../lib/labs";
 
 const built = tracksWithExercises();
 const builtTracks = built.map((entry) => entry.track);
@@ -21,7 +21,15 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
           <li data-tier={exercise.tier}>
             <a href={`${base}${exercise.href}`}>{exercise.title}</a>
             <p class="track__proof">{exercise.proofQuestion}</p>
+            {/*
+              Difficulty was loaded on every exercise and shown on none of them.
+              Somebody choosing from this list could see what an exercise would
+              cost them in minutes but not in effort, which is the half of the
+              decision that actually stops people.
+            */}
             <p class="track__meta">
+              {difficultyLabel(exercise.difficulty)}
+              <span class="track__dot" aria-hidden="true"> · </span>
               about {exercise.minutes} minutes
               {exercise.tier === "stretch" && <span class="track__tag">stretch</span>}
             </p>
