@@ -51,6 +51,36 @@
     U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+/* The terminal is the product, and until now it rendered in whatever monospace
+ * the reader's machine happened to supply. Every recorded transcript on this
+ * site is aligned output: columns from `docker ps`, a certificate's fields, a
+ * query plan indented under its parent node. Those line up because the face
+ * they were captured in is fixed-width, and which fixed-width face decides how
+ * much of the screen a wide line needs and whether it wraps.
+ *
+ * IBM Plex Mono, the companion to the face above and under the same license.
+ *
+ * One weight, 400, and that is measured rather than assumed. Across the 33
+ * built pages there are 940 <code> elements and not one of them sits inside a
+ * heading, a <strong>, a <th> or a <summary>, so a second file would be bought
+ * for nothing. If that ever stops being true the browser synthesizes a bold,
+ * which is the same trade already taken for the four <em> elements above.
+ *
+ * There is no variable IBM Plex Mono. The family ships static weights only,
+ * which is why this block names a weight where the one above names a range.
+ */
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2")
+    format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 /* -------------------------------------------------------------------- color
  *
  * One accent, chosen around what the palette already means.
@@ -79,15 +109,59 @@
    * who blocks fonts, or who arrives before this one has loaded, gets exactly
    * what they got before rather than a bare serif. */
   --sl-font: "IBM Plex Sans";
+  --sl-font-mono: "IBM Plex Mono";
 
   --sl-color-accent-low: #10333a;
   --sl-color-accent: #17808f;
   --sl-color-accent-high: #93d8e2;
 
-  --proveit-radius: 0.5rem;
+  /* Two radii and a pill, and that is the whole vocabulary.
+   *
+   * Everything used to be 0.5rem, which is the shape a framework picks when
+   * nobody has decided. Size now carries meaning: a control is tighter than the
+   * card it sits in, so the nesting reads without anything being drawn around
+   * it.
+   *
+   * A third step for badges was written and then deleted. Every small label on
+   * this site is a pill already, so the token had no user, and a vocabulary
+   * with a word nobody says is just a longer vocabulary. */
+  --proveit-radius-control: 6px;
+  --proveit-radius: 12px;
+
   --proveit-gap: 1rem;
-  --proveit-rule: 1px solid var(--sl-color-gray-5);
-  --proveit-panel: var(--sl-color-gray-6);
+
+  /* Surfaces, three steps rather than one.
+   *
+   * The page used to have exactly two grounds: the canvas, and gray-6 for
+   * everything raised off it. A ticket, a hint, an option and the terminal all
+   * sat on the identical grey, so nesting one inside another produced no edge
+   * at all and the page read as flat regions rather than as objects.
+   *
+   * The step between canvas and surface is deliberately small. Depth here comes
+   * from hairlines, and a surface that announces itself is doing the border's
+   * job badly.
+   *
+   * Contrast moved the safe way. Both new surfaces sit nearer the canvas than
+   * the old panel did, which in dark mode is darker under light text and in
+   * light mode is lighter under dark text, so every existing pairing gained
+   * margin rather than losing it. `npm run a11y` measures it either way. */
+  --proveit-surface: #1c1e24;
+  --proveit-raised: var(--sl-color-gray-6);
+
+  /* Two border weights, and both are quieter than what they replaced.
+   *
+   * `--proveit-rule` was gray-5, which is lighter than the panel it outlined,
+   * so every card was drawn with a visible keyline. A hairline should separate
+   * surfaces without being read as an element in its own right. gray-5 is kept
+   * as the strong weight, for the few places that genuinely need to divide. */
+  --proveit-hairline: #272a33;
+  --proveit-hairline-strong: var(--sl-color-gray-5);
+  --proveit-rule: 1px solid var(--proveit-hairline);
+  --proveit-rule-strong: 1px solid var(--proveit-hairline-strong);
+
+  /* Kept as an alias so nothing below had to be rewritten in the same change
+   * that introduced the ladder. It names the card surface. */
+  --proveit-panel: var(--proveit-surface);
   /* Verdict colors. These tint a symbol that already carries the meaning in
    * text, so they are reinforcement rather than the signal itself. Light
    * theme values measured against the panel background: both clear 4.5:1. */
@@ -99,6 +173,12 @@
   --sl-color-accent-low: #c6e8ed;
   --sl-color-accent: #0e6b79;
   --sl-color-accent-high: #0a3b43;
+
+  /* The same ladder read the other way up. The canvas is white here, so a
+   * surface steps down toward grey instead of up toward it, and the hairline
+   * sits between the two rather than above both. */
+  --proveit-surface: #f7f8fa;
+  --proveit-hairline: #e3e5ec;
 }
 
 /* Starlight toggles the theme with data-theme, so the dark values hang off
@@ -106,6 +186,74 @@
 :root[data-theme="dark"] {
   --proveit-correct: #4ade80;
   --proveit-wrong: #fca5a5;
+}
+
+/* ----------------------------------------------------------- type setting
+ *
+ * Tracking, weight and leading. The face was chosen in the last pass and then
+ * left at the framework's settings, which is most of why the site still read as
+ * documentation rather than as something anybody designed.
+ *
+ * Three changes, all of them measured off the built page first.
+ *
+ * TRACKING. Every heading was `letter-spacing: normal`, including the 64px one
+ * on the home page. A typeface is spaced for running text at reading size, and
+ * at four times that size the same spacing is visibly loose. The correction is
+ * proportional and negative, and it scales with size: the larger the type, the
+ * more comes out. Body text takes a much smaller amount for the same reason in
+ * the other direction.
+ *
+ * WEIGHT. Headings were 600. The variable axis runs to 700 and a display face
+ * does not need to be near the top of it to read as a heading, because size is
+ * already doing that work. 550 keeps the hierarchy and drops the shout.
+ *
+ * LEADING. The 64px heading had a line height of 1.2, which is a body setting.
+ * Display type sets tighter than reading type, so a two line headline holds
+ * together as one shape instead of two stacked sentences.
+ *
+ * Plain selectors on purpose. Starlight wraps its own in :where(), which
+ * carries no specificity and is meant to be overridden exactly like this.
+ */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 550;
+  letter-spacing: -0.012em;
+}
+
+h1 {
+  letter-spacing: -0.022em;
+  line-height: 1.08;
+}
+
+h2 {
+  letter-spacing: -0.018em;
+  line-height: 1.18;
+}
+
+/* The home page headline, which is the largest type on the site and the one
+ * the tracking rule matters most on. */
+.hero h1 {
+  letter-spacing: -0.024em;
+  line-height: 1.02;
+}
+
+/* Running text. A tenth of what the display sizes take, which is not visible
+ * as spacing and is visible as evenness. */
+body {
+  letter-spacing: -0.006em;
+}
+
+/* Monospace is spaced by the designer to a fixed advance width, and taking
+ * anything out of it would break the alignment the recordings depend on. */
+code,
+pre,
+kbd,
+samp {
+  letter-spacing: normal;
 }
 
 /* --------------------------------------------------------------- the hero */
@@ -135,6 +283,26 @@
   .hero .copy {
     max-width: 46rem;
   }
+}
+
+/* The home page's own measure, and the reason it needs one.
+ *
+ * Exercise pages were never the problem: Starlight caps those at its
+ * --sl-content-width of 45rem and they measure 720px. The splash template does
+ * not, so the front page ran its paragraphs to 1080px on a 1440px screen. At
+ * 16px that is around 130 characters a line, roughly twice the width the eye
+ * tracks comfortably, and it is the first page anybody sees.
+ *
+ * 46rem is the same value the hero copy above already uses, so the headline,
+ * the tagline and every paragraph under them finally share one left edge and
+ * one right edge instead of three.
+ *
+ * Scoped to the splash template rather than applied globally, because
+ * everywhere else the framework has already got this right and a second cap
+ * fighting the first is how a layout starts disagreeing with itself.
+ */
+.page:has(.hero) .sl-markdown-content {
+  max-width: 46rem;
 }
 
 /* ------------------------------------------------------------------ tiers */
@@ -220,8 +388,14 @@ html[data-stretch="hidden"] [data-tier="stretch"] {
   background: var(--proveit-panel);
 }
 
+/* The customer's own words, quoted inside the ticket that carries them. One
+ * step further off the canvas than the card around it, which is what the third
+ * surface is for: a thing inside a thing now looks like one. */
 .ticket blockquote {
   border-inline-start: 3px solid var(--sl-color-gray-4);
+  background: var(--proveit-raised);
+  border-radius: var(--proveit-radius-control);
+  padding: 0.75rem 1rem;
 }
 
 .chips {
@@ -295,7 +469,7 @@ html[data-stretch="hidden"] [data-tier="stretch"] {
   font-weight: 600;
   padding: 0.55rem 1.1rem;
   border: 1px solid var(--sl-color-text-accent);
-  border-radius: var(--proveit-radius);
+  border-radius: var(--proveit-radius-control);
   background: var(--sl-color-text-accent);
   color: var(--sl-color-black);
   cursor: pointer;
@@ -338,7 +512,7 @@ html[data-stretch="hidden"] [data-tier="stretch"] {
   display: block; /* Removes the default marker box so padding applies evenly. */
   padding: 0.55rem 1.1rem;
   border: 1px solid var(--sl-color-text-accent);
-  border-radius: var(--proveit-radius);
+  border-radius: var(--proveit-radius-control);
   background: var(--sl-color-text-accent);
   color: var(--sl-color-black);
   cursor: pointer;
@@ -410,7 +584,7 @@ html[data-stretch="hidden"] [data-tier="stretch"] {
   line-height: 1.5;
   padding: 0.6rem 0.7rem;
   border: 1px solid var(--sl-color-gray-4);
-  border-radius: var(--proveit-radius);
+  border-radius: var(--proveit-radius-control);
   background: var(--sl-color-bg);
   color: var(--sl-color-text);
   resize: vertical;
@@ -435,6 +609,25 @@ html[data-stretch="hidden"] [data-tier="stretch"] {
  * rather than a shorter exercise name. */
 .sl-markdown-content pre {
   overflow-x: auto;
+}
+
+/* And the same blocks miss the typeface for the same reason.
+ *
+ * Setting --sl-font-mono gets the face to everything the framework renders:
+ * inline code, fenced blocks, the terminal. It does not reach a <pre> written
+ * straight into a template, because nothing was ever styling those. Ten of them
+ * survive on a single exercise page, all of them commands a reader is meant to
+ * copy, and they were still arriving in whatever monospace the machine had.
+ *
+ * Found by measuring the built page rather than by looking at it, which is the
+ * only way this kind of gap gets found: a fallback stack renders perfectly, it
+ * just renders somebody else's decision.
+ *
+ * --__sl-font-mono rather than --sl-font-mono, because Starlight builds the
+ * fallback chain into the private one and a reader who blocks webfonts should
+ * land on that chain rather than on the browser's bare default. */
+pre {
+  font-family: var(--__sl-font-mono, monospace);
 }
 
 /* -------------------------------------------------------- lab terminal */
@@ -531,7 +724,7 @@ html[data-stretch="hidden"] [data-tier="stretch"] {
   line-height: 1.5;
   padding: 0.6rem 0.7rem;
   border: 1px solid var(--sl-color-gray-4);
-  border-radius: var(--proveit-radius);
+  border-radius: var(--proveit-radius-control);
   background: var(--sl-color-bg);
   color: var(--sl-color-text);
   resize: none;
@@ -607,7 +800,7 @@ html[data-stretch="hidden"] [data-tier="stretch"] {
   display: inline-block;
   font-weight: 600;
   padding: 0.55rem 1.1rem;
-  border-radius: var(--proveit-radius);
+  border-radius: var(--proveit-radius-control);
   background: var(--sl-color-text-accent);
   color: var(--sl-color-black);
   text-decoration: none;
@@ -740,7 +933,7 @@ html[data-stretch="hidden"] [data-tier="stretch"] {
   gap: 0.6rem;
   padding: 0.6rem 0.8rem;
   border: 1px solid var(--sl-color-gray-4);
-  border-radius: var(--proveit-radius);
+  border-radius: var(--proveit-radius-control);
   background: var(--sl-color-bg);
   color: var(--sl-color-text);
   cursor: pointer;
@@ -800,11 +993,13 @@ html[data-stretch="hidden"] [data-tier="stretch"] {
   color: var(--sl-color-gray-2);
 }
 
+/* Also nested: the explanation appears inside the question's own card, so it
+ * takes the raised surface for the same reason the quoted ticket does. */
 .quiz__feedback {
   margin-top: 0.75rem;
   padding: 0.75rem var(--proveit-gap);
-  background: var(--proveit-panel);
-  border-radius: var(--proveit-radius);
+  background: var(--proveit-raised);
+  border-radius: var(--proveit-radius-control);
   border-inline-start: 4px solid var(--sl-color-gray-4);
   animation: quiz-settle 160ms ease-out;
 }
@@ -895,7 +1090,7 @@ html[data-stretch="hidden"] [data-tier="stretch"] {
   font-size: var(--sl-text-sm);
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--sl-color-gray-4);
-  border-radius: var(--proveit-radius);
+  border-radius: var(--proveit-radius-control);
   background: var(--sl-color-black);
   color: var(--sl-color-white);
   resize: vertical;
