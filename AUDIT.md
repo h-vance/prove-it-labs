@@ -1196,6 +1196,60 @@ advertise. Say why in x-containment, or do without it.
 
 ---
 
+### C17. The framework's prose spacing was tilting four rows
+
+Starlight gives stacked prose its vertical rhythm with an adjacent-sibling
+rule: inside `.sl-markdown-content`, anything that follows anything else gets
+`margin-top: var(--sl-content-gap-y)`. List items get a smaller version of the
+same idea, `0.25rem` between one `li` and the next.
+
+Neither is scoped to the top level. Both are descendant selectors, so they
+reach into every component the page renders, and in a flex row or a grid they
+do not add rhythm. They stagger the items.
+
+Reported from a phone, as a photograph of the facts bar on an exercise page:
+`TRACK` sitting sixteen pixels above `TIME`, `DIFFICULTY` and `TIER`. It read
+like a bug in the bar. It was not. Track is the first child, and each of the
+other three follows a sibling.
+
+Measuring the built pages found four containers with the same fault, in 405
+places: the facts bar, the scratchpad's two buttons, the terminal's input row,
+and the two lists that are really grids, which were getting four pixels added
+to every gap except the first.
+
+**Nothing on this side wrote the margin, and nothing here could have seen it.**
+The build is green, `astro check` is clean, page weight does not move, and axe
+has no opinion about a row being crooked. That is what makes it worth a gate
+rather than a fix: it is invisible to every check this repository already runs,
+and the next component laid out as a row will inherit it in exactly the same
+way.
+
+`.start__option input` keeps its margin. That one is ours, set to sit the radio
+on the first line of a label that may wrap, and it is on the gate's list of
+deliberate exceptions with the reason written beside it. Allowing one case
+cannot quietly allow the next.
+
+**The gate, run against the build that had the defect:**
+
+```
+Layout check failed: 6 of them, in 405 places.
+
+  div inside dl.facts carries margin-top: 16px.
+    78 place(s), first on /exercises/api/01-webhook-integration-rejected/,
+    worst case 16px below the first item in its row.
+```
+
+**A second thing the photograph led to.** Regenerating the README screenshots
+against the rebuilt site showed why the quiz image had always looked odd: an
+element taller than the viewport is photographed by scrolling and stitching the
+slices, and Starlight's search box is fixed, so it was painted into the middle
+of the image across one of the answers. It had been in the README since the
+screenshots first landed and nobody had looked at it closely enough. The
+capture now hides anything the browser pins in place, skipping ancestors of the
+subject.
+
+---
+
 ## Cost
 
 CI was measured rather than estimated, from a real run.
@@ -1407,11 +1461,13 @@ The most useful section for anyone reading this as a work sample.
   is private. `AUDIT.md` is exempt from it, because recording the private
   period is its job, and that exemption is why this section spent an afternoon
   describing a repository that had already changed. See C10.
-- **The screenshots in the README are still a picture of one machine.** The
-  monospace face is shipped now, so the site renders the same everywhere, but
-  the four PNGs in `docs/screenshots/` were captured before it and show the
-  laptop's own idea of monospace. They are pictures rather than text, so nothing
-  compares them against the site they claim to show.
+- **Nothing keeps the README's screenshots current.** All four were regenerated
+  from the rebuilt site, so they now show the shipped faces and the design pass
+  rather than the laptop's own idea of monospace. That was a person noticing,
+  not a gate. They are pictures rather than text, so nothing compares them
+  against the site they claim to show, and the next change to the type or the
+  surfaces will make them wrong again with everything still green. See C17,
+  which is what a photograph of the real page turned up.
 - **The proof record believes whatever is pasted into it.** Anyone can type
   `{"completed": [...]}` and watch every question turn into a claim. There is
   no signature and there will not be one: the record is for the person doing
@@ -1442,15 +1498,16 @@ nothing installed beyond Docker and Python.
 | `test_rubric.py` | 20 tests |
 | `test_meta.py` | 18 tests, incl. parity against real PyYAML |
 | `smoke.sh` | 42 assertions |
-| `tse leaks` | 398 files, 24 patterns everywhere and 26 in recordings |
-| `tse links` | 56 links, including frontmatter and every README badge |
+| `tse leaks` | 413 files, 24 patterns everywhere and 26 in recordings |
+| `tse links` | 60 links, including frontmatter and every README badge |
 | Cold start | 4 commands under `env -i` with `LANG=C` |
 | shellcheck | every shell script, `--severity=info` |
 | Site types | `astro check`, `noUncheckedIndexedAccess` on |
 | `check:pages` | three budgets: page weight, JavaScript, and stylesheets and fonts |
-| `check:terminal` | 150 assertions across 9 normalization cases |
-| `a11y.mjs` | 330 axe checks, 32 pages, 2 themes, plus 320px reflow and no-JS |
-| CSP | enforced by a browser on 32 pages in both themes |
+| `check:terminal` | 156 assertions across 9 normalization cases |
+| `check:layout` | every flex row and grid in the content, on every page |
+| `a11y.mjs` | 342 axe checks, 33 pages, 2 themes, plus 320px reflow and no-JS |
+| CSP | enforced by a browser on 33 pages in both themes |
 | `tse verify` | 26 exercises must fail broken and pass fixed |
 | `tse record --check` | every transcript still matches a real run |
 
@@ -1493,6 +1550,12 @@ than as a number somebody had to go and look up.
 |---|---|
 | Capabilities taken back | A service that drops all capabilities and adds one back without saying why (C16) |
 | Connect timing | A recording that compares a duration only the machine's speed decides (networking/03) |
+
+**Added by a photograph of a crooked row**, on the same terms:
+
+| Gate | Refuses |
+|---|---|
+| Rows the framework tilts | A child of a flex row or a grid inside the content carrying the framework's prose margin, unless the pair is named deliberate with a reason (C17) |
 
 CI adds what a laptop cannot: every exercise on every pull request, CodeQL on
 three languages, dependency review, the CLI on macOS, and a nightly run of the

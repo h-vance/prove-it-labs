@@ -305,6 +305,42 @@ samp {
   max-width: 46rem;
 }
 
+/* ------------------------------------------------- rows the framework tilts */
+
+/* Starlight puts vertical rhythm between prose blocks with an adjacent-sibling
+ * rule: inside .sl-markdown-content, anything that follows anything else gets
+ * margin-top: var(--sl-content-gap-y). Lists get a smaller version of the same
+ * thing, 0.25rem between li and li.
+ *
+ * Neither is scoped to the top level. They are descendant selectors, so they
+ * reach into every component on the page, and in a flex row or a grid they do
+ * not add rhythm: they stagger the items. The facts bar on an exercise page was
+ * the visible case, and it looked like a bug in the bar itself. Track sat 16px
+ * above Time, Difficulty and Tier, because Track is the first child and the
+ * other three each follow a sibling.
+ *
+ * Measured on the built page, four containers were affected: this one, the
+ * scratchpad's two buttons, the terminal's input row, and the two lists that are
+ * really grids, which were getting 4px added to every gap except the first.
+ *
+ * The containers below all space their own children with gap, so the inherited
+ * margin has nothing to contribute and is taken back. Written as plain
+ * selectors in an unlayered sheet, which beats @layer starlight.content
+ * regardless of specificity.
+ *
+ * .start__option is deliberately not in this list. Its margin-top is ours, set
+ * further down to sit the radio on the first line of its label.
+ *
+ * scripts/check-layout.mjs fails the build if this happens again.
+ */
+.facts > *,
+.pad__actions > *,
+.terminal__input > *,
+.quiz__options > li,
+.proof__list > li {
+  margin-top: 0;
+}
+
 /* ------------------------------------------------------------------ tiers */
 
 /* Stretch material is removed, not dimmed. Marking it "advanced" and leaving

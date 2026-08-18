@@ -146,6 +146,7 @@ else
     site_run "types"            check
     site_run "page contents"    check:pages
     site_run "terminal replay"  check:terminal
+    site_run "row alignment"    check:layout
     site_run "accessibility"    a11y
 fi
 

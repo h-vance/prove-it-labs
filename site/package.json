@@ -11,6 +11,7 @@
     "a11y": "node scripts/a11y.mjs",
     "check:pages": "node scripts/check-pages.mjs",
     "check:terminal": "node scripts/check-terminal.mjs",
+    "check:layout": "node scripts/check-layout.mjs",
     "csp": "node scripts/csp.mjs",
     "screenshots": "node scripts/screenshots.mjs",
     "demo": "node scripts/demo-svg.mjs"

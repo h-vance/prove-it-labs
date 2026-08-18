@@ -75,6 +75,14 @@ jobs:
         run: npm run check:terminal
         working-directory: site
 
+      # Starlight's prose spacing is written as a descendant rule, so it reaches
+      # inside our own flex rows and grids and staggers them. The build stays
+      # green when it happens and axe has no opinion about a crooked row, so it
+      # takes a browser measuring computed styles to see it at all.
+      - name: No framework margin leaking into our rows
+        run: npm run check:layout
+        working-directory: site
+
       - name: WCAG 2.2 AA, every page, both themes
         run: npm run a11y
         working-directory: site
