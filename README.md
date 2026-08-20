@@ -168,11 +168,25 @@ real system.
 ## Design notes
 
 This course was built for people who bounce off setup friction and walls of
-prose, which includes a lot of very good engineers.
+prose, which includes a lot of very good engineers. That is not an accident
+of taste. The course is deliberately ADHD-friendly, and each choice below is
+a mechanism CI verifies rather than an intention in a README. None of them
+narrow who the course is for. They read as plain good design to every
+learner; for brains that stall on ambiguity and walls of theory, they are
+the difference between finishing and not finishing.
 
+- **Starting is the work.** A ticket names only the symptom, so there is no
+  topic page to stall on. Deciding where to look first is the graded skill.
+- **Feedback is immediate and concrete.** The grader prints the assertion,
+  the command it ran, and the raw output it evaluated, never "wrong, guess
+  again."
+- **No setup wall.** The terminal on every exercise page replays real
+  captured output, so nothing has to be assembled before the interesting
+  part.
 - **Uniform structure.** Every exercise is laid out identically, so orienting
   yourself costs nothing.
-- **Stated cost.** Every exercise declares how long it takes before you start.
+- **Stated cost.** Every exercise declares how long it takes before you start,
+  so capacity decisions happen up front.
 - **A minimum viable day exists.** One ticket, one command, one proof sentence,
   one question answered. That counts as a day of progress.
 - **The writing is graded.** Support is half communication, so customer updates
