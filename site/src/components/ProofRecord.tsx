@@ -18,7 +18,7 @@ interface Props {
 /**
  * What you have done here, and the one thing only the grader can tell us.
  *
- * Twenty five exercises, six families of stored state, and until this page
+ * Twenty-six exercises, six families of stored state, and until this page
  * nothing ever read any of it back. Every component wrote its own key and
  * forgot about it, so somebody returning after a week had a record of their own
  * work sitting in their own browser that nothing would ever show them.
