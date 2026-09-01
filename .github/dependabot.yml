@@ -15,6 +15,15 @@ updates:
       prefix: ci
     labels:
       - dependencies
+    # `init` and `analyze` are one action published as two paths, and CodeQL
+    # refuses to run when the two are on different versions. Ungrouped,
+    # Dependabot opens a PR per path, and each one on its own is exactly that
+    # mismatch: a configuration error that reads like the bump broke something.
+    # Grouping them means the pair moves in a single commit or not at all.
+    groups:
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
 
   - package-ecosystem: npm
     directory: /site
