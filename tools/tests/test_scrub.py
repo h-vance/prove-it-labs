@@ -122,6 +122,12 @@ SAMPLES: dict[str, str] = {
     "unpublished-port": (
         "proveit-docker-app-1  Up 20 seconds (healthy)  8080/tcp, 127.0.0.1:8100->8081/tcp"
     ),
+    # Recorded with kubectl 1.36. The 1.37 on a CI runner printed
+    # `successThreshold=1 failureThreshold=3` for the same probe.
+    "probe-threshold": (
+        "    Readiness:  http-get http://:8081/ready delay=3s timeout=1s period=3s "
+        "#success=1 #failure=3"
+    ),
     # Seven attempts locally, six on a CI runner, in the same wait.
     "repeated-log-line": (
         "app-1  | ERROR: required environment variable APP_SECRET is not set\n"
@@ -210,6 +216,12 @@ class RulesFire(unittest.TestCase):
                 "Could not connect to server",
                 "curl: (7) Failed to connect to reports:8443 after 2 ms: "
                 "Could not connect to server",
+            ),
+            (
+                "Readiness:  http-get http://:8081/ready delay=3s timeout=1s "
+                "period=3s #success=1 #failure=3",
+                "Readiness:  http-get http://:8081/ready delay=3s timeout=1s "
+                "period=3s successThreshold=1 failureThreshold=3",
             ),
         ]
         for first, second in pairs:
