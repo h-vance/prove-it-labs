@@ -908,6 +908,13 @@ SCRUB_RULES: list[tuple[str, "re.Pattern[str]", str]] = [
     # when a published mapping follows, so a service that publishes nothing at
     # all still shows the ports it exposes.
     ("unpublished-port", re.compile(r"\b\d+/tcp, (?=\d{1,3}(?:\.\d{1,3}){3}:\d+->)"), ""),
+    # kubectl 1.37 renamed the probe thresholds in `kubectl describe` from
+    # `#success=1 #failure=3` to `successThreshold=1 failureThreshold=3`. The
+    # numbers are what an exercise turns on; the spelling is whichever kubectl
+    # the machine has. Normalized to the new form so a recording made with
+    # either one compares equal against either one.
+    ("probe-threshold", re.compile(r"#success=(\d+) #failure=(\d+)"),
+     r"successThreshold=\1 failureThreshold=\2"),
     # A crash-looping container writes the same line once per attempt, so how
     # many times it appears is a measure of how fast the machine is rather than
     # anything about the failure. A laptop got through seven attempts in the
