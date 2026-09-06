@@ -63,7 +63,8 @@ def gather_evidence(base_url: str) -> dict:
     # Right after `tse start`, Docker's port proxy accepts the connection a
     # moment before the app inside is listening and then drops it. Ten
     # seconds of retries covers that without hiding a stack that is down.
-    for attempt in range(10):
+    last_error: Exception | None = None
+    for _ in range(10):
         try:
             status, body = request(
                 url, method="POST",
@@ -71,10 +72,11 @@ def gather_evidence(base_url: str) -> dict:
                 payload={"event": "order.created", "id": "evt_demo_1"})
             break
         except (urllib.error.URLError, http.client.RemoteDisconnected) as err:
-            if attempt == 9:
-                sys.exit(f"cannot reach {base_url} ({err}); "
-                         "run tools/tse start api/01-webhook-integration-rejected first")
+            last_error = err
             time.sleep(1)
+    else:
+        sys.exit(f"cannot reach {base_url} ({last_error}); "
+                 "run tools/tse start api/01-webhook-integration-rejected first")
     if status != 401:
         sys.exit(f"expected 401 from {url}, got {status}: {json.dumps(body)}")
     return {
