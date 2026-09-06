@@ -69,7 +69,7 @@ def gather_evidence(base_url: str) -> dict:
             status, body = request(
                 url, method="POST",
                 headers={"X-API-Key": REVOKED_API_KEY, "Content-Type": "application/json"},
-                payload={"event": "order.created", "id": "evt_demo_1"})
+                payload={"transaction": "850", "control_number": "000012345"})
             break
         except (urllib.error.URLError, http.client.RemoteDisconnected) as err:
             last_error = err
@@ -92,8 +92,8 @@ def gather_evidence(base_url: str) -> dict:
 def build_body(evidence: dict) -> str:
     """The customer's message: a sentence of prose, then the evidence block."""
     return (
-        "Hi, our webhook integration started failing this morning and nothing "
-        "changed on our side. Every event we send is rejected. Can you take a look?\n"
+        "Hi, our purchase orders (850s) stopped going through this morning and "
+        "nothing changed on our side. Every one we send is rejected. Can you take a look?\n"
         "\n"
         f"Endpoint: {evidence['endpoint']}\n"
         f"HTTP status: {evidence['status']}\n"
