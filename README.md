@@ -209,6 +209,10 @@ the difference between finishing and not finishing.
 Twenty-six exercises across all nine tracks. Everything from here is depth
 inside tracks that already exist rather than new ground.
 
+One integration sits beside the tracks: [Intercom](integrations/intercom/README.md)
+files a real api-stack failure as an Inbox conversation, so the helpdesk side
+of the job can be shown rather than described.
+
 Some exercises are built as pairs on purpose. `docker/02` and `docker/03`
 present the customer with the same symptom and resolve to different causes, as
 do `kubernetes/04` and `kubernetes/05`. In each pair the second ticket has the
