@@ -11,6 +11,7 @@ rest of this repository: nothing to install.
     INTERCOM_TOKEN=... python3 integrations/intercom/push_ticket.py
 """
 import argparse
+import getpass
 import http.client
 import json
 import os
@@ -134,8 +135,14 @@ def main() -> None:
 
     token = os.environ.get("INTERCOM_TOKEN")
     if not token and not args.dry_run:
-        sys.exit("INTERCOM_TOKEN is not set; create an app in the Intercom "
-                 "Developer Hub, copy its access token, and export it")
+        if not sys.stdin.isatty():
+            sys.exit("INTERCOM_TOKEN is not set; create an app in the Intercom "
+                     "Developer Hub, copy its access token, and export it")
+        # Asked for rather than pasted on the command line, so the token
+        # stays out of shell history. Nothing is echoed.
+        token = getpass.getpass("Intercom access token: ").strip()
+        if not token:
+            sys.exit("no token given")
 
     body = build_body(gather_evidence(args.base_url))
     if args.dry_run:

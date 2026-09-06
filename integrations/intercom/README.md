@@ -15,12 +15,9 @@ Everything is standard library Python. Nothing to install.
 2. Open the Developer Hub, create an app, and copy its access token. Intercom's
    [authentication guide](https://developers.intercom.com/docs/build-an-integration/learn-more/authentication)
    walks through it.
-3. Put the token in your shell. It never goes in a file in this repository;
-   `tse leaks` fails the build if a real credential is committed.
-
-```bash
-export INTERCOM_TOKEN=paste-it-here
-```
+3. Keep the token out of this repository. `tse leaks` fails the build if a
+   real credential is committed. The script asks for it when it runs, or
+   reads `INTERCOM_TOKEN` from the environment if that is set.
 
 ## Run
 
