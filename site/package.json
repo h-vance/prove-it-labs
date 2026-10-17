@@ -8,6 +8,7 @@
     "build": "astro build && node scripts/csp.mjs",
     "preview": "astro preview",
     "check": "astro check",
+    "audit": "npm audit --audit-level=low",
     "a11y": "node scripts/a11y.mjs",
     "check:pages": "node scripts/check-pages.mjs",
     "check:terminal": "node scripts/check-terminal.mjs",
@@ -32,5 +33,10 @@
     "axe-core": "^4.13.0",
     "playwright": "^1.62.1",
     "typescript": "^6.0.3"
+  },
+  "overrides": {
+    "postcss-nested@6": {
+      "postcss-selector-parser": "7.1.6"
+    }
   }
 }

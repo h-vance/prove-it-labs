@@ -927,6 +927,11 @@ SCRUB_RULES: list[tuple[str, "re.Pattern[str]", str]] = [
     # lines, and a general rule would fold them together and hide a deployment
     # dropping from two replicas to one.
     ("repeated-log-line", re.compile(r"(?m)^(\S+\s+\| .*)(?:\n\1)+$"), r"\1"),
+    # Python patch updates change these banners without changing lab evidence.
+    # Keep the product and Python major/minor versions so those changes still fail.
+    ("python-server-patch", re.compile(
+        r"(?m)^(Server: ProveIt(?:API|Lab)/\d+\.\d+ Python/\d+\.\d+)\.\d+(?=\r?$)"),
+        r"\1.<patch>"),
     # Column padding, and it has to come last.
     #
     # Tools like `docker ps` and `kubectl get` pad every column to its widest
