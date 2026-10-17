@@ -210,6 +210,7 @@ npm run dev           # http://localhost:4321/prove-it-labs
 npm run build
 npm run check:pages    # every exercise has a complete page, inside its weight budget
 npm run check:terminal # the terminal replays what was actually recorded
+npm run audit         # all dependencies, including development tools
 npm run a11y           # WCAG 2.2 AA, every page, light and dark
 ```
 

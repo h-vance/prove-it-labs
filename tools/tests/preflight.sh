@@ -142,6 +142,7 @@ if [[ $MODE == --fast ]]; then
 elif [[ ! -d site/node_modules ]]; then
     skip "site build and checks (run 'npm ci' in site/ first)"
 else
+    site_run "dependency audit"  audit
     site_run "the site builds"  build
     site_run "types"            check
     site_run "page contents"    check:pages
