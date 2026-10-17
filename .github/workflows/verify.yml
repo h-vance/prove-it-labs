@@ -4,28 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-  # Ordinary pushes and pull requests verify only the exercises the change can
-  # reach. That was once about affordability and is now about wall clock time,
-  # but it leaves the same real gap either way: a base image moving under a lab,
-  # or a Docker release changing an output format, breaks an exercise without
-  # anybody committing anything, and a push that touches one file will not
-  # notice.
-  #
-  # The nightly run is the answer to that. It was written here, taken back out
-  # within the hour, and is now back. The reason it could not stay is worth
-  # keeping written down, because it was a real measurement rather than a
-  # preference: the full course is about eighty billable minutes, nightly is
-  # roughly two thousand four hundred a month, and a private repository gets two
-  # thousand. The job meant to catch drift would have spent the entire budget
-  # and left nothing for the pushes that change something.
-  #
-  # None of that arithmetic applies now. Standard runners are free and unmetered
-  # on a public repository, and the first full course run after the flip cost
-  # zero billable milliseconds across twelve jobs.
-  #
-  # GitHub disables scheduled workflows on a repository with no activity for
-  # sixty days, which is the right behavior here rather than a problem to work
-  # around: a course nobody has touched in two months does not need a nightly.
+  # Nightly runs detect drift in base images and installed tools.
   schedule:
     - cron: "23 5 * * *"
   workflow_dispatch:
@@ -33,21 +12,7 @@ on:
 permissions:
   contents: read
 
-# One exercise is one job, so a push starts more than twenty of them. Without
-# this, pushing twice in a minute leaves the first set running to completion
-# against a tree nobody is waiting on. site.yml has had this from the start;
-# this workflow is the expensive one and did not.
-#
-# A run on main is the record of whether that commit was good, so main commits
-# must never supersede each other. `cancel-in-progress: false` is not enough to
-# get that, which this workflow demonstrated on the commit that introduced it:
-# GitHub keeps at most one *pending* run per group and drops the older one
-# before it starts, and cancel-in-progress only governs runs that already
-# began. Two pushes a couple of minutes apart left the first commit with no
-# verdict at all.
-#
-# So main commits get a group each, keyed on the SHA, and can never collide.
-# Everything else groups by ref, where superseding is the whole point.
+# Keep a result for each main commit; supersede older PR runs.
 concurrency:
   group: verify-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || 'shared' }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -59,24 +24,15 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # No install step on purpose. If tse ever grows a dependency, this fails.
       - name: CLI runs on a stock interpreter
         run: |
           tools/tse list
           tools/tse list --ids
           tools/tse progress --json
 
-      # Every committed file, not just the recordings. The tree only, because
-      # actions/checkout is shallow by default and scanning one commit of
-      # history would pass without proving anything. `tse leaks --history` reads
-      # the whole history and is run locally against a full clone, which is what
-      # was done before this repository went public.
       - name: Nothing from a real machine is committed
         run: tools/tse leaks
 
-      # Only a 404 or a 410 fails here. A timeout or a 503 is the network
-      # having a bad minute, and a link gate that goes red for that is one
-      # people learn to ignore, which costs more than it catches.
       - name: Every link resolves
         run: tools/tse links
 
@@ -87,8 +43,6 @@ jobs:
           python3 tools/tests/test_scrub.py
           python3 tools/tests/test_rubric.py
 
-      # Installed only so the parity test can compare the subset parser against
-      # a real YAML implementation. tse itself never requires it.
       - name: Parser agrees with PyYAML
         run: |
           python3 -m pip install --quiet pyyaml
@@ -97,23 +51,7 @@ jobs:
       - name: CLI smoke test
         run: tools/tests/smoke.sh --fast
 
-  # The same gates, on the other operating system this course is used from.
-  #
-  # Deliberately not the exercises. Hosted macOS runners have no Docker daemon,
-  # so this job cannot provision a single stack no matter how it is written, and
-  # a job named for a platform that silently covers a fraction of it is worse
-  # than no job. The first step below records what the runner actually has, so
-  # that claim stays evidence rather than folklore when Docker eventually lands.
-  #
-  # What this does cover is real: the CLI is a Python script that reads files,
-  # runs subprocesses and decodes text, and every one of those has already been
-  # a portability bug here. `tse record` crashed under a different locale, and
-  # the stated Python floor was wrong and only found by running on a stock
-  # interpreter. macOS ships a different Python and a different `sed`, `grep`
-  # and `date`, and this is what notices.
-  #
-  # The exercises on macOS are covered by `tools/tests/preflight.sh` on a real
-  # Mac, which is not a stopgap. It is the only thing that can do it.
+  # Hosted macOS covers the CLI; exercise stacks require local Docker.
   macos:
     name: macOS
     runs-on: macos-15
@@ -130,8 +68,6 @@ jobs:
             echo "docker: absent, which is why this job skips the exercises"
           fi
 
-      # No install step, for the same reason as the Linux `tests` job: if tse
-      # ever grows a dependency, this fails.
       - name: CLI runs on a stock interpreter
         run: |
           tools/tse list
@@ -151,21 +87,7 @@ jobs:
       - name: CLI smoke test
         run: tools/tests/smoke.sh --fast
 
-  # Which exercises this change can actually break.
-  #
-  # Verifying all twenty five costs about eighty billable minutes. On a private
-  # repository's monthly allowance that is roughly twenty two pushes, and the
-  # allowance was reached during an audit. Most commits cannot affect most
-  # exercises.
-  #
-  # The rules live in `tools/tse affected` rather than here, because logic in a
-  # workflow file cannot be run or tested anywhere except by pushing, and the
-  # expensive mistake is selecting too few and reporting green on an exercise
-  # nobody checked. test_content.py holds it to that: a change under `tools/`
-  # selects everything, a shared stack selects its whole track, and every
-  # exercise has to be reachable.
-  #
-  # A scheduled or hand-started run ignores all of it and does the lot.
+  # Pushes select affected exercises; scheduled/manual runs select all.
   discover:
     name: discover exercises
     runs-on: ubuntu-24.04
@@ -175,14 +97,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Deep enough to diff against what came before. A shallow clone has
-          # no base commit to compare with, and the fallback below is the whole
-          # course, so getting this wrong is slow rather than unsafe.
           fetch-depth: 0
 
       - id: collect
-        # Read through the environment rather than interpolated into the script,
-        # so a branch or ref name can never be read as shell.
         env:
           EVENT: ${{ github.event_name }}
           BEFORE: ${{ github.event.before }}
@@ -225,69 +142,18 @@ jobs:
           echo "Scope: $reason"
 
   verify:
-    # Named for the stack rather than the exercise list. With an object matrix
-    # GitHub's default name is the serialized object, which is unreadable, and
-    # five full exercise ids is not much better. Which ones ran is in the log,
-    # one collapsible group each.
     name: ${{ matrix.group.stack }} stack
-    # `tests` as well as `discover`, which it did not have before.
-    #
-    # This job provisions every exercise it finds on the branch, which means it
-    # hands contributed files to Docker and to kubectl. `tools/tse` now refuses
-    # a file that reaches past what an exercise is allowed to change, and that
-    # is the guard that matters because it runs everywhere. This ordering is the
-    # second line: `test_content.py` refuses the same file a minute earlier and
-    # without starting anything, so a bad pull request costs one job rather than
-    # a whole matrix.
     needs: [discover, tests]
-    #
-    # This job was once restricted to runs started by hand, because it was
-    # measured at 76 of the workflow's 90 billable minutes, which is a private
-    # repository's whole monthly allowance in 26 pushes. That restriction
-    # outlived its reason and became the more expensive mistake: with it in
-    # place, an ordinary push and a contributor's pull request both went green
-    # without provisioning a single container. A green badge that has verified
-    # no exercises is worse than no badge.
-    #
-    # An empty matrix is not a valid job and a docs-only change selects nothing,
-    # so the count guard stays. It is the only condition left, and it is the one
-    # that was always doing real work.
     if: needs.discover.outputs.count != '0'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
-      # One job per lab stack, not one per exercise.
-      #
-      # Twenty five jobs spent about three quarters of their minutes on things
-      # that were not testing. Measured across one real run: 37 minutes of work
-      # inside the test steps, 31 minutes of runner startup and teardown around
-      # them, and 16 more lost to per-job billing rounding, which charges a
-      # whole minute for a job that worked for ninety seconds.
-      #
-      # They also rebuilt the same stacks over and over. Five Kubernetes
-      # exercises meant five builds of one cluster's manifests from nothing;
-      # the api stack backs five exercises counting a mixed incident that
-      # borrows it. Grouped, the images are built once and every exercise after
-      # the first reuses the layers already on the runner.
-      #
-      # The cost of grouping is honest and worth naming: a stack that will not
-      # come up now fails every exercise behind it rather than one, and the
-      # group runs in sequence so its wall time is the sum rather than the max.
-      # `tse verify` still force-recreates containers per exercise, so what is
-      # shared between them is the image cache and never the state.
       matrix:
         group: ${{ fromJSON(needs.discover.outputs.groups) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # tse creates and reuses its own cluster, so only the binary is needed.
-      # The Kubernetes exercises are the only ones that touch it.
-      #
-      # The checksum is the one published with the release, pinned for the same
-      # reason every action in this file is pinned to a commit SHA. Without it
-      # this step installs whatever that URL serves on the day, at root, on a
-      # runner that also handles contributed pull request code.
       - name: Install kind
         if: matrix.group.stack == 'kubernetes'
         run: |
@@ -296,18 +162,7 @@ jobs:
           echo "517ab7fc89ddeed5fa65abf71530d90648d9638ef0c4cde22c2c11f8097b8889  /tmp/kind" | sha256sum -c -
           sudo install -m 0755 /tmp/kind /usr/local/bin/kind
 
-      # An exercise is only correct if it fails in its broken state and passes
-      # against its documented solution. Asserting only the second half would
-      # let a lab that is not actually broken ship green.
-      #
-      # The recordings are checked in the same step and in the same loop. The
-      # site replays them in its terminal, so they are only worth anything if
-      # they still match the system, and re-running them here costs nothing
-      # extra now that the stack is already up.
-      #
-      # `set -e` is deliberately absent: every exercise in the group runs even
-      # after one fails, so a single run tells you about all of them rather
-      # than only the first. The tally at the end is what fails the job.
+      # Run every exercise even after a failure, then fail on the aggregate.
       - name: Verify every exercise on this stack
         env:
           EXERCISES: ${{ join(matrix.group.exercises, ' ') }}
@@ -333,10 +188,6 @@ jobs:
 
   loop:
     name: learner loop
-    # Same reasoning as `verify`: the full smoke test provisions a real
-    # exercise, so it was held to the same on-request rule and is released from
-    # it for the same reason. It follows the count guard rather than the event,
-    # because a change that reaches no exercise has no learner loop to run.
     needs: [tests, discover]
     if: needs.discover.outputs.count != '0'
     runs-on: ubuntu-24.04
@@ -351,18 +202,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # info rather than warning, which is what this ran at until an audit
-      # planted an unquoted variable in a check.sh and nothing happened. SC2086,
-      # the unquoted expansion, is classed info, so the most common bug in shell
-      # was the one bug this gate could not see. Every file here is a grader or
-      # sets up a lab, and an unquoted path in a grader is how an exercise
-      # passes for the wrong reason.
-      #
-      # SC1091 is excluded rather than fixed. Each check.sh sources the
-      # assertion library through $TSE_LIB, which has no value at lint time, so
-      # shellcheck cannot follow it and says so once per file. Twenty-six copies
-      # of a message about a file that is itself linted here is noise, and noise
-      # is what made the severity worth lowering in the first place.
+      # Dynamic $TSE_LIB imports are linted separately (SC1091).
       - run: |
           shellcheck --severity=info -e SC1091 \
             tools/lib/assert.sh \

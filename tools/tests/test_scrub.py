@@ -135,6 +135,8 @@ SAMPLES: dict[str, str] = {
         "app-1  | ERROR: required environment variable APP_SECRET is not set"
     ),
     "column-padding": "CONTAINER ID   IMAGE                COMMAND                  CREATED",
+    # Captured in the failing scheduled run and reproduced by `tse record --check`.
+    "python-server-patch": "Server: ProveItAPI/2.0 Python/3.12.15",
 }
 
 # Evidence that has to survive scrubbing. These are the strings the exercises
@@ -752,6 +754,63 @@ class MatchKeys(unittest.TestCase):
                         entry.get("match"),
                         tse.match_keys(entry["command"], entry["aliases"]),
                     )
+
+
+class ServerBannerComparison(unittest.TestCase):
+    """CI captured 3.12.15 where the same lab recorded 3.12.14."""
+
+    def recorded_entry(self):
+        path = ROOT / "labs/api/01-webhook-integration-rejected/transcript.json"
+        entries = json.loads(path.read_text())["entries"]
+        return next(entry for entry in entries
+                    if "Server: ProveItAPI/2.0 Python/3.12.14" in entry["output"])
+
+    def test_python_patch_banner_drift_does_not_change_the_recording(self):
+        paths = [
+            "api/01-webhook-integration-rejected",
+            "api/02-report-export-denied",
+            "api/03-integration-broke-after-upgrade",
+            "docker/02-customer-data-not-loading",
+            "docker/03-data-access-lost-after-credential-rotation",
+        ]
+        for exercise in paths:
+            path = ROOT / "labs" / exercise / "transcript.json"
+            previous = json.loads(path.read_text())
+            fresh = [{**entry, "output": entry["output"].replace(
+                "Python/3.12.14", "Python/3.12.15")}
+                for entry in previous["entries"]]
+            with self.subTest(exercise):
+                self.assertNotEqual(previous["entries"], fresh)
+                self.assertEqual(tse.compare_transcript(previous, fresh), [])
+
+    def test_meaningful_changes_still_fail_with_a_new_patch_banner(self):
+        old = self.recorded_entry()
+        changed_banner = old["output"].replace("Python/3.12.14", "Python/3.12.15")
+        changes = [
+            ("status", "401 Unauthorized", "403 Forbidden"),
+            ("diagnosis", "api_key_revoked", "insufficient_scope"),
+            ("server version", "ProveItAPI/2.0", "ProveItAPI/3.0"),
+            ("Python minor", "Python/3.12.15", "Python/3.13.15"),
+            ("Python major", "Python/3.12.15", "Python/4.12.15"),
+        ]
+        for label, before, after in changes:
+            with self.subTest(label):
+                self.assertIn(before, changed_banner)
+                fresh = {**old, "output": changed_banner.replace(before, after)}
+                self.assertTrue(tse.compare_transcript({"entries": [old]}, [fresh]))
+        self.assertTrue(tse.compare_transcript(
+            {"entries": [old]}, [{**old, "output": changed_banner, "exit": 1}]))
+
+    def test_banner_rule_preserves_stored_output_and_unrelated_versions(self):
+        banner = "Server: ProveItAPI/2.0 Python/3.12.15"
+        self.assertEqual(scrub(banner, privacy_only=True), banner)
+        for text in [
+            "Python/3.12.15",
+            '{"runtime": "Python/3.12.15"}',
+            "Server: OtherProduct/2.0 Python/3.12.15",
+        ]:
+            with self.subTest(text):
+                self.assertEqual(scrub(text), text)
 
 
 if __name__ == "__main__":
